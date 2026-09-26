@@ -103,7 +103,8 @@ export type RunAction =
   /** At night, back down a rank. */
   | { readonly t: 'stepDown' }
   /** The hosts sent to the fronts (docs/tech-spec.md §54): the order the fronts are to be held in. */
-  | { readonly t: 'marshal'; readonly order: readonly string[] };
+  /** The horn (docs/tech-spec.md §54): the order the fronts are held in, and the front the chooser rides to (§58). */
+  | { readonly t: 'marshal'; readonly order: readonly string[]; readonly ride?: string };
 
 export type RunEvent =
   | { readonly e: 'shift'; readonly event: ShiftEvent }
@@ -1354,7 +1355,9 @@ export function stepRun(run: RunState, action: RunAction, env: RunEnv): { state:
   if (action.t === 'marshal') {
     const def = campaignOf(env.content).ragnarok;
     if (run.phase !== 'ragnarok' || !def) return reject(run, 'there is no battle to fight');
-    const battle = fight(run, def, action.order);
+    if (action.ride !== undefined && (!def.ride || !def.fronts.some((f) => f.id === action.ride)))
+      return reject(run, 'no such front to ride to');
+    const battle = fight(run, def, action.order, action.ride);
     const fought: RunState = { ...run, battle };
     const ending = endingFor(fought, env.content) ?? campaignOf(env.content).finale;
     return {

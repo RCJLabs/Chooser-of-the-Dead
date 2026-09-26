@@ -628,6 +628,8 @@ export const CampaignPartSchema = z.strictObject({
           }),
         )
         .min(1),
+      // The chooser rides to one front, with this much strength (docs/tech-spec.md §58).
+      ride: z.strictObject({ strength: Int.min(1) }).optional(),
     })
     .optional(),
   // Arms for the last battle, upgrades sold back, and a reprieve from debt (docs/tech-spec.md §56).

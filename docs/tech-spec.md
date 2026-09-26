@@ -3201,10 +3201,10 @@ The brainstorm's version, and what changed:
 
   | Front | Foe | Host |
   |---|---|---|
-  | the wolf | Fenrir, 100 | Odin's einherjar |
-  | the fire | Surtr, 70 | Freyja's host |
-  | Hel's gate | Garm, 130 | Hel's legion |
-  | the shore | Naglfar, 35, and 2 more for each soul sent on with its nails long | Rán's drowned |
+  | the wolf | Fenrir, 100 (120 since §58) | Odin's einherjar |
+  | the fire | Surtr, 70 (84 since §58) | Freyja's host |
+  | Hel's gate | Garm, 130 (156 since §58) | Hel's legion |
+  | the shore | Naglfar, 35 (42 since §58), and 2 more for each soul sent on with its nails long | Rán's drowned |
 
 - **Strength.** At its own front each soul sent rightly counts 2 and each who runs costs 1. At any other front a soul counts 1. The drowned fight only at sea.
 - **The order.** The player sets the order the fronts are held in.
@@ -3507,6 +3507,54 @@ The brainstorm's version, and what changed:
 - **The guide hides the powers not yet met,** so no one can plan for the clerk's favour before Day 10.
 - **The clerk's second offer is on Day 19 only,** and his ending still needs the contract. A run that never said "Not yet" doesn't see it.
 - **The words are drafts:** about 150 of them (Loki's two favours, the audit's row, the clerk's Day 19 beat).
+
+## 58. After M7: where you ride, and a harder last battle
+
+**Why.** Item 7 of the rundown. The order of the fronts was the battle's only choice, and arms (§56) made it no choice at all for the best players: expert bots held all four fronts in every run, with about 28 strength to spare. Without arms they were on a knife-edge (about 2 to spare).
+
+**What was tried first.** Foes that come at a strength drawn at the horn (±10% to ±25% of their own, shown as a range), with the ride fixing one front at its own. Experts still held all four in 96–97% of runs, and everyone else's battle only got more random. Dropped.
+
+**How it works**
+- **The foes are a fifth stronger:** the wolf 120, the fire 84, Hel's gate 156, the shore 42, and 2 more on the shore for each nail left long, as before.
+- **Where you ride.** At the horn the player picks one front to ride to (`ride` in `ragnarok`, `strength: 15`), and is worth 15 there.
+  - The ride counts the way arms do: after the front's runners, never through them.
+  - The horn waits until it's chosen. Each front says, as the ride and the order are set, whether it will hold.
+  - The battle keeps where the player rode (`battle.ride`), and the front ridden to shows "you 15" wherever the battle is told: at the horn, front by front, in the ending's report, and in the playtest report.
+  - The engine takes a horn without a ride (older callers, and a build whose battle has none), and refuses a front there isn't.
+- **The bots** choose the ride with the order: of every front to ride to, the one whose best order holds the most fronts, their god's among them. The arms they buy count on that ride.
+
+**Measured** (60 runs per policy, the same seeds as §56's tuning, story policies playing the scenes)
+
+| Policy | Fronts held, before | Fronts held, after | Endings, after |
+|---|---|---|---|
+| Expert, plain | 4 in all 60 | 4 in 39, 3 in 21 | Odin 32, the last stand 28 (as before) |
+| Competent, pays every bill | 4 in 6, 3 in 54 | 3 in 56, 2 in 4 | as before |
+| Competent, frugal | 4 in 20, 3 in 40 | 3 in all 60 | as before |
+| Novice, pays every bill | 1 or 2 | 1 in 28, 2 in 17 | the wolf 28 (19 before) |
+| Experts courting Odin, Freyja, Hel; the rebirth | 4 in all | 4 in 32–53 | 60, 57, 56, 60 of 60 (as before, within one or two) |
+
+- **The best players** now lose a front in about a third of runs, and choose which. Their god's front, the one their ending needs, holds every time.
+- **The ride decides a front for everyone.** It isn't a formality: in the e2e run, the order alone holds the wolf or Hel's gate, and riding to the wolf holds both.
+- **Novices lose more fronts,** so more of their runs end with the wolf.
+- **The full campaign sim** (`pnpm sim campaign`, 200 runs per policy, plain story) agrees. Mean fronts held, before → after:
+  - experts 4.0 → 3.6–3.7;
+  - competent players 3.1–3.4 → 3.0;
+  - novices 1.5–1.6 → 1.3–1.4, with the wolf ending 35–96 → 47–119 runs of 200.
+
+  Demotions, reprieves and rings are unchanged, since the battle comes after the last audit.
+
+**Checks**
+- **Engine:**
+  - the ride adds its strength at its front only, can hold a front that would fall, is ignored for a front there isn't or in a battle without the ride, and is recorded in the battle;
+  - the battle's property test now rides too: every front it says held has the strength, and the chooser is at one front at most;
+  - the horn refuses a ride to a front there isn't.
+- **Report:** where the chooser rode, and what it was worth.
+- **e2e** (phone and desktop, with axe scans): the horn waits for the ride; the order alone holds the wolf or the gate, and riding to the wolf holds both; the battle and the ending follow the ride.
+
+**Known limits**
+- **Harder for everyone,** not only the best: novices' runs end with the wolf more often, and competent players keep their third front but rarely reach a fourth.
+- **The ride is the same for every player:** 15, not scaled to how well the run went. Scaling it by skill would have given the best players their surplus back.
+- **The words are drafts:** about 50 of them (the ride's heading, lead, labels and hint).
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

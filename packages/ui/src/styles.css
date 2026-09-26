@@ -1907,6 +1907,43 @@ a.btn {
   min-height: 44px;
 }
 
+/* Where the chooser rides at the horn: one front, a radio each (docs/tech-spec.md §58). */
+.ragnarok__ride {
+  display: grid;
+  gap: 0.25rem;
+  /* A fieldset is as wide as its content unless told otherwise: on a phone that's wider than the screen. */
+  min-width: 0;
+}
+
+.ragnarok__ride legend {
+  /* Floated, a legend is laid out like any heading in the card instead of sitting on its border. */
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--accent);
+}
+
+.ragnarok__ride p {
+  margin: 0 0 0.25rem;
+}
+
+.ride__option {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px;
+}
+
+.ride__option input {
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
 .bills input {
   flex: none;
   width: 1.3rem;

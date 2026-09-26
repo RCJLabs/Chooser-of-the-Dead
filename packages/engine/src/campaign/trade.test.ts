@@ -73,11 +73,13 @@ describe('arms for the last battle', () => {
   it('add their strength at their front when the horn blows, and can hold a front that would fall', () => {
     const def = campaignOf(full).ragnarok;
     if (!def || !arms) return;
-    // A host too small for the wolf, and no other to spare it souls: 45 worthy make 90 against 100.
+    // A host too small for the wolf, and no other to spare it souls: two lots short of its foe.
+    const foe = def.fronts.find((f) => f.id === 'front.wolf')?.foe ?? 0;
+    const worthy = Math.ceil((foe - 2 * arms.strength) / 2);
     const base = {
       ...nightOf(full, 20),
-      einherjar: { worthy: 45, unworthy: 0 },
-      sent: { VALHALLA: 45 },
+      einherjar: { worthy, unworthy: 0 },
+      sent: { VALHALLA: worthy },
       misfits: {},
       naglfar: 0,
     };
@@ -85,7 +87,7 @@ describe('arms for the last battle', () => {
     expect(wolf(base)).toMatchObject({ held: false, arms: 0 });
     const armed = { ...base, armed: { 'front.wolf': 2 * arms.strength } };
     expect(wolf(armed)).toMatchObject({ held: true, arms: 2 * arms.strength });
-    expect(wolf(armed)?.strength).toBeGreaterThanOrEqual(100);
+    expect(wolf(armed)?.strength).toBeGreaterThanOrEqual(foe);
     expect(heldFronts(fight(armed, def, ['front.wolf']))).toContain('front.wolf');
   });
 });

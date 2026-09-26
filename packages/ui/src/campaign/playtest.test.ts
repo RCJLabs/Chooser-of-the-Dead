@@ -392,7 +392,7 @@ describe('the playtest report', () => {
       ],
     };
     let run = resumeSave(save, content, ENGINE_MAJOR).run;
-    for (const a of [{ t: 'endNight' }, { t: 'marshal', order: ['front.ship'] }] as RunAction[]) {
+    for (const a of [{ t: 'endNight' }, { t: 'marshal', order: ['front.ship'], ride: 'front.gate' }] as RunAction[]) {
       const next = stepRun(run, a, { content, ctx: runContext(content, run) }).state;
       // Left at the horn, the report says where the run stands, and there's no battle to tell of yet.
       if (a.t === 'marshal') {
@@ -403,8 +403,9 @@ describe('the playtest report', () => {
       run = next;
     }
     const text = report(save);
+    const ride = content.campaign?.ragnarok?.ride?.strength ?? 0;
     expect(text).toContain(
-      '### Ragnarök\n\nHeld in this order: front.ship, then front.wolf, then front.fire, then front.gate.',
+      `### Ragnarök\n\nHeld in this order: front.ship, then front.wolf, then front.fire, then front.gate.\nRode to front.gate, worth ${ride} there.`,
     );
     for (const f of run.battle?.fronts ?? []) {
       expect(text).toContain(`- ${f.id}: ${f.held ? 'held' : 'fell'}, ${f.strength} against ${f.foe} (`);

@@ -322,7 +322,10 @@ function battle(p: PlaytestInput): string[] {
     ];
   });
   const order = b.order.map((id) => p.t(front(id)?.name ?? id)).join(', then ');
-  return ['### Ragnarök', '', `Held in this order: ${order}.`, '', ...lines];
+  // Where the chooser rode (docs/tech-spec.md §58), and what that was worth there.
+  const rode = b.fronts.find((f) => f.id === b.ride);
+  const ride = rode ? [`Rode to ${p.t(front(rode.id)?.name ?? rode.id)}, worth ${rode.ride ?? 0} there.`] : [];
+  return ['### Ragnarök', '', `Held in this order: ${order}.`, ...ride, '', ...lines];
 }
 
 /**

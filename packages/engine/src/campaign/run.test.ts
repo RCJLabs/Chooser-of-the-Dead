@@ -905,6 +905,21 @@ describe('the last battle (docs/tech-spec.md §54)', () => {
     expect(saved.events.map((e) => e.e)).toContain('reprieve');
   });
 
+  it('rides to the front the player chooses, worth the ride there, and refuses a front there isn’t (§58)', () => {
+    const { horn } = lastNight();
+    const strength = campaignOf(full).ragnarok?.ride?.strength ?? 0;
+    expect(strength).toBeGreaterThan(0);
+    const rode = stepRun(horn, { t: 'marshal', order: [], ride: 'front.fire' }, env(horn));
+    expect(rode.state.battle?.ride).toBe('front.fire');
+    const fire = rode.state.battle?.fronts.find((f) => f.id === 'front.fire');
+    const without = marshal(horn).state.battle?.fronts.find((f) => f.id === 'front.fire');
+    expect(fire?.ride).toBe(strength);
+    expect(fire?.strength).toBeGreaterThanOrEqual(without?.strength ?? 0);
+    expect(stepRun(horn, { t: 'marshal', order: [], ride: 'front.moon' }, env(horn)).events[0]).toMatchObject({
+      e: 'rejected',
+    });
+  });
+
   it('decides the endings that read it: which fronts held, and how many', () => {
     const { horn } = lastNight();
     // No worthy einherjar and nobody in the other halls: at most the shore, and the wolf wins.

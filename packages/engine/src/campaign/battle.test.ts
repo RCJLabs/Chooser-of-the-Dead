@@ -21,6 +21,9 @@ const DEF: RagnarokDef = {
   ],
 };
 
+/** The same field, where the chooser rides out too (docs/tech-spec.md §58). */
+const RIDDEN: RagnarokDef = { ...DEF, ride: { strength: 15 } };
+
 const base = newRun(loadContent('dev-full'), 'battle');
 
 /** A run with so many worthy and unworthy einherjar, souls sent to Hel and Rán, misfits among them, and long nails. */
@@ -126,6 +129,20 @@ describe('the last battle', () => {
     expect(front(b, 'front.a')?.stood).toEqual([]);
   });
 
+  it('adds the chooser’s strength where the player rides, and it can hold a front that would fall (§58)', () => {
+    // 20 worthy, 2 who run: 38 against the wolf's 40. Riding there makes it 53.
+    const run = runWith({ worthy: 20, unworthy: 2, ran: 5 });
+    expect(front(fight(run, RIDDEN, ['front.a']), 'front.a')).toMatchObject({ held: false, strength: 38 });
+    const rode = fight(run, RIDDEN, ['front.a'], 'front.a');
+    expect(rode.ride).toBe('front.a');
+    expect(front(rode, 'front.a')).toMatchObject({ held: true, ride: 15, strength: 53 });
+    expect(rode.fronts.filter((f) => f.id !== 'front.a').every((f) => f.ride === undefined)).toBe(true);
+    // Riding elsewhere doesn't help it; nor does riding where there's no such front, or in a battle without the ride.
+    expect(front(fight(run, RIDDEN, ['front.a'], 'front.b'), 'front.a')?.held).toBe(false);
+    expect(fight(run, RIDDEN, ['front.a'], 'front.x').ride).toBeUndefined();
+    expect(front(fight(run, DEF, ['front.a'], 'front.a'), 'front.a')).toMatchObject({ held: false, strength: 38 });
+  });
+
   it('takes an order with unknown and repeated fronts, and puts the fronts it leaves out after, in order', () => {
     const b = fight(runWith({ worthy: 50, hel: 50, ran: 10 }), DEF, ['front.b', 'nope', 'front.b']);
     expect(b.order).toEqual(['front.b', 'front.a', 'front.c']);
@@ -146,20 +163,23 @@ describe('the last battle', () => {
         armsC: fc.nat(20),
       }),
       fc.shuffledSubarray(['front.a', 'front.b', 'front.c'], { minLength: 3, maxLength: 3 }),
+      fc.constantFrom(undefined, 'front.a', 'front.b', 'front.c'),
     ],
     { numRuns: 300 },
-  )('holds every front it says it holds, and no front it says fell was held', (p, order) => {
+  )('holds every front it says it holds, and no front it says fell was held', (p, order, ride) => {
     const run = runWith({
       ...p,
       helMisfits: Math.min(p.helMisfits, p.hel),
       ranMisfits: Math.min(p.ranMisfits, p.ran),
       armed: { 'front.a': p.armsA, 'front.c': p.armsC },
     });
-    const b = fight(run, DEF, order);
-    const hosts = hostsAt(run, DEF);
+    const b = fight(run, RIDDEN, order, ride);
+    const hosts = hostsAt(run, RIDDEN);
     for (const f of b.fronts) {
       if (f.held) expect(f.strength, f.id).toBeGreaterThanOrEqual(f.foe);
       else expect(f.strength, f.id).toBeLessThan(f.foe);
+      // The chooser is at one front at most: the one ridden to.
+      expect(f.ride ?? 0, f.id).toBe(f.id === ride ? 15 : 0);
     }
     // Nobody is in two places: each host's souls at the fronts add up to at most what it has.
     for (const h of hosts) {
@@ -170,7 +190,7 @@ describe('the last battle', () => {
     // because it couldn't be held along with those before it.
     for (const f of b.fronts.filter((x) => !x.held)) {
       const before = b.order.slice(0, b.order.indexOf(f.id));
-      const again = fight(run, DEF, [...before.filter((id) => front(b, id)?.held), f.id]);
+      const again = fight(run, RIDDEN, [...before.filter((id) => front(b, id)?.held), f.id], ride);
       expect(front(again, f.id)?.held, f.id).toBe(false);
     }
   });
