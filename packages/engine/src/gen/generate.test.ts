@@ -247,13 +247,13 @@ describe('metamorphic', { timeout: 30_000 }, () => {
 
 const allDays = content.days.map((d) => d.day);
 
-/** Generated souls for a day range, for adversarial edits. */
+/** Generated souls for a day range, for adversarial edits, each with the rules it's judged by (a noon decree's after noon). */
 function sample(days: number[], seeds: number) {
   const out: { c: CaseSpec; ctx: ReturnType<typeof createDayContext> }[] = [];
   for (const day of days) {
     for (let s = 0; s < seeds; s++) {
       const ctx = createDayContext(content, day, `adv-${s}`);
-      for (const c of generateDay(`adv-${s}`, ctx).cases) out.push({ c, ctx });
+      for (const c of generateDay(`adv-${s}`, ctx).cases) out.push({ c, ctx: soulCtx(ctx, c) });
     }
   }
   return out;

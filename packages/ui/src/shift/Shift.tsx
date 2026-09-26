@@ -10,13 +10,13 @@ import {
   type Lesson,
   nextHint,
   PENALTY,
+  pleaOf,
   questionCostMs,
   ruledOut,
   ruleText,
   soulCtx,
   stampsFor,
   storyOffer,
-  storyPlea,
   sunLeft,
   type Verdict,
 } from '@cots/engine';
@@ -1007,13 +1007,20 @@ function OfferNote({ s, c }: { s: Session; c: CaseSpec }) {
   );
 }
 
-/** What a story soul asks for, openly, where it doesn't belong (docs/tech-spec.md §51), while it's at the desk. */
+/**
+ * What a soul asks for, openly, where it doesn't belong (docs/tech-spec.md §51, §59), while it's at the desk: a story
+ * soul's plea, or an ordinary soul's.
+ */
 function PleaNote({ s, c }: { s: Session; c: CaseSpec }) {
-  const plea = storyPlea(s.content, c);
+  const plea = pleaOf(s.content, c);
   if (!plea) return null;
+  const { name, patronym, gender } = c.evidence.look;
+  // Granted, the soul stands with the host of the hall it asked for, where the last battle has one.
+  const host = s.content.campaign?.ragnarok?.hosts.some((h) => h.hall === plea.dest) ?? false;
   return (
     <p class="shift__appeal" data-testid="plea-banner">
-      {t(plea.text, { name: `${c.evidence.look.name} ${c.evidence.look.patronym}` })}
+      {t(plea.text, { name: `${name} ${patronym}`, gender })}
+      {host && <span data-testid="plea-stands"> {t('ui.plea.stands', { gender })}</span>}
     </p>
   );
 }

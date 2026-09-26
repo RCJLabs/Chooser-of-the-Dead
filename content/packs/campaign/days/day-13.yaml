@@ -20,6 +20,8 @@ queue:
   count: [12, 14]
   teachFirst: arch.oathbreaker
   scripted:
+    # A miser who pays to be sent home (docs/tech-spec.md §59): a bribe for the stamp that sends the living back.
+    - { case: case.hrapp, at: 4 }
     - { case: case.bjarni_drowned, at: 9 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }

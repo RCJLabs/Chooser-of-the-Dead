@@ -29,6 +29,21 @@ requests:
     - { id: req.odin, god: odin, from: FOLKVANGR, to: VALHALLA, n: 1, reward: { odin: 1 }, since: 5, text: request.odin }
     - { id: req.hel, god: hel, from: VALHALLA, to: HEL, n: 2, reward: { hel: 1 }, since: 5, text: request.hel }
     - { id: req.clerk, god: clerk, from: HEL, to: TRANSFER, n: 2, reward: { clerk: 1 }, since: 10, text: request.clerk }
+# Pleas from ordinary souls (docs/tech-spec.md §59): on half the days from Day 7, one of the day's own souls asks, openly,
+# for a hall where it doesn't belong, as Kari does on Day 16 (§51). The stamp is the answer. Granted, it's a mistake all
+# the same (no wage, a citation, a fine past the day's warnings, the standing any such mistake moves), but the soul
+# stands at Ragnarök in the hall it asked for instead of running from it, and doesn't appeal. Never a story soul, the
+# day's teaching soul or one who waited through the night, and never on a day a story soul pleads. DRAFT text.
+pleas:
+  from: 7
+  chance: 50
+  list:
+    - { from: HEL, to: VALHALLA, text: plea.hel.valhalla }
+    - { from: HEL, to: RAN, text: plea.hel.ran }
+    - { from: VALHALLA, to: HEL, text: plea.valhalla.hel }
+    - { from: VALHALLA, to: FOLKVANGR, text: plea.valhalla.folkvangr }
+    - { from: RAN, to: VALHALLA, text: plea.ran.valhalla }
+    - { from: TRANSFER, to: HEL, text: plea.transfer.hel, since: 10 }
 # Favour (docs/tech-spec.md §43): at the gate each morning, every god whose standing is at a favour's mark grants
 # it for the day and its night, and a god's favours add up. Like the upgrades, favours give time, information or
 # money, never what decides a soul. The first come at 4, or at 3 for the two that ease hardship (sickness and
@@ -87,6 +102,13 @@ weaving:
       souls:
         - { kind: arch.baptized, to: [VALHALLA, FOLKVANGR], n: 1 }
         - { kind: arch.baptized, to: [RAN], n: 1 }
+    # Freyja's rule before Odin's claim (docs/tech-spec.md §59): from Day 15, when both want the same worthy soul, her
+    # whim wins, where the day's rule says his claim does.
+    - id: weave.freyjaFirst
+      name: weave.freyjaFirst
+      text: weave.freyjaFirst.text
+      order: { rule.folkvangr: 585 }
+      souls: [{ kind: arch.contested, to: [FOLKVANGR], n: 2 }]
 # Day events (docs/tech-spec.md §52): each run draws three as it begins, from its seed, on three of Days 5-18,
 # never two days running (nor on a day with a noon decree). An event changes the day's line (the last of its own
 # souls don't come, and the event's come among the rest), its sun, and that night's bills and sickness; never the
@@ -133,6 +155,21 @@ events:
       text: event.feast.text
       fewer: 3
       costsPct: { food: 0 }
+    # A hard frost in the deep of the winter (docs/tech-spec.md §59): less sun to judge by, and the hearth at home
+    # burns half as much wood again that night.
+    - id: event.frost
+      since: 10
+      name: event.frost
+      text: event.frost.text
+      sunPct: 85
+      costsPct: { hearth: 150 }
+    # The jarl's men hunt the outlaws in the hills (§59): three outlaws in the line, in place of three of the day's own.
+    - id: event.outlaws
+      since: 6
+      name: event.outlaws
+      text: event.outlaws.text
+      fewer: 3
+      souls: [{ kind: arch.oathbreaker, to: [HEL], n: 3 }]
 # Speed only (docs/build-plan.md §1): cheaper tools and questions, more sun.
 shop:
   - { id: up.sundial, name: shop.sundial, text: shop.sundial.text, price: 25, since: 4, effect: { sunS: 30 } }
@@ -314,6 +351,11 @@ epilogue:
         - { when: { state: flags.letters_honest, gte: 3 }, text: epi.asa.honest }
         - { when: { state: flags.letters_kind, gte: 3 }, text: epi.asa.kind }
         - { text: epi.asa.home }
+    # Freyja's tear, sent home from the desk on Day 11 (docs/tech-spec.md §59).
+    - id: epi.tear
+      section: home
+      lines:
+        - { when: { state: flags.tear_asa, gte: 1 }, text: epi.tear }
     - id: epi.skogul
       section: powers
       lines:
@@ -390,6 +432,13 @@ epilogue:
           text: epi.jarl.ran
         - { when: { state: flags.jarl_bribe, gte: 1 }, text: epi.jarl.bench }
         - { when: { state: flags.jarl_refused, gte: 1 }, text: epi.jarl.hel }
+    # The miser who paid to be sent home on Day 13 (docs/tech-spec.md §59), and walks.
+    - id: epi.hrapp
+      section: dead
+      lines:
+        - { when: { state: flags.hrapp_draugr, gte: 1 }, text: epi.hrapp.draugr }
+        - { when: { state: flags.hrapp_refused, gte: 1 }, text: epi.hrapp.hel }
+        - { when: { state: flags.hrapp_judged, gte: 1 }, text: epi.hrapp.judged }
     # Kari asked to be sent to Rán, where he thought his mother was: whether she is depends on Day 5.
     - id: epi.kari
       section: dead

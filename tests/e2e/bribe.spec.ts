@@ -14,9 +14,7 @@ import { FULL } from './urls';
 test.use({ baseURL: FULL });
 
 const content = loadContent('dev-full');
-const offering = content.scripted?.find((d) =>
-  d.onStamp?.some((r) => r.effects.some((e) => 'rings' in e && e.rings > 0)),
-);
+const offering = content.scripted?.find((d) => d.id === 'case.jarl');
 const spec = content.days.find((d) => (d.queue.scripted ?? []).some((s) => s.case === offering?.id));
 const save = scenarioSave(content, 'e2e-bribe', spec?.day ?? 1, ENGINE_MAJOR);
 
@@ -93,4 +91,47 @@ test('a jarl’s bribe: first in line, his offer on the desk, a citation for tak
   await expect(page.getByTestId('night-title')).toHaveText(`Night ${spec.day}`);
   while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
   await expect(page.getByTestId('scene')).toContainText("You count the jarl's thirty rings into the pot");
+});
+
+test('a miser’s bribe on Day 13: forty rings for a stamp home, a citation for taking it, and Muninn remembers', async ({
+  page,
+}) => {
+  // Hrapp Oddsson (docs/tech-spec.md §59) pays for the stamp that sends the living home. He waits his turn.
+  const day13 = content.days.find((d) => (d.queue.scripted ?? []).some((s) => s.case === 'case.hrapp'));
+  if (!day13) throw new Error('no miser in this build');
+  const miserSave = scenarioSave(content, 'e2e-miser', day13.day, ENGINE_MAJOR);
+  await page.addInitScript(
+    (record) => localStorage.setItem('cots.campaign.0', record),
+    JSON.stringify({ v: 1, rev: 1, savedAt: 0, save: miserSave }),
+  );
+  await page.goto('./');
+  await page.getByTestId('play-campaign').click();
+  await page.getByTestId('continue-0').click();
+  await expect(page.getByTestId('morning-title')).toHaveText(`Day ${day13.day}`);
+  while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
+  await page.getByTestId('scene-done').click();
+  await page.getByTestId('to-gate').click();
+  const queue = await page.evaluate<SavedSoul[]>(
+    `JSON.parse(localStorage.getItem('cots.campaign.0') ?? 'null')?.save.queue ?? []`,
+  );
+  const at = queue.findIndex((c) => c.script === 'case.hrapp');
+  expect(at).toBeGreaterThan(0);
+  for (const [i, c] of queue.entries()) {
+    const clip = c.expect.procedures?.includes('proc.clip') === true;
+    if (i === at) {
+      await expect(page.getByTestId('offer-banner')).toHaveText(
+        'Hrapp Oddsson offers you 40 rings for a Return stamp: paid at the audit, and a mistake all the same.',
+      );
+      await stampAndSend(page, 'RETURN', false);
+      await expect(page.getByTestId('citation-close')).toBeVisible();
+      await page.getByTestId('citation-close').click();
+      continue;
+    }
+    await stampAndSend(page, c.expect.dest, clip);
+  }
+  await expect(page.getByTestId('audit-paid').locator('td')).toHaveText(['Rings from Hrapp Oddsson', '+40']);
+  await page.getByTestId('go-home').click();
+  await expect(page.getByTestId('night-title')).toHaveText(`Night ${day13.day}`);
+  while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
+  await expect(page.getByTestId('scene')).toContainText('you sent him home to his silver');
 });

@@ -11,8 +11,9 @@ import { judge } from '../logic/judge';
 import { solve } from '../logic/solver';
 import { type Assists, DUSK_GRACE_MS, ruledOut, stepShift } from '../shift/shift';
 import { battleDue } from './battle';
-import { eventDays, eventLineChange, eventSoulsOn } from './events';
+import { eventDays, eventLineChange, eventOn, eventSoulsOn } from './events';
 import { beatsDay, dayGrade, GRADES } from './grade';
+import { pleaOf } from './pleas';
 import {
   battleMarks,
   billForecast,
@@ -35,13 +36,13 @@ import {
   type RunEvent,
   reachableEndings,
   shiftMods,
+  soulName,
   stampEffects,
   stampRings,
   standingFx,
   stateMarks,
   stepRun,
   storyOffer,
-  storyPlea,
   threadsInPlay,
 } from './run';
 import { type RunSave, recordAction, replayableDays, replayDay, resumeSave, runContext, startSave } from './save';
@@ -1686,57 +1687,69 @@ describe('the gods’ favour (docs/tech-spec.md §43)', () => {
 });
 
 describe('a noon decree (docs/tech-spec.md §45)', () => {
-  const spec = full.days.find((d) => d.noon !== undefined);
+  // Day 19's redraws Freyja's whim; Day 18's, Odin's claim (§59). What holds for any decree is checked on each day that
+  // has one, and the rest on Day 19's.
+  const decrees = full.days.filter((d) => d.noon !== undefined);
+  const spec = decrees.find((d) => d.noon?.redraw.includes('freyjaWhim'));
   const noonDay = spec?.day ?? 0;
-  /** The morning of the decree's day in a fresh run: its queue depends only on the seed and the day. */
+  /** The morning of a decree's day in a fresh run: its queue depends only on the seed and the day. */
   const morningOf = (seed: string): RunState => ({ ...newRun(full, seed), day: noonDay });
   const knobs = (ctx: DayCtx) => tierKnobs('widenBand', ctx.spec.queue.knobs);
 
-  it('draws its params again for the souls after noon, never to the same choice, and the same way every time', () => {
-    expect(spec?.noon?.redraw.length).toBeGreaterThan(0);
-    for (let i = 0; i < 12; i++) {
-      const ctx = createDayContext(full, noonDay, `noon${i}`);
-      const noon = ctx.noon;
-      if (!noon || !spec?.noon) throw new Error('no noon decree');
-      for (const [name, choice] of Object.entries(ctx.paramChoices)) {
-        const after = noon.ctx.paramChoices[name]?.id;
-        if (spec.noon.redraw.includes(name)) expect(after).not.toBe(choice.id);
-        else expect(after).toBe(choice.id);
-      }
-      expect(noon.ctx.noon).toBeUndefined();
-      expect(createDayContext(full, noonDay, `noon${i}`).noon?.ctx.paramChoices).toEqual(noon.ctx.paramChoices);
-    }
-    // Only days that have one, and never the Daily.
-    for (const d of full.days) expect(createDayContext(full, d.day, 'x').noon === undefined).toBe(d.noon === undefined);
-    if (full.daily) expect(createDayContext(full, full.daily.day, 'x', full.daily).noon).toBeUndefined();
-  });
+  it('is on Days 18 and 19', () => expect(decrees.map((d) => d.day)).toEqual([18, 19]));
 
-  it('makes and judges each soul by the rules in force when it comes to the desk: the decree’s, after noon', () => {
-    let changed = 0;
-    for (let i = 0; i < 8; i++) {
-      const run = morningOf(`noon${i}`);
-      const ctx = runContext(full, run);
-      const noon = ctx.noon;
-      if (!noon) throw new Error('no noon decree');
-      const queue = campaignQueue(run, { content: full, ctx });
-      const first = queue.findIndex((c) => c.noon);
-      // Every soul after the first under the decree is under it too, and the raven comes after a soul at least.
-      expect(first).toBeGreaterThan(noon.notice);
-      expect(queue.slice(first).every((c) => c.noon)).toBe(true);
-      expect(queue.slice(0, first).some((c) => c.noon)).toBe(false);
-      // Each soul meets the contract under the rules it's judged by.
-      for (const c of queue) {
-        const cx = soulCtx(ctx, c);
-        expect(c.expect).toEqual(judge(c.truth, cx));
-        expect(validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs(cx)).ok).toBe(true);
-        if (c.noon && judge(c.truth, ctx).dest !== c.expect.dest) changed++;
+  for (const decree of decrees) {
+    const { day: noonDay } = decree;
+    const spec = decree;
+    const morningOf = (seed: string): RunState => ({ ...newRun(full, seed), day: noonDay });
+
+    it(`draws its params again for the souls after noon, never to the same choice, and the same way every time (Day ${noonDay})`, () => {
+      expect(spec?.noon?.redraw.length).toBeGreaterThan(0);
+      for (let i = 0; i < 12; i++) {
+        const ctx = createDayContext(full, noonDay, `noon${i}`);
+        const noon = ctx.noon;
+        if (!noon || !spec?.noon) throw new Error('no noon decree');
+        for (const [name, choice] of Object.entries(ctx.paramChoices)) {
+          const after = noon.ctx.paramChoices[name]?.id;
+          if (spec.noon.redraw.includes(name)) expect(after).not.toBe(choice.id);
+          else expect(after).toBe(choice.id);
+        }
+        expect(noon.ctx.noon).toBeUndefined();
+        expect(createDayContext(full, noonDay, `noon${i}`).noon?.ctx.paramChoices).toEqual(noon.ctx.paramChoices);
       }
-      // The decree's first soul is made to show the change.
-      expect(queue.find((c) => c.noon && c.procIndex === noon.at)?.archetype).toBe(spec?.noon?.teach);
-    }
-    // Most days it sends a soul somewhere the morning's rules wouldn't have.
-    expect(changed).toBeGreaterThanOrEqual(6);
-  });
+      // Only days that have one, and never the Daily.
+      for (const d of full.days)
+        expect(createDayContext(full, d.day, 'x').noon === undefined).toBe(d.noon === undefined);
+      if (full.daily) expect(createDayContext(full, full.daily.day, 'x', full.daily).noon).toBeUndefined();
+    });
+
+    it(`makes and judges each soul by the rules in force when it comes to the desk: the decree’s, after noon (Day ${noonDay})`, () => {
+      let changed = 0;
+      for (let i = 0; i < 8; i++) {
+        const run = morningOf(`noon${i}`);
+        const ctx = runContext(full, run);
+        const noon = ctx.noon;
+        if (!noon) throw new Error('no noon decree');
+        const queue = campaignQueue(run, { content: full, ctx });
+        const first = queue.findIndex((c) => c.noon);
+        // Every soul after the first under the decree is under it too, and the raven comes after a soul at least.
+        expect(first).toBeGreaterThan(noon.notice);
+        expect(queue.slice(first).every((c) => c.noon)).toBe(true);
+        expect(queue.slice(0, first).some((c) => c.noon)).toBe(false);
+        // Each soul meets the contract under the rules it's judged by.
+        for (const c of queue) {
+          const cx = soulCtx(ctx, c);
+          expect(c.expect).toEqual(judge(c.truth, cx));
+          expect(validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs(cx)).ok).toBe(true);
+          if (c.noon && judge(c.truth, ctx).dest !== c.expect.dest) changed++;
+        }
+        // The decree's first soul is made to show the change.
+        expect(queue.find((c) => c.noon && c.procIndex === noon.at)?.archetype).toBe(spec?.noon?.teach);
+      }
+      // Most days it sends a soul somewhere the morning's rules wouldn't have.
+      expect(changed).toBeGreaterThanOrEqual(6);
+    });
+  }
 
   it('cites a soul after noon stamped by the morning’s rules', () => {
     // A day whose decree's first soul would have gone elsewhere under the morning's rules.
@@ -1908,7 +1921,7 @@ describe('someone at the desk (docs/tech-spec.md §46)', () => {
 });
 
 describe('a jarl’s bribe (docs/tech-spec.md §47)', () => {
-  const def = full.scripted?.find((d) => d.onStamp?.some((r) => r.effects.some((e) => 'rings' in e && e.rings > 0)));
+  const def = full.scripted?.find((d) => d.id === 'case.jarl');
   const spec = full.days.find((d) => (d.queue.scripted ?? []).some((s) => s.case === def?.id));
   if (!def || !spec) throw new Error('no story soul in this build offers rings');
   const morning = (): RunState => ({ ...newRun(full, 'jarl'), day: spec.day });
@@ -2023,9 +2036,9 @@ describe('a plea at the desk (docs/tech-spec.md §51)', () => {
     const queue = campaignQueue(base, { content: full, ctx: runContext(full, base) });
     const soul = queue.find((c) => c.script === def.id);
     if (!soul) throw new Error('no one pleading in the line');
-    expect(storyPlea(full, soul)).toEqual({ dest: def.plea?.stamp, text: def.plea?.text });
-    expect(storyPlea(full, soul)?.dest).not.toBe(soul.expect.dest);
-    for (const c of queue.filter((x) => x.script !== def.id)) expect(storyPlea(full, c)).toBeNull();
+    expect(pleaOf(full, soul)).toEqual({ dest: def.plea?.stamp, text: def.plea?.text });
+    expect(pleaOf(full, soul)?.dest).not.toBe(soul.expect.dest);
+    for (const c of queue.filter((x) => x.script !== def.id)) expect(pleaOf(full, c)).toBeNull();
   });
 
   it('granted, is a mistake all the same, filed as a plea; refused, the day is clean', () => {
@@ -2042,6 +2055,127 @@ describe('a plea at the desk (docs/tech-spec.md §51)', () => {
     expect(granted.flags.kari_valhalla).toBeUndefined();
     // A story soul never appeals.
     expect(granted.appeal?.case.script).toBeUndefined();
+    // He asked to be there: at Ragnarök he stands with the drowned instead of running (§59).
+    expect(granted.misfits?.[plea] ?? 0).toBe(0);
+    expect(granted.named).toContainEqual({ name: 'Kari Solveigarson', day: spec.day, hall: plea, runs: false });
+  });
+});
+
+/** A day of `run`'s, every soul judged rightly but `soul`, stamped `stamped`, to its audit. */
+function judgedDay(run: RunState, soul: CaseSpec, stamped: Destination): RunState {
+  const ctx = runContext(full, run);
+  const actions: RunAction[] = [{ t: 'beginShift', at: 0 }];
+  campaignQueue(run, { content: full, ctx }).forEach((c, i) => {
+    const t = (i + 1) * 1000;
+    const it = c.id === soul.id;
+    for (const id of it ? [] : (c.expect.procedures ?? [])) {
+      const tool = ctx.procedures.find((p) => p.id === id)?.tool;
+      if (tool) actions.push({ t: 'shift', action: { t: 'tool', tool, at: t } });
+    }
+    actions.push({ t: 'shift', action: { t: 'stamp', dest: it ? stamped : c.expect.dest, at: t } });
+    actions.push({ t: 'shift', action: { t: 'send', at: t } });
+  });
+  return drive(full, run, actions).run;
+}
+
+describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
+  const def = campaignOf(full).pleas;
+  if (!def) throw new Error('no pleas in this build');
+  const { pleas: _, ...rest } = campaignOf(full);
+  const none: Content = { ...full, campaign: rest };
+  const told = (d: number) =>
+    (full.days.find((x) => x.day === d)?.queue.scripted ?? []).some(
+      (s) => full.scripted?.find((x) => x.id === s.case)?.plea,
+    );
+  /** A fresh run's line on `day`. */
+  const lineOn = (seed: string, day: number) => {
+    const run: RunState = { ...newRun(full, seed), day };
+    const ctx = runContext(full, run);
+    return { run, ctx, queue: campaignQueue(run, { content: full, ctx }) };
+  };
+  /** The first soul in a fresh run's lines who pleads for `to`. */
+  const pleading = (to: Destination) => {
+    for (let i = 0; i < 12; i++) {
+      for (let day = def.from; day <= campaignOf(full).lastDay; day++) {
+        const { run, queue } = lineOn(`plea-${to}-${i}`, day);
+        const soul = queue.find((c) => !c.script && pleaOf(full, c)?.dest === to);
+        if (soul) return { run, soul };
+      }
+    }
+    throw new Error(`no soul pleads for ${to}`);
+  };
+
+  it('come on some days from their first: one soul of the day’s own, asking for a hall the list allows, the same every time', () => {
+    let days = 0;
+    let asked = 0;
+    for (let i = 0; i < 4; i++) {
+      for (let day = 4; day <= campaignOf(full).lastDay; day++) {
+        const { run, ctx, queue } = lineOn(`plea${i}`, day);
+        const asking = queue.filter((c) => c.plea);
+        days++;
+        if (asking.length > 0) asked++;
+        // Not before their first day, nor on a day a story soul pleads (Kari's), and one a day at most.
+        if (day < def.from || told(day)) expect(asking).toEqual([]);
+        expect(asking.length).toBeLessThanOrEqual(1);
+        for (const c of asking) {
+          const plea = pleaOf(full, c);
+          expect(c.script).toBeUndefined();
+          expect(c.day).toBe(day);
+          expect(c === queue[0] && c.archetype === ctx.spec.queue.teachFirst).toBe(false);
+          expect(plea?.dest).not.toBe(c.expect.dest);
+          expect(def.list.some((p) => p.from === c.expect.dest && p.to === plea?.dest && p.text === plea?.text)).toBe(
+            true,
+          );
+        }
+        // Drawn on a stream of its own: the same line every time, and the same souls as a build without pleas.
+        expect(campaignQueue(run, { content: full, ctx })).toEqual(queue);
+        expect(queue.map(({ plea: __, ...c }) => c)).toEqual(campaignQueue(run, { content: none, ctx }));
+      }
+    }
+    expect(asked).toBeGreaterThan(days / 5);
+  });
+
+  it('granted, is a mistake like any, but the soul stands in the hall it asked for at Ragnarök, and doesn’t appeal', () => {
+    for (const to of ['VALHALLA', 'HEL'] as const) {
+      const { run, soul } = pleading(to);
+      const refused = judgedDay(run, soul, soul.expect.dest);
+      expect(refused.ledger.at(-1)?.wrong).toBe(0);
+      const granted = judgedDay(run, soul, to);
+      const l = granted.ledger.at(-1);
+      expect(l?.wrong).toBe(1);
+      expect(l?.mistakes).toEqual([expect.objectContaining({ expected: soul.expect.dest, stamped: to, pled: true })]);
+      expect(l?.standing).toEqual(standingFx(campaignOf(full), soul.expect.dest, to));
+      // Not a misfit who'll run: one who stands, named with the story's own. In Valhalla, with the worthy.
+      expect(granted.misfits?.[to] ?? 0).toBe(refused.misfits?.[to] ?? 0);
+      expect(granted.named).toContainEqual({ name: soulName(soul), day: run.day, hall: to, runs: false });
+      if (to === 'VALHALLA') {
+        expect(granted.einherjar.worthy).toBe(refused.einherjar.worthy + 1);
+        expect(granted.einherjar.unworthy).toBe(refused.einherjar.unworthy);
+      }
+      // It got what it asked for, so it never appeals.
+      expect(granted.appeal?.case.id).not.toBe(soul.id);
+    }
+  });
+});
+
+describe('a miser’s bribe (docs/tech-spec.md §59)', () => {
+  it('offers forty rings for the stamp that sends the living home: taken, a mistake that pays; refused, Hel', () => {
+    const run: RunState = { ...newRun(full, 'miser'), day: 13 };
+    const ctx = runContext(full, run);
+    const miser = campaignQueue(run, { content: full, ctx }).find((c) => c.script === 'case.hrapp');
+    if (!miser) throw new Error('no miser in the line');
+    expect(miser.expect.dest).toBe('HEL');
+    expect(storyOffer(full, miser)).toEqual({ dest: 'RETURN', rings: 40 });
+    const refused = judgedDay(run, miser, 'HEL');
+    expect(refused.flags.hrapp_refused).toBe(1);
+    expect(refused.flags.hrapp_draugr).toBeUndefined();
+    const taken = judgedDay(run, miser, 'RETURN');
+    expect(taken.flags.hrapp_draugr).toBe(1);
+    expect(taken.ledger.at(-1)?.mistakes).toEqual([
+      expect.objectContaining({ expected: 'HEL', stamped: 'RETURN', paid: 40 }),
+    ]);
+    // Forty rings, less the wage a right stamp would have paid (one mistake is within the day's warnings).
+    expect(taken.rings).toBe(refused.rings + 40 - economyFor(run, { content: full, ctx }).wage);
   });
 });
 
@@ -2346,6 +2480,18 @@ describe('promotion (docs/tech-spec.md §44)', () => {
 });
 
 describe('day events (docs/tech-spec.md §52)', () => {
+  it('never come on a day with a noon decree, even to a run that drew one there before the day had it (§59)', () => {
+    const run = {
+      events: [
+        { day: 17, id: 'event.storm' },
+        { day: 18, id: 'event.feast' },
+      ],
+    };
+    expect(full.days.find((d) => d.day === 18)?.noon).toBeDefined();
+    expect(eventOn(run, full, 17)?.id).toBe('event.storm');
+    expect(eventOn(run, full, 18)).toBeUndefined();
+  });
+
   const def = campaignOf(full).events;
   const ev = (id: string) => {
     const e = def?.pool.find((x) => x.id === id);
@@ -2374,9 +2520,9 @@ describe('day events (docs/tech-spec.md §52)', () => {
     };
   };
 
-  it('draws different events on days 5-18 as a run begins, never two days running, the same for the same seed', () => {
-    // From Day 5: Day 4 brings Freyja's stamp alone (docs/tech-spec.md §57).
-    expect(eventDays(full)).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+  it('draws different events on days 5-17 as a run begins, never two days running, the same for the same seed', () => {
+    // From Day 5: Day 4 brings Freyja's stamp alone (docs/tech-spec.md §57). Day 18 has a noon decree now (§59).
+    expect(eventDays(full)).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
     const seen = new Set<string>();
     for (let i = 0; i < 40; i++) {
       const events = newRun(full, `draw${i}`).events ?? [];

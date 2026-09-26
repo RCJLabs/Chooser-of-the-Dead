@@ -252,6 +252,7 @@
   "ui.leave.appeal": "The appeal waits for you on the morning's page.",
   "ui.line.waited": "Waited at the gate since Day {n}. Today's rules decide.",
   "ui.offer": "{name} offers you {n, plural, one {# ring} other {# rings}} for a {dest} stamp: paid at the audit, and a mistake all the same.",
+  "ui.plea.stands": "Granted, {gender, select, f {she} other {he}}'ll stand with that hall's host at the last battle, not run from it.",
   "ui.noon.since": "Since noon: {news}",
   "ui.desk.visit": "Someone at the desk",
   "ui.line.morning": "{count, plural, one {{names} waited at the gate through the night and is first in line today, under today's rules.} other {{names} waited at the gate through the night and are first in line today, under today's rules.}}",

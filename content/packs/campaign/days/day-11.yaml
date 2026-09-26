@@ -17,6 +17,9 @@ params:
       - { id: whim.amber, text: whim.amber, is: { fact: ornament, is: amber } }
 queue:
   count: [12, 14]
+  # Freyja at the desk (docs/tech-spec.md §46, §59), once four souls have been sent.
+  visits:
+    - { scene: scene.d11.desk, at: 4 }
   teachFirst: arch.tally_forger
   archetypes:
     - { id: arch.honest_warrior, w: 3 }

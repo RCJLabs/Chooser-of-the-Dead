@@ -175,7 +175,12 @@ const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
 group('the script against the game', () => {
   it('has every scene the build ships, each played on its day (at the desk too)', () => {
     expect(scenes.map((s) => s.id).sort()).toEqual(built.scenes.map((s) => s.id).sort());
-    expect(scenes.filter((s) => s.when === 'desk').map((s) => s.name)).toEqual(['d18.desk']);
+    expect(scenes.filter((s) => s.when === 'desk').map((s) => s.name)).toEqual([
+      'd11.desk',
+      'd15.desk',
+      'd17.desk',
+      'd18.desk',
+    ]);
     expect(scenes.every((s) => s.id === `scene.${s.name}` && s.file.endsWith(`${s.name}.ink`))).toBe(true);
     expect(model.totals.words).toBe(scenes.reduce((n, s) => n + s.words, 0));
   });

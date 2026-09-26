@@ -589,6 +589,16 @@ export const CampaignPartSchema = z.strictObject({
         .min(1),
     })
     .optional(),
+  // Pleas from ordinary souls (docs/tech-spec.md §59): on some days, one of the day's own asks for another hall.
+  pleas: z
+    .strictObject({
+      from: Day,
+      chance: Percent,
+      list: z
+        .array(z.strictObject({ from: DestinationSchema, to: DestinationSchema, text: Key, since: Day.optional() }))
+        .min(1),
+    })
+    .optional(),
   // The Norns' weave (docs/tech-spec.md §53): the same rules in another order, for a run begun woven.
   weaving: z
     .strictObject({
