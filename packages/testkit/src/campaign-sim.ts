@@ -138,18 +138,36 @@ export const STORY_POLICIES: readonly StoryPolicy[] = [
  * The order a bot holds the fronts in at Ragnarök (docs/tech-spec.md §54): of every order, one that holds the most
  * fronts, and among those one that holds `prefer`; the first such in the content's order.
  */
-export function botOrder(run: RunState, content: Content, prefer?: string): string[] {
+export function botOrder(run: RunState, content: Content, prefer?: string, ride?: string): string[] {
   const def = campaignOf(content).ragnarok;
   if (!def) return [];
   const orders = (ids: readonly string[]): string[][] =>
     ids.length <= 1 ? [ids.slice()] : ids.flatMap((id) => orders(ids.filter((x) => x !== id)).map((o) => [id, ...o]));
   let best: { order: string[]; score: number } | undefined;
   for (const order of orders(def.fronts.map((f) => f.id))) {
-    const held = heldFronts(fight(run, def, order));
+    const held = heldFronts(fight(run, def, order, ride));
     const score = held.length * 2 + (prefer !== undefined && held.includes(prefer) ? 1 : 0);
     if (!best || score > best.score) best = { order, score };
   }
   return best?.order ?? [];
+}
+
+/**
+ * The bot at the horn (docs/tech-spec.md §58): of every front to ride to, the one whose best order holds the most
+ * fronts, and among those one that holds `prefer`; the first such in the content's order.
+ */
+export function botBattle(run: RunState, content: Content, prefer?: string): { order: string[]; ride?: string } {
+  const def = campaignOf(content).ragnarok;
+  if (!def) return { order: [] };
+  const rides: (string | undefined)[] = def.ride ? def.fronts.map((f) => f.id) : [undefined];
+  let best: { order: string[]; ride?: string; score: number } | undefined;
+  for (const ride of rides) {
+    const order = botOrder(run, content, prefer, ride);
+    const held = heldFronts(fight(run, def, order, ride));
+    const score = held.length * 2 + (prefer !== undefined && held.includes(prefer) ? 1 : 0);
+    if (!best || score > best.score) best = { order, ...(ride ? { ride } : {}), score };
+  }
+  return best ? { order: best.order, ...(best.ride ? { ride: best.ride } : {}) } : { order: [] };
 }
 
 export function storyPolicy(name: string): StoryPolicy {
@@ -325,7 +343,8 @@ function armsFront(run: RunState, content: Content, prefer?: string): string | u
   const forSale = (campaign.arms?.fronts ?? []).map((f) => f.front);
   const def = campaign.ragnarok;
   if (!def) return forSale[0];
-  const lost = fight(run, def, botOrder(run, content, prefer))
+  const horn = botBattle(run, content, prefer);
+  const lost = fight(run, def, horn.order, horn.ride)
     .fronts.filter((f) => !f.held && forSale.includes(f.id))
     .sort((a, b) => a.foe - a.strength - (b.foe - b.strength));
   if (prefer && lost.some((f) => f.id === prefer)) return prefer;
@@ -455,6 +474,8 @@ export interface SimOptions {
   readonly oath?: boolean;
   /** A weave to play the run under (docs/tech-spec.md §53), by id, for measuring it. */
   readonly weave?: string;
+  /** Called with the run as the horn blows, before the hosts go to the fronts: for probes of the last battle. */
+  readonly onHorn?: (run: RunState) => void;
 }
 
 /** One bot run to the end of the campaign (or its ending). */
@@ -551,8 +572,10 @@ export function simulateRun(
   }
   // The horn (docs/tech-spec.md §54): the bot sends the hosts where it can hold the most, its god's front among them.
   if (run.phase === 'ragnarok') {
+    options.onHorn?.(run);
     const env = { content, ctx: runContext(content, run) };
-    run = stepRun(run, { t: 'marshal', order: botOrder(run, content, policy.front) }, env).state;
+    const horn = botBattle(run, content, policy.front);
+    run = stepRun(run, { t: 'marshal', order: horn.order, ...(horn.ride ? { ride: horn.ride } : {}) }, env).state;
     note({ at: 'run', run });
   }
   if (run.ending) note({ at: 'ending', ending: run.ending });

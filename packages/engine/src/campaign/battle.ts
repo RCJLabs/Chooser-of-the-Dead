@@ -37,6 +37,8 @@ export interface FrontBattle {
   readonly ran: number;
   /** Strength the run bought for it with arms (docs/tech-spec.md §56). */
   readonly arms: number;
+  /** The chooser's own, where the player rode (docs/tech-spec.md §58); 0 elsewhere, and in battles from before. */
+  readonly ride?: number;
   readonly strength: number;
   readonly held: boolean;
 }
@@ -44,6 +46,8 @@ export interface FrontBattle {
 export interface Battle {
   /** The order the fronts were to be held in, as the player set it. */
   readonly order: readonly string[];
+  /** The front the player rode to (docs/tech-spec.md §58), if they rode. */
+  readonly ride?: string;
   /** Each front, in the content's order. */
   readonly fronts: readonly FrontBattle[];
 }
@@ -66,25 +70,40 @@ export function foeAt(front: FrontDef, run: RunState): number {
 /** Strength the run bought for a front with arms (docs/tech-spec.md §56). */
 export const armsAt = (run: RunState, front: string): number => run.armed?.[front] ?? 0;
 
-/** What a host must make up at its own front: the foe, and 1 for each of its souls who'll run, less its arms. */
-const needAt = (front: FrontDef, host: HostState, run: RunState) =>
-  Math.max(0, foeAt(front, run) + host.misfits - armsAt(run, front.id));
+/** Strength a front has besides its souls: the arms bought for it, and the chooser's own if the player rode there. */
+type Boost = (front: string) => number;
+
+/** The arms at each front, and the chooser's strength where the player rode (docs/tech-spec.md §58). */
+function boosts(run: RunState, def: RagnarokDef, ride: string | undefined): Boost {
+  const own = ride !== undefined && def.fronts.some((f) => f.id === ride) ? (def.ride?.strength ?? 0) : 0;
+  return (front) => armsAt(run, front) + (front === ride ? own : 0);
+}
+
+/** What a host must make up at its own front: the foe, and 1 for each of its souls who'll run, less its boost. */
+const needAt = (front: FrontDef, host: HostState, run: RunState, boost: Boost) =>
+  Math.max(0, foeAt(front, run) + host.misfits - boost(front.id));
 
 /**
  * Whether the hosts can hold every front in `hold` at once: each front's own host first (2 a soul), then what the
  * front still lacks from the souls the other hosts can spare (1 a soul).
  */
-function holdable(hosts: readonly HostState[], fronts: readonly FrontDef[], run: RunState, hold: ReadonlySet<string>) {
+function holdable(
+  hosts: readonly HostState[],
+  fronts: readonly FrontDef[],
+  run: RunState,
+  hold: ReadonlySet<string>,
+  boost: Boost,
+) {
   let short = 0;
   let spare = 0;
   for (const f of fronts) {
-    if (hold.has(f.id) && !hosts.some((h) => h.front === f.id)) short += Math.max(0, foeAt(f, run) - armsAt(run, f.id));
+    if (hold.has(f.id) && !hosts.some((h) => h.front === f.id)) short += Math.max(0, foeAt(f, run) - boost(f.id));
   }
   for (const h of hosts) {
     const f = fronts.find((x) => x.id === h.front);
     let left = h.souls;
     if (f && hold.has(f.id)) {
-      const need = needAt(f, h, run);
+      const need = needAt(f, h, run, boost);
       short += Math.max(0, need - 2 * h.souls);
       left = h.souls - Math.min(h.souls, Math.ceil(need / 2));
     }
@@ -97,7 +116,14 @@ function holdable(hosts: readonly HostState[], fronts: readonly FrontDef[], run:
  * Who stands where, holding `held` (in the order it was held): each held front's own host as many as it needs, then
  * each held front's shortfall from the hosts with the most to spare, and everyone left at their own front.
  */
-function arrange(hosts: readonly HostState[], def: RagnarokDef, run: RunState, held: readonly string[]): FrontBattle[] {
+function arrange(
+  hosts: readonly HostState[],
+  def: RagnarokDef,
+  run: RunState,
+  held: readonly string[],
+  boost: Boost,
+  ride: string | undefined,
+): FrontBattle[] {
   const left = new Map(hosts.map((h) => [h.id, h.souls]));
   const stood = new Map<string, Stood[]>(def.fronts.map((f) => [f.id, []]));
   const short = new Map<string, number>();
@@ -113,10 +139,10 @@ function arrange(hosts: readonly HostState[], def: RagnarokDef, run: RunState, h
     if (!held.includes(f.id)) continue;
     const own = hosts.find((h) => h.front === f.id);
     if (!own) {
-      short.set(f.id, Math.max(0, foeAt(f, run) - armsAt(run, f.id)));
+      short.set(f.id, Math.max(0, foeAt(f, run) - boost(f.id)));
       continue;
     }
-    const need = needAt(f, own, run);
+    const need = needAt(f, own, run, boost);
     const used = Math.min(own.souls, Math.ceil(need / 2));
     left.set(own.id, own.souls - used);
     if (used > 0) at(f.id, own.id, used, 2);
@@ -146,24 +172,36 @@ function arrange(hosts: readonly HostState[], def: RagnarokDef, run: RunState, h
     const sorted = [...list.filter((s) => s.host === own?.id), ...list.filter((s) => s.host !== own?.id)];
     const ran = own?.misfits ?? 0;
     const arms = armsAt(run, f.id);
+    const rode = boost(f.id) - arms;
     // Those who run cost it 1 each, arms or no.
-    const strength = Math.max(0, sorted.reduce((n, s) => n + s.strength, 0) - ran + arms);
-    return { id: f.id, foe: foeAt(f, run), stood: sorted, ran, arms, strength, held: held.includes(f.id) };
+    const strength = Math.max(0, sorted.reduce((n, s) => n + s.strength, 0) - ran + arms + rode);
+    return {
+      id: f.id,
+      foe: foeAt(f, run),
+      stood: sorted,
+      ran,
+      arms,
+      ...(f.id === ride ? { ride: rode } : {}),
+      strength,
+      held: held.includes(f.id),
+    };
   });
 }
 
 /**
  * The fronts in the order given, each held if the hosts can hold it along with those held before it; any the order
- * leaves out come after, in the content's order.
+ * leaves out come after, in the content's order. `ride` is the front the player rides to (docs/tech-spec.md §58).
  */
-export function fight(run: RunState, def: RagnarokDef, order: readonly string[]): Battle {
+export function fight(run: RunState, def: RagnarokDef, order: readonly string[], ride?: string): Battle {
   const ids = def.fronts.map((f) => f.id);
   const given = [...new Set(order)].filter((id) => ids.includes(id));
   const ordered = [...given, ...ids.filter((id) => !given.includes(id))];
+  const rode = def.ride && ride !== undefined && ids.includes(ride) ? ride : undefined;
+  const boost = boosts(run, def, rode);
   const hosts = hostsAt(run, def);
   const held: string[] = [];
-  for (const id of ordered) if (holdable(hosts, def.fronts, run, new Set([...held, id]))) held.push(id);
-  return { order: ordered, fronts: arrange(hosts, def, run, held) };
+  for (const id of ordered) if (holdable(hosts, def.fronts, run, new Set([...held, id]), boost)) held.push(id);
+  return { order: ordered, ...(rode ? { ride: rode } : {}), fronts: arrange(hosts, def, run, held, boost, rode) };
 }
 
 /** Whether the run goes to the last battle now: the build has one, it's the last day's night, and it's not fought. */

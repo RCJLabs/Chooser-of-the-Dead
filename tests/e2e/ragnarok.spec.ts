@@ -20,8 +20,8 @@ import { FULL } from './urls';
 
 /*
  * The last battle (docs/tech-spec.md §54) in the full game: after the last night, the horn. The hosts, and the fronts
- * in the order they'll be held, each saying as it's ordered whether it will hold; the battle front by front; then
- * the ending, with the battle in its report.
+ * in the order they'll be held, each saying as it's ordered whether it will hold; where the chooser rides (§58); the
+ * battle front by front; then the ending, with the battle in its report.
  */
 
 test.use({ baseURL: FULL });
@@ -31,7 +31,7 @@ const def = content.campaign?.ragnarok;
 const LAST = content.campaign?.lastDay ?? 20;
 
 // The last day's night, every soul judged rightly (their nails left long: the scenario jumper doesn't clip them), with
-// hardly anyone in Freyja's host: the fire takes souls from Hel's legion, so holding it costs her gate. And five souls
+// hardly anyone in Freyja's host, so the fire can't be held, and the wolf and Hel's gate want the same souls. And five souls
 // sent to Hel by mistake, who'll run from her legion: four of them named (as a run begun before souls were named would
 // name only its later ones).
 const base = scenarioSave(content, 'e2e-ragnarok', LAST, ENGINE_MAJOR, 'night');
@@ -58,7 +58,9 @@ const night = resumeSave(save, content, ENGINE_MAJOR).run;
 const horn = stepRun(night, { t: 'endNight' }, { content, ctx: runContext(content, night) }).state;
 const ids = def?.fronts.map((f) => f.id) ?? [];
 const gateFirst = ['front.gate', ...ids.filter((id) => id !== 'front.gate')];
-const battle = (order: readonly string[]): Battle | undefined => (def ? fight(horn, def, order) : undefined);
+const battle = (order: readonly string[], ride?: string): Battle | undefined =>
+  def ? fight(horn, def, order, ride) : undefined;
+const RIDE = def?.ride?.strength ?? 0;
 
 async function expectAccessible(page: Page) {
   const axe = await new AxeBuilder({ page })
@@ -79,13 +81,17 @@ async function holding(page: Page): Promise<string[]> {
 test('after the last night, the horn: the fronts held in the order set, the battle, then the ending', async ({
   page,
 }) => {
-  // What the engine says of this run, as ordered and with the gate first: the order decides the fire or the gate.
+  // What the engine says of this run, as ordered and with the gate first: the order decides the wolf or the gate. Riding
+  // to the wolf (docs/tech-spec.md §58) holds it too; the fire, with hardly anyone in Freyja's host, falls whatever.
   const asListed = heldFronts(battle(ids) as Battle);
   const withGate = heldFronts(battle(gateFirst) as Battle);
-  expect(asListed).toContain('front.fire');
+  const ridden = heldFronts(battle(gateFirst, 'front.wolf') as Battle);
+  expect(asListed).toContain('front.wolf');
   expect(asListed).not.toContain('front.gate');
   expect(withGate).toContain('front.gate');
-  expect(withGate).not.toContain('front.fire');
+  expect(withGate).not.toContain('front.wolf');
+  expect(ridden).toEqual(expect.arrayContaining(['front.wolf', 'front.gate']));
+  expect(ridden).not.toContain('front.fire');
 
   await page.addInitScript(
     (record) => localStorage.setItem('cots.campaign.0', record),
@@ -128,6 +134,19 @@ test('after the last night, the horn: the fronts held in the order set, the batt
   expect(await holding(page)).toEqual(withGate);
   await expect(gate.getByTestId('front-verdict')).toHaveText('Holds');
   await expect(page.locator('[data-front="front.fire"]').getByTestId('front-verdict')).toHaveText('Falls');
+  await expect(page.locator('[data-front="front.wolf"]').getByTestId('front-verdict')).toHaveText('Falls');
+
+  // Where the chooser rides: until it's chosen, the horn waits. Riding to the wolf holds it along with the gate.
+  await expect(page.getByTestId('sound-horn')).toBeDisabled();
+  await expect(page.getByTestId('ride-first')).toHaveText('Choose where you ride before you sound the horn.');
+  await expect(page.getByTestId('ride')).toContainText(
+    `You ride out too, to one front of your choosing, and you're worth ${RIDE} there.`,
+  );
+  await page.getByTestId('ride-front.wolf').check();
+  expect(await holding(page)).toEqual(ridden);
+  await expect(page.locator('[data-testid="front"][data-front="front.wolf"]')).toContainText(`you ${RIDE}`);
+  await expect(page.getByTestId('ride-first')).toHaveCount(0);
+  await expectAccessible(page);
 
   // The horn sounded: each front as it went, then the ending, with the battle in its report.
   await page.getByTestId('sound-horn').click();
@@ -136,7 +155,7 @@ test('after the last night, the horn: the fronts held in the order set, the batt
   for (const id of ids) {
     await expect(page.locator(`[data-testid="battle-front"][data-front="${id}"]`)).toHaveAttribute(
       'data-held',
-      String(withGate.includes(id)),
+      String(ridden.includes(id)),
     );
   }
   const gateBattle = page.locator('[data-testid="battle-front"][data-front="front.gate"]');
@@ -149,7 +168,11 @@ test('after the last night, the horn: the fronts held in the order set, the batt
   await expect(page.getByTestId('achievement-note')).toHaveCount(0);
   await expectAccessible(page);
   await page.getByTestId('to-ending').click();
-  const ended = stepRun(horn, { t: 'marshal', order: gateFirst }, { content, ctx: runContext(content, horn) }).state;
+  const ended = stepRun(
+    horn,
+    { t: 'marshal', order: gateFirst, ride: 'front.wolf' },
+    { content, ctx: runContext(content, horn) },
+  ).state;
   expect(ended.ending).not.toBeNull();
   await expect(page.getByTestId('ending-title')).toBeVisible();
   // The ending's words run to paragraphs, then the epilogue (docs/tech-spec.md §55): what the engine says became of

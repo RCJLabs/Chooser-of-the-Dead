@@ -1,6 +1,8 @@
 import fc from 'fast-check';
 
 export {
+  botBattle,
+  botOrder,
   catchLie,
   JUDGING,
   type Judging,

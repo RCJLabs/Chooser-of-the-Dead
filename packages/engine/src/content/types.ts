@@ -771,6 +771,8 @@ export interface RagnarokDef {
   readonly text: string;
   readonly hosts: readonly HostDef[];
   readonly fronts: readonly FrontDef[];
+  /** The chooser rides to one front of the player's choosing, with this much strength (docs/tech-spec.md §58). */
+  readonly ride?: { readonly strength: number };
 }
 
 /**

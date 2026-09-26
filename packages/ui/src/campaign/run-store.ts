@@ -351,9 +351,12 @@ export function sleep(): void {
   });
 }
 
-/** The hosts sent to the fronts in this order (docs/tech-spec.md §54): how it went, then the ending. */
-export function marshal(order: readonly string[]): void {
-  const r = dispatch({ t: 'marshal', order });
+/**
+ * The hosts sent to the fronts in this order (docs/tech-spec.md §54), the chooser riding to `ride` (§58): how it went,
+ * then the ending.
+ */
+export function marshal(order: readonly string[], ride?: string): void {
+  const r = dispatch({ t: 'marshal', order, ...(ride ? { ride } : {}) });
   if (r?.run.battle) screen.value = 'battle';
 }
 

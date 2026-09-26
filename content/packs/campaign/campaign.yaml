@@ -172,11 +172,14 @@ ragnarok:
     - { id: host.hel, name: host.hel, hall: HEL, front: front.gate }
     - { id: host.ran, name: host.ran, hall: RAN, front: front.ship, only: true }
   fronts:
-    - { id: front.wolf, name: front.wolf, text: front.wolf.text, held: front.wolf.held, fell: front.wolf.fell, foe: 100 }
-    - { id: front.fire, name: front.fire, text: front.fire.text, held: front.fire.held, fell: front.fire.fell, foe: 70 }
-    - { id: front.gate, name: front.gate, text: front.gate.text, held: front.gate.held, fell: front.gate.fell, foe: 130 }
+    # A fifth stronger than first set (docs/tech-spec.md §58): with arms, the best choosers held every front every time.
+    - { id: front.wolf, name: front.wolf, text: front.wolf.text, held: front.wolf.held, fell: front.wolf.fell, foe: 120 }
+    - { id: front.fire, name: front.fire, text: front.fire.text, held: front.fire.held, fell: front.fire.fell, foe: 84 }
+    - { id: front.gate, name: front.gate, text: front.gate.text, held: front.gate.held, fell: front.gate.fell, foe: 156 }
     # Naglfar's crew: every soul sent on with its nails long is one more aboard.
-    - { id: front.ship, name: front.ship, text: front.ship.text, held: front.ship.held, fell: front.ship.fell, foe: 35, perNail: 2 }
+    - { id: front.ship, name: front.ship, text: front.ship.text, held: front.ship.held, fell: front.ship.fell, foe: 42, perNail: 2 }
+  # The chooser rides out too, to the one front the player picks, and is worth this much there (§58).
+  ride: { strength: 15 }
 endings:
   - id: ending.naglfar
     order: 100

@@ -338,10 +338,11 @@ function stoodText(f: FrontBattle): string {
     f.stood.length > 0
       ? listText(f.stood.map((s) => t('ui.ragnarok.stood', { host: hostName(s.host), souls: s.souls })))
       : t('ui.ragnarok.nobody');
-  // A battle fought before arms were sold has none.
+  // A battle fought before arms were sold has none; the chooser's own is where the player rode (§58).
   const arms = f.arms > 0 ? [t('ui.ragnarok.arms', { n: f.arms })] : [];
+  const you = (f.ride ?? 0) > 0 ? [t('ui.ragnarok.you', { n: f.ride ?? 0 })] : [];
   const ran = f.ran > 0 ? [t('ui.ragnarok.ran', { n: f.ran })] : [];
-  return [who, ...arms, ...ran].join('; ');
+  return [who, ...arms, ...you, ...ran].join('; ');
 }
 
 /**
@@ -2320,6 +2321,8 @@ function Ragnarok() {
   const def = campaignOf(gameContent).ragnarok;
   const focus = useAutoFocus<HTMLHeadingElement>();
   const [order, setOrder] = useState<string[]>(() => def?.fronts.map((f) => f.id) ?? []);
+  // The front the chooser rides to (docs/tech-spec.md §58): none until the player picks one.
+  const [ride, setRide] = useState<string | null>(null);
   // A front moved to the top or the bottom keeps the focus on the button it still has.
   const [moved, setMoved] = useState<{ id: string; by: -1 | 1 } | null>(null);
   useLayoutEffect(() => {
@@ -2332,7 +2335,8 @@ function Ragnarok() {
   }, [moved, order]);
   if (!a || !def) return null;
   const { run } = a;
-  const battle = fight(run, def, order);
+  const battle = fight(run, def, order, ride ?? undefined);
+  const unridden = def.ride !== undefined && ride === null;
   const move = (i: number, by: -1 | 1) => {
     const id = order[i];
     if (!id || i + by < 0 || i + by >= order.length) return;
@@ -2377,6 +2381,25 @@ function Ragnarok() {
         </ul>
         <p class="muted">{t('ui.ragnarok.rule')}</p>
       </section>
+      {def.ride ? (
+        <fieldset class="card ragnarok__ride" data-testid="ride">
+          <legend>{t('ui.ragnarok.ride')}</legend>
+          <p class="muted">{t('ui.ragnarok.rideLead', { strength: def.ride.strength })}</p>
+          {def.fronts.map((f) => (
+            <label key={f.id} class="ride__option">
+              <input
+                type="radio"
+                name="ride"
+                value={f.id}
+                checked={ride === f.id}
+                data-testid={`ride-${f.id}`}
+                onChange={() => setRide(f.id)}
+              />{' '}
+              {t('ui.ragnarok.rideTo', { front: t(f.name) })}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
       <section class="card" data-testid="fronts">
         <h2>{t('ui.ragnarok.fronts')}</h2>
         <p class="muted">{t('ui.ragnarok.order')}</p>
@@ -2433,8 +2456,19 @@ function Ragnarok() {
           {t('ui.ragnarok.count', { n: held, total: battle.fronts.length })}
         </p>
       </section>
+      {unridden ? (
+        <p class="muted" data-testid="ride-first">
+          {t('ui.ragnarok.rideFirst')}
+        </p>
+      ) : null}
       <div class="row">
-        <button type="button" class="btn btn--primary" data-testid="sound-horn" onClick={() => marshal(battle.order)}>
+        <button
+          type="button"
+          class="btn btn--primary"
+          data-testid="sound-horn"
+          disabled={unridden}
+          onClick={() => marshal(battle.order, ride ?? undefined)}
+        >
           {t('ui.ragnarok.sound')}
         </button>
       </div>
