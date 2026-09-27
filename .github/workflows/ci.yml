@@ -38,3 +38,56 @@ jobs:
           name: playwright-report
           path: tests/e2e/report
           retention-days: 7
+
+  # The Steam build's shell (docs/tech-spec.md §62), run for real under Electron: from the repo, then packaged.
+  steam-shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:steam
+      # Electron's own binary, which a plain install leaves out.
+      - run: node apps/electron/node_modules/electron/install.js
+      - run: xvfb-run -a pnpm e2e:steam
+      - run: pnpm --filter @cots/electron exec electron-builder --config electron-builder.config.cjs --linux
+      - run: xvfb-run -a pnpm e2e:steam
+        env:
+          COTS_SHELL_BINARY: dist/steam/full/linux-unpacked/chooser-of-the-slain
+      # The game and the shell, built once here, for Windows to package.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: steam-shell-build
+          path: |
+            dist/electron-full
+            apps/electron/dist
+          retention-days: 3
+
+  # Most of Steam plays on Windows: package the shell there, and run the packaged game.
+  steam-shell-windows:
+    needs: steam-shell
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: steam-shell-build
+      - run: pnpm --filter @cots/electron exec electron-builder --config electron-builder.config.cjs --win
+      - shell: bash
+        run: |
+          ls dist/steam/full/win-unpacked
+          pnpm e2e:steam
+        env:
+          COTS_SHELL_BINARY: dist/steam/full/win-unpacked/chooser-of-the-slain.exe

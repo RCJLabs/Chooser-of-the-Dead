@@ -790,6 +790,8 @@ interface SaveV1 {
 - It's resolved **at build time** through the `@platform` alias, so web bundles contain no Electron or Capacitor code.
 
 ### 8.1 Electron (Steam), from M6
+As built, with the differences from this sketch: §62.
+
 ```ts
 // apps/electron/src/main.ts (sketch)
 if (process.platform === 'linux')             // Steam Linux Runtime / Deck: known-required switches
@@ -3778,6 +3780,100 @@ The brainstorm's version, and what changed:
 - **The busiest souls still scroll** on the smallest phone, by up to about 90 px. The alternative was a body too small to judge by.
 - **The body's floor is a size in the CSS, not a readability check.** The art was judged at a 232 px body on this phone (§17). At the 160 px floor its subtler signs are smaller than that, and nobody has checked them there. The old layout went down to 106 px.
 - **The measurements are of the worst souls** of 60 seeds a day. A real run rarely meets them.
+
+## 62. The Steam shell (Electron), as built
+
+**Why.** Steam is the first store (§12, M6), and its shell was a stub. This is the shell the Steam builds will ship. It runs and is tested without Steam, so only the Steamworks side waits for the app IDs.
+
+**What it is** (`apps/electron`)
+- **One window** shows the game from its own files at `app://game/`: the `electron-full` or `electron-demo` build, from `resources/game` in a package, or from `dist/electron-full` in the repo.
+  - Every response carries the content security policy: the game's own files only, and no inline or evaluated scripts. The network is also blocked underneath the page.
+  - The page has no Node. Context isolation and the renderer sandbox are on, and a preload hands it `window.cotsShell`: a store and an achievement call.
+  - It can't navigate away or open windows. Links to the game's GitHub (issue forms, privacy note, source) and its Steam store page open in the system's browser. Anything else is refused and logged.
+  - The page may copy its share text and go full screen, and nothing else.
+  - One copy runs at a time. F11 and Alt+Enter toggle full screen, and a pinch on the Deck's screen doesn't zoom.
+  - A computer going to sleep or locking pauses the shift, as losing focus does.
+  - A page that crashes reloads, twice at most.
+- **Saves are files** (`saves.ts`): one JSON file a key (`settings.json`, `campaign.0.json`, …), in the folders §8.1 gives for Auto-Cloud.
+  - The main process writes them atomically (a temporary file, flushed, then renamed over) and synchronously. The page's store call waits for the file, so a save is on disk before the call returns.
+  - Cost: a Day 19 campaign save (145 KB) takes about 2 ms to write and 1.4 ms to copy across, measured here.
+  - The main process checks every name: lowercase letters, digits, dots, dashes and underscores, never `..`.
+  - A file that isn't JSON comes back as its text, so the game shows that slot as unreadable and keeps it (§28).
+  - Only the game's own page in the game's window gets answers.
+- **The page's own storage is in memory.** The game still keeps its synchronous copies in localStorage while it runs (§7), but they go when the app quits.
+  - A copy kept on disk would outrank a newer save that Steam Cloud brought from another computer. The game trusts its synchronous copy of the settings over the store, because in a browser that copy is never the older one.
+  - So the files are the only saves.
+- **Steam** (`steam.ts`) is called only from the main process, through a small port over steamworks-ffi-node 0.11.3.
+  - It stays off, and the log says why, when: the build has no app ID; Steamworks' library isn't beside the app; the library won't load; or Steam won't start (no client running). The game plays the same either way.
+  - A store build started outside Steam asks Steam to start it (`RestartAppIfNecessary`), then quits. A build tested with an app ID from the environment (`COTS_STEAM_APP_ID=480`) doesn't.
+  - **Achievements:**
+    - The game already sends every earned achievement at each start (§34). The shell maps `ach.everyFront` to `ACH_EVERY_FRONT`.
+    - It asks Steam first whether it has one, so an achievement already earned costs a lookup, not a write.
+    - One Steam can't take yet (its stats for the player haven't arrived) is tried again every 5 s for a minute, then logged.
+    - `pnpm steam:achievements` prints the table to set up in Steamworks.
+  - On a Steam Deck (Steam's check, or `SteamDeck=1`), the window starts full screen.
+  - Callbacks run every 100 ms. Steam shuts down before the app quits.
+- **A log** (`profile/shell.log`, fresh each run) for bug reports: whether Steam is on and, if not, why; the page's warnings and errors; and refused links.
+- **The platform adapter** (`packages/platform/src/adapters/electron.ts`) uses the shell's store and achievements. Opened in a browser, with no shell, the Steam build keeps its saves in IndexedDB like the web builds.
+- **Folders:**
+  - Saves are in `…/ChooserOfTheSlain/saves`. Chromium's profile sits beside them in `…/profile`, which isn't synced.
+  - `COTS_SAVE_DIR`, `COTS_PROFILE_DIR` and `COTS_GAME_DIR` move them for tests. A package ignores `COTS_GAME_DIR`.
+- **Linux:** Chromium's process sandbox is off (`no-sandbox`); the page's own sandbox stays on.
+  - Why: the sandbox helper loses its setuid bit in a Steam depot, and Steam's container refuses nested namespaces.
+  - Started as root, Chromium checks for the flag before the app's code runs. So the Linux launch option passes `--no-sandbox` too ([`docs/steam.md`](steam.md)).
+
+**Build and package**
+- `pnpm build:steam` builds `electron-full` and bundles the shell with esbuild (`main.js` and `preload.js`). `STEAM_APP_ID` bakes the app ID in; without it, the build has none.
+- `pnpm package:steam` runs electron-builder:
+  - It makes `dist/steam/full/linux-unpacked`, or `win-unpacked` on Windows. These are folders, not installers, since Steam ships a folder.
+  - The native parts (koffi, steamworks-ffi-node) are unpacked from the app's archive.
+  - Steamworks' library goes in only if it's in `apps/electron/steamworks_sdk/`. That folder is gitignored, because Valve's terms keep the SDK out of a public repo.
+  - `STEAM_EDITION=demo` packages the demo, from `dist/electron-demo`.
+  - The Linux package is 288 MB unpacked, mostly Electron.
+
+**Tests**
+- **29 unit tests:**
+  - folders;
+  - the file store: round trips, atomic writes, unreadable files, refused names;
+  - the protocol: paths out of the game's folder, other hosts, the policy;
+  - links;
+  - the Steam port against a fake SDK: why it's off, relaunching, unlocks, retries, giving up, shutting down, and a unique Steam name for every achievement;
+  - the adapter.
+- **`tests/electron/shell.spec.ts`** runs the real app under Electron (Playwright). It checks that:
+  - the game loads from app://game;
+  - saves are files, and a fresh profile reads them back;
+  - a save from Steam Cloud beats this computer's old copies;
+  - a file that isn't a save is shown as unreadable and left alone;
+  - nothing reaches the network, opens a window or navigates away;
+  - sleep pauses the shift.
+
+  `COTS_SHELL_BINARY` runs the same tests against a packaged build.
+- **Controls:**
+  - With a profile kept on disk, the cloud-save test fails, as it should: the old copy's 125% text beat the cloud's 150%.
+  - Unlocking without asking Steam first fails its test.
+  - Removing the protocol's check that a path stays inside the game's folder fails nothing: the URL parser and `normalize()` already stop every escape tried. So that check is a backstop.
+- **CI:**
+  - A Linux job runs the smoke test from the repo, then packaged.
+  - A Windows job packages the build on Windows and runs the smoke test against the `.exe`.
+
+**Differences from §8.1's sketch**
+- **One Linux switch (`no-sandbox`), not four.**
+  - `in-process-gpu` serves the Steam overlay, which isn't wired (§8.1 already says not to depend on it).
+  - `disable-dev-shm-usage` is for containers.
+  - `no-zygote` waits for a test on a Deck.
+- **The game's key-value store as files (`<key>.json`)** instead of `save:list/read/write`. The game already keeps everything that way (§7). So Auto-Cloud's pattern is `*.json`, not `*.sav;*.json`.
+- **Not built yet:** rich presence, the overlay, and the SteamPipe upload in CI (it needs the app and depot IDs and `STEAM_CONFIG_VDF`).
+- **No `steam_appid.txt`:** steamworks-ffi-node sets `SteamAppId` for the process.
+
+**Known limits**
+- **Nothing has run against a real Steam client.** Starting Steam, achievements, relaunching through Steam and the Deck check are tested against a fake. The first real run needs the Steamworks SDK's files and the Steam client ([`docs/steam.md`](steam.md)), with app 480 (Spacewar) until the game has its own ID.
+- **Steam's Linux runtime and the Deck are untested.** That includes whether the shell's own `no-sandbox` is enough there without the launch option.
+- **Windows has run only in CI:** a packaged build's smoke test on a runner, not on a player's machine. Code signing isn't set up; Steam doesn't require it.
+- **Saving blocks the page while the file is written:** about 3–4 ms for the largest save here. On Windows, an antivirus that scans every write could make it longer; that's unmeasured.
+- **Steam Cloud itself is untested.** The tests stand in for it by swapping the saves folder.
+- **Anything the game keeps only in localStorage is forgotten at quit.** Today that's only the art style chosen with `?art=`, which the Steam build has no way to set.
+- **macOS isn't built** (§8.1).
+- **The demo's progress doesn't carry over to the full game** (§8.1's nice-to-have).
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

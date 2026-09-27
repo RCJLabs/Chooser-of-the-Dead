@@ -20,6 +20,10 @@
     "build:web-playtest": "pnpm content:compile --target web-playtest && vite build --config apps/web/vite.config.ts --mode web-playtest",
     "build:dev-full": "pnpm content:compile --target dev-full && vite build --config apps/web/vite.config.ts --mode dev-full",
     "build:all": "pnpm build:web-demo && pnpm build:web-itch && pnpm build:electron-demo && pnpm build:electron-full && pnpm build:android-full && pnpm build:web-playtest && pnpm build:dev-full",
+    "build:steam": "pnpm build:electron-full && pnpm --filter @cots/electron build",
+    "steam": "pnpm --filter @cots/electron start",
+    "package:steam": "pnpm build:electron-full && pnpm --filter @cots/electron package",
+    "steam:achievements": "tsx tools/steam/achievements.ts",
     "preview:web-demo": "vite preview --config apps/web/vite.config.ts --mode web-demo --port 4173 --strictPort",
     "preview:dev-full": "vite preview --config apps/web/vite.config.ts --mode dev-full --port 4174 --strictPort",
     "preview:electron-full": "vite preview --config apps/web/vite.config.ts --mode electron-full --port 4175 --strictPort",
@@ -27,9 +31,10 @@
     "leak-check": "tsx tools/leak-check/cli.ts",
     "lint": "biome check . && tsx tools/lint-boundaries/cli.ts",
     "format": "biome format --write .",
-    "typecheck": "tsc -p packages/engine/tsconfig.json && tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
+    "typecheck": "tsc -p packages/engine/tsconfig.json && tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.electron.json",
     "test": "vitest run",
     "e2e": "playwright test -c tests/e2e/playwright.config.ts",
+    "e2e:steam": "playwright test -c tests/electron/playwright.config.ts",
     "icons": "tsx tools/icons/make-icons.ts",
     "sim": "tsx tools/sim/cli.ts",
     "art:sheet": "tsx tools/art-sheet/cli.ts",
@@ -42,6 +47,11 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "electron-winstaller",
+      "koffi",
+      "steamworks-ffi-node"
     ]
   },
   "devDependencies": {

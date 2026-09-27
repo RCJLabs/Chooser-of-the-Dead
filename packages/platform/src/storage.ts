@@ -2,8 +2,9 @@
  * Small key-value storage for settings, Daily results and the in-progress
  * Daily (docs/tech-spec.md §7). Web builds use IndexedDB and fall back to
  * memory when it is unavailable (private windows, blocked storage), so the
- * game still runs; `persistent` says which one you got. Electron and Android
- * get file-backed stores with their shells (M6, M9).
+ * game still runs; `persistent` says which one you got. The Steam build's
+ * shell keeps them as files instead (adapters/electron.ts); Android's shell
+ * will too (M9).
  */
 export interface KeyValueStore {
   readonly persistent: boolean;
