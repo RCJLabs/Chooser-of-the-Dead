@@ -9,3 +9,5 @@ playwright-report/
 *.log
 .DS_Store
 tests/e2e/results/
+apps/electron/steamworks_sdk/
+tests/electron/results/

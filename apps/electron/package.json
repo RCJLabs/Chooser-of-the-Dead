@@ -2,6 +2,22 @@
   "name": "@cots/electron",
   "private": true,
   "version": "0.0.0",
-  "description": "Steam shell (Electron). Arrives in M6; see docs/tech-spec.md section 8.1.",
-  "license": "GPL-3.0-only"
+  "description": "Steam shell (Electron): the game in a desktop window, saves as files, Steam through SteamPort (docs/tech-spec.md §8.1, §62).",
+  "author": "RCJLabs",
+  "license": "GPL-3.0-only",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "electron .",
+    "package": "node build.mjs && electron-builder --config electron-builder.config.cjs"
+  },
+  "dependencies": {
+    "steamworks-ffi-node": "0.11.3"
+  },
+  "devDependencies": {
+    "@cots/platform": "workspace:*",
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2"
+  }
 }

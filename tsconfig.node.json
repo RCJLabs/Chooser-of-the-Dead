@@ -17,6 +17,7 @@
     "packages/story/src",
     "tools",
     "tests/e2e",
+    "tests/electron",
     "vitest.config.ts",
     "apps/web/vite.config.ts",
     "tests/golden"

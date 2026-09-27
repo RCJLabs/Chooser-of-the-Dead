@@ -30,5 +30,19 @@ export interface Platform {
   unlockAchievement(id: string): void;
 }
 
+/**
+ * What the Steam build's shell hands the page, as `window.cotsShell` (docs/tech-spec.md §62): the store, kept as files
+ * by the app, and Steam's achievements. The store's calls are synchronous: a write is on disk when it returns. `store`
+ * is the store's name, undefined for the game's own.
+ */
+export interface ElectronBridge {
+  readonly store: {
+    get(store: string | undefined, key: string): unknown;
+    set(store: string | undefined, key: string, value: unknown): void;
+    remove(store: string | undefined, key: string): void;
+  };
+  unlockAchievement(id: string): void;
+}
+
 export { copyText, noAchievements, noUpdates, shareWithFallback } from './share';
 export { isPersisted, type KeyValueStore, memoryStore, openStore, requestPersistence } from './storage';
