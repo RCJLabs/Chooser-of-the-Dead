@@ -3739,11 +3739,45 @@ The brainstorm's version, and what changed:
 - **Goldens and the Dailies** didn't change: the goldens are the days' generated souls, without the story's, and the Daily has no story.
 
 **Known limits**
-- **Most days now bring someone who asks,** 62% of days from Day 8 with no mistakes and 79% after one that stands (measured above). Whether that stays a choice each time or turns into noise is a playtest question. `kin.chance` (40) and `pleas.chance` (50) are one-line changes.
+- **Most days now bring someone who asks,** 62% of days from Day 8 with no mistakes and 79% after one that stands (measured above). Whether that stays a choice each time or turns into noise is a playtest question; the playtest report counts them (§61). `kin.chance` (40) and `pleas.chance` (50) are one-line changes.
 - **The bots never grant a plea unless told,** so kin cost them nothing, and what people do with them is untested.
 - **"The ford"** is now in many lines (Svanhild, Thorolf, Bera's letter, the Rán plea, a day event). One ford in one valley may be what the story wants; if not, some should be another place.
 - **Kin are only ever a husband, wife or cousin,** and say nothing of the soul's life; the story's own kin (Jofrid, Thorolf) carry that.
 - **The words are drafts:** about 600. The five souls' lines and pleas are about 320, their epilogue lines about 225, the kin's words about 30, and the scene lines about 25.
+
+## 61. Before the playtests: pleas counted, and the crowded desk on a phone
+
+**Why.** Outside playtests come next; so far only bots have played. Two things would have spoiled what they tell us: the report couldn't show a plea refused, and on a phone the busiest souls shrank the body the game is judged by.
+
+**Pleas and kin in the playtest report**
+- **The audit files them** (`DayLedger.pleas`): every judged soul that asked for another hall, and every soul's kin who came, with where it belonged, what it asked, whose kin it was, whether it's a story soul, and whether it was granted.
+  - The list is kept, empty on a day nobody asked, in a build whose campaign has pleas or kin. Saves from before it have none.
+  - A soul left in line at dusk is filed on the day it's judged.
+- **The report** sums them up ("Pleas: 3, granted: 1. Kin who came: 2."), then lists each by day, and names the days played on a build from before they were kept.
+- **Why it matters:** §60's open question is whether pleas and kin come too often. A refused plea is a right stamp, so nothing else in the report showed it.
+
+**The crowded desk on a phone**
+- **Measured** on a 360×740 phone, the smallest the game supports, on the soul with the most over it on each of Days 14 and 16–19 (the worst of 60 seeds a day):
+  - With nothing over it, the body is 232 px tall.
+  - Two requests and a plea shrank it to 159–168 px. On Day 19, two requests, the noon line, kin and a plea shrank it to 106 px.
+  - Below about 150 px the stage's third tool, the clippers, was cut off, and the words panel under the tabs was nearly gone.
+  - The cause: the body's height was 34% of whatever the notes above it left, with no floor.
+- **The changes:**
+  - What a soul says of itself (an offer, whose kin it is, a plea) is one box of notes: regular weight, smaller, left-aligned. It was one bold headline each. On Day 19's busiest soul the body now starts 84 px higher.
+  - The body never gets smaller than its tools (10rem, 160 px), and the words panel keeps a few lines (7rem, 112 px).
+  - When the notes and those floors don't fit, the shift scrolls rather than cutting anything off. The action bar stays on the screen, and each soul starts at the top.
+  - The landscape layout keeps its own sizes.
+- **After:**
+  - Souls with nothing over them are as they were.
+  - The busiest souls of Days 14–17 keep a body of 172–182 px and a words panel of 118–136 px, without scrolling.
+  - The busiest of Days 18–19 have both at their floors, and the shift scrolls 64–93 px with Judge on the screen.
+  - On a 360×640 phone, smaller than the game supports, everything can be reached by scrolling (54–193 px).
+- **A test** (`tests/e2e/crowded.spec.ts`, phone): Day 19's most crowded soul keeps its body, every tool on it, its words and Judge on the screen. It fails on the old layout (a 106 px body against a 159 px floor).
+
+**Known limits**
+- **The busiest souls still scroll** on the smallest phone, by up to about 90 px. The alternative was a body too small to judge by.
+- **The body's floor is a size in the CSS, not a readability check.** The art was judged at a 232 px body on this phone (§17). At the 160 px floor its subtler signs are smaller than that, and nobody has checked them there. The old layout went down to 106 px.
+- **The measurements are of the worst souls** of 60 seeds a day. A real run rarely meets them.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

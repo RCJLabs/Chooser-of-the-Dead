@@ -6,6 +6,7 @@ import {
   createDayContext,
   type DayLedger,
   type DayMistake,
+  type Destination,
   EPILOGUE_SECTIONS,
   epilogueFor,
   epilogueParams,
@@ -206,6 +207,52 @@ function mistakes(p: PlaytestInput): string[] {
     return l.mistakes.map((m) => mistakeLine(p, l.day, m));
   });
   return ['### Mistakes', '', ...(lines.length > 0 ? lines : ['None.'])];
+}
+
+/** Days as a list, runs of days joined: 7–9, 12. */
+function dayList(days: readonly number[]): string {
+  const runs: [number, number][] = [];
+  for (const d of days) {
+    const last = runs.at(-1);
+    if (last && d === last[1] + 1) last[1] = d;
+    else runs.push([d, d]);
+  }
+  return runs.map(([a, b]) => (a === b ? String(a) : `${a}–${b}`)).join(', ');
+}
+
+/**
+ * The souls who asked for another hall (docs/tech-spec.md §51, §59) and the kin who came for a soul sent wrong (§60):
+ * how many, and each by day with where it belonged, what it asked, and whether it was given it. A refused plea is a
+ * right stamp, so nothing else in the report shows it. Days played on a build that didn't keep them are named.
+ */
+function pleas(p: PlaytestInput): string[] {
+  const campaign = campaignOf(p.content);
+  const from = Math.min(
+    campaign.pleas?.from ?? Number.POSITIVE_INFINITY,
+    campaign.kin?.from ?? Number.POSITIVE_INFINITY,
+  );
+  if (!Number.isFinite(from)) return [];
+  const dest = (d: Destination) => p.t(`dest.${d}`);
+  const all = p.run.ledger.flatMap((l) => (l.pleas ?? []).map((x) => ({ day: l.day, ...x })));
+  const lines = all.map((x) => {
+    const who = `${x.name}${x.story ? ' (a story soul)' : ''}${x.kin ? `, kin of ${x.kin}` : ''}`;
+    if (!x.to) return `- Day ${x.day}: ${who}, came and asked nothing, belonging in ${dest(x.belongs)} anyway.`;
+    return `- Day ${x.day}: ${who}, asked for ${dest(x.to)}, belonging in ${dest(x.belongs)}: ${x.granted ? 'granted' : 'refused'}.`;
+  });
+  const asked = all.filter((x) => x.to !== undefined);
+  const kin = all.filter((x) => x.kin !== undefined).length;
+  const summary =
+    all.length === 0
+      ? 'Nobody asked yet.'
+      : `Pleas: ${asked.length}, granted: ${asked.filter((x) => x.granted).length}. Kin who came: ${kin}.`;
+  const missing = p.run.ledger.filter((l) => l.day >= from && l.pleas === undefined).map((l) => l.day);
+  const note =
+    missing.length > 0
+      ? [
+          `Not counted on Day${missing.length === 1 ? '' : 's'} ${dayList(missing)}: played on a build from before they were.`,
+        ]
+      : [];
+  return ['### Pleas and kin', '', summary, ...note, ...(lines.length > 0 ? ['', ...lines] : [])];
 }
 
 /** Each appeal heard (docs/tech-spec.md §40): whose, what was decided, and what it came to. */
@@ -422,6 +469,7 @@ export function playtestReport(p: PlaytestInput): string {
     '',
     ...mistakes(p),
     '',
+    ...(pleas(p).length > 0 ? [...pleas(p), ''] : []),
     ...appeals(p),
     '',
     ...line(p),

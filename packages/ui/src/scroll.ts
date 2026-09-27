@@ -5,9 +5,10 @@
  * its own: focus is always given with `preventScroll`.
  */
 
-/** Scrolls the window to its top, at once. */
+/** Scrolls the window to its top, at once, and a shift crowded enough to scroll on its own (a short phone's). */
 export function toTop(): void {
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  document.querySelector('.shift')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
 
 /** Brings an element to the top of the view, at once (its `scroll-margin-top` leaves a little room). */

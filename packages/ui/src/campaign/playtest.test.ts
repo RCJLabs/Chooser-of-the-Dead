@@ -1,5 +1,6 @@
 import {
   type CaseSpec,
+  campaignOf,
   type DayLedger,
   type Destination,
   ENGINE_MAJOR,
@@ -154,6 +155,62 @@ describe('the playtest report', () => {
       .filter((l) => l.startsWith('- Day 1: stamped'));
     expect(lines[0]).toMatch(/ A plea granted\.$/);
     expect(lines.slice(1).filter((l) => l.includes('plea'))).toEqual([]);
+  });
+
+  it('counts the souls who asked for another hall and the kin who came, and names days not counted (docs/tech-spec.md §60)', () => {
+    const save = played('playtest-pleas', 1, right);
+    const day1 = (save.mornings.at(-1) as RunState).ledger[0];
+    if (!day1) throw new Error('no day filed');
+    // This build files the day's pleas, even none.
+    expect(day1.pleas).toEqual([]);
+    const { pleas: _, ...before } = day1;
+    const ledger: DayLedger[] = [
+      // Played on a build from before the audit filed them.
+      { ...before, day: 7 },
+      { ...day1, day: 8, pleas: [] },
+      {
+        ...day1,
+        day: 9,
+        pleas: [{ name: 'Thora Grimsdottir', belongs: 'VALHALLA', to: 'HEL', kin: 'Bjorn Ketilsson', granted: true }],
+      },
+      {
+        ...day1,
+        day: 10,
+        pleas: [
+          { name: 'Arne Hauksson', belongs: 'HEL', to: 'VALHALLA', granted: false },
+          { name: 'Ulf Tokason', belongs: 'HEL', kin: 'Orm Grimsson', granted: false },
+        ],
+      },
+      {
+        ...day1,
+        day: 16,
+        pleas: [{ name: 'Kari Solveigarson', belongs: 'VALHALLA', to: 'RAN', story: true, granted: false }],
+      },
+    ];
+    const text = report({ ...save, mornings: save.mornings.map((m) => ({ ...m, ledger })) });
+    const section = text.slice(text.indexOf('### Pleas and kin'), text.indexOf('### Appeals'));
+    expect(section.split('\n').filter((l) => l !== '')).toEqual([
+      '### Pleas and kin',
+      'Pleas: 3, granted: 1. Kin who came: 2.',
+      'Not counted on Day 7: played on a build from before they were.',
+      '- Day 9: Thora Grimsdottir, kin of Bjorn Ketilsson, asked for dest.HEL, belonging in dest.VALHALLA: granted.',
+      '- Day 10: Arne Hauksson, asked for dest.VALHALLA, belonging in dest.HEL: refused.',
+      '- Day 10: Ulf Tokason, kin of Orm Grimsson, came and asked nothing, belonging in dest.HEL anyway.',
+      '- Day 16: Kari Solveigarson (a story soul), asked for dest.RAN, belonging in dest.VALHALLA: refused.',
+    ]);
+    // A build with neither has no such section.
+    const { pleas: __, kin: ___, ...plain } = campaignOf(content);
+    const { run } = resumeSave(save, content, ENGINE_MAJOR);
+    const without = playtestReport({
+      save,
+      run,
+      slot: 0,
+      build: 'b',
+      content: { ...content, campaign: plain },
+      scenes,
+      t,
+    });
+    expect(without).not.toContain('### Pleas and kin');
   });
 
   it('counts the mistakes of a day filed before they were itemised', () => {

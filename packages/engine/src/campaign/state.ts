@@ -54,6 +54,25 @@ export interface DayMistake {
 }
 
 /**
+ * A soul that asked, at the desk, for a hall where it didn't belong (docs/tech-spec.md §51, §59), or kin come for a soul
+ * sent where it didn't belong (§60), as the audit filed it once the soul was judged. For the playtest report: a plea
+ * refused is a right stamp like any other, and leaves no other trace.
+ */
+export interface DayPlea {
+  readonly name: string;
+  /** Where the soul belonged. */
+  readonly belongs: Destination;
+  /** The hall it asked for; absent for kin who belonged where their soul went, and asked nothing. */
+  readonly to?: Destination;
+  /** The soul it was kin to, by name. */
+  readonly kin?: string;
+  /** A story soul, whose plea is written into its case. */
+  readonly story?: true;
+  /** Whether it was given the hall it asked for. */
+  readonly granted: boolean;
+}
+
+/**
  * A soul from an earlier day asking to be judged again (docs/tech-spec.md §40), heard the next morning on
  * the rules of the day it was judged.
  */
@@ -166,6 +185,11 @@ export interface DayLedger {
   readonly assists?: Assists;
   /** Each soul sent wrong (absent when none, and in saves from before they were kept): a playtest's report. */
   readonly mistakes?: readonly DayMistake[];
+  /**
+   * The souls judged today who asked for another hall, and kin who came (docs/tech-spec.md §60): kept in a build whose
+   * campaign has pleas or kin, empty on a day nobody asked, and absent in saves from before they were kept.
+   */
+  readonly pleas?: readonly DayPlea[];
   /** The appeal heard that morning, if one came. */
   readonly appeal?: AppealHeard;
   /** The line at dusk, when souls were left in it and there's a next day for them. */
