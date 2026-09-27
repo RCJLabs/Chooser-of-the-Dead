@@ -686,6 +686,8 @@ export interface CampaignDef {
   readonly waiting?: WaitingDef;
   /** The gods' requests (docs/tech-spec.md §42); none without it. */
   readonly requests?: RequestsDef;
+  /** Ordinary souls who plead for a hall where they don't belong (docs/tech-spec.md §59); none without it. */
+  readonly pleas?: PleasDef;
   /** What each god grants while their standing is high enough (docs/tech-spec.md §43); none without it. */
   readonly favours?: readonly FavourDef[];
   /** Ranks a strong player is offered, each harder and better paid (docs/tech-spec.md §44); none without it. */
@@ -918,6 +920,30 @@ export interface RequestDef {
   readonly until?: number;
   /** What the god wants, in their words (a string key). */
   readonly text: string;
+}
+
+/**
+ * Pleas from ordinary souls (docs/tech-spec.md §59). On some days from `from`, one of the day's own souls asks, openly,
+ * for a hall where it doesn't belong, as a story soul can (§51). Granted, the stamp is a mistake all the same, but the
+ * soul stands at Ragnarök in the hall it asked for, as a soul given to a god who asked does (§42).
+ */
+export interface PleasDef {
+  /** The first day a soul may plead. */
+  readonly from: number;
+  /** Percent of days from then on when one does. */
+  readonly chance: number;
+  readonly list: readonly PleaDef[];
+}
+
+export interface PleaDef {
+  /** Souls that belong here by the day's rules */
+  readonly from: Destination;
+  /** may ask to be sent here, */
+  readonly to: Destination;
+  /** in these words (a string key, given the soul's `name` and `gender`), */
+  readonly text: string;
+  /** from this day (absent: from `from`). */
+  readonly since?: number;
 }
 
 /**

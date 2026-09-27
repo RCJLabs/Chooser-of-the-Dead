@@ -18,7 +18,8 @@ const content = loadContent('dev-full');
 const strings: Record<string, string> = JSON.parse(
   readFileSync(resolve(import.meta.dirname, '../../content/packs/campaign/strings/en.json'), 'utf8'),
 );
-const day = content.days.find((d) => d.noon)?.day ?? 0;
+// Day 19's decree, which redraws Freyja's whim (Day 18's redraws Odin's claim, below).
+const day = content.days.find((d) => d.noon?.redraw.includes('freyjaWhim'))?.day ?? 0;
 
 // The first seed whose first soul after noon would have gone elsewhere under the morning's whim.
 const { save, queue, first, notice, before, after, text, morningDest } = (() => {
@@ -119,4 +120,46 @@ test('a noon decree: the raven before noon, the new whim from noon, and a stamp 
 
   await expect(page.getByTestId('audit-title')).toHaveText(`Day ${day}: the audit`);
   await expect(page.getByTestId('audit-score')).toHaveText(`${queue.length - 1} of ${queue.length} judged rightly`);
+});
+
+test('Day 18: Odin at the desk after the third soul, and at noon his raven with a new claim', async ({ page }) => {
+  // Odin's day (docs/tech-spec.md §59): his visit, then his decree. A save on its morning, every soul judged rightly.
+  const d18 = content.days.find((d) => d.noon?.redraw.includes('odinClaim'));
+  const visit = d18?.queue.visits?.[0];
+  if (!d18?.noon || !visit) throw new Error('no decree of Odin’s in this build');
+  const s = scenarioSave(content, 'e2e-noon-odin', d18.day, ENGINE_MAJOR);
+  const run = s.mornings[s.mornings.length - 1] as RunState;
+  const ctx = runContext(content, run);
+  const q = campaignQueue(run, { content, ctx });
+  const k = q.findIndex((c) => c.noon);
+  const claim = strings[ctx.noon?.ctx.paramChoices.odinClaim?.text ?? ''] ?? '';
+  expect(claim).not.toBe('');
+  expect(k - d18.noon.notice).toBeGreaterThan(visit.at);
+  await page.addInitScript(
+    (record) => localStorage.setItem('cots.campaign.0', record),
+    JSON.stringify({ v: 1, rev: 1, savedAt: 0, save: s }),
+  );
+  await page.goto('./');
+  await page.getByTestId('play-campaign').click();
+  await page.getByTestId('continue-0').click();
+  await expect(page.getByTestId('morning-title')).toHaveText(`Day ${d18.day}`);
+  while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
+  await page.getByTestId('scene-done').click();
+  await page.getByTestId('to-gate').click();
+  const desk = page.getByTestId('desk-visit');
+  for (const [i, c] of q.entries()) {
+    if (i === visit.at) {
+      await expect(desk).toContainText('Nobody in this line knows me in this hat.');
+      while ((await desk.getByTestId('scene-done').count()) === 0)
+        await desk.getByTestId('scene-choice').first().click();
+      await desk.getByTestId('scene-done').click();
+    }
+    if (i === k - d18.noon.notice) {
+      await expect(page.getByTestId('noon-raven')).toContainText(strings[d18.noon.text] ?? '');
+      await expect(page.getByTestId('noon-raven')).toContainText(claim);
+    }
+    if (i === k) await expect(page.getByTestId('noon-since')).toHaveText(`Since noon: ${claim}`);
+    await stampAndSend(page, c.expect.dest, c.expect.procedures?.includes('proc.clip') === true);
+  }
+  await expect(page.getByTestId('audit-score')).toHaveText(`${q.length} of ${q.length} judged rightly`);
 });

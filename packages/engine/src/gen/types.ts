@@ -84,6 +84,8 @@ export interface CaseSpec {
   readonly script?: string;
   /** Made, and judged, under the day's noon decree (docs/tech-spec.md §45): see `soulCtx`. */
   readonly noon?: true;
+  /** What an ordinary soul asks for at the desk (docs/tech-spec.md §59): a stamp where it doesn't belong, and the words. */
+  readonly plea?: { readonly stamp: Destination; readonly text: string };
   readonly archetype: string;
   readonly truth: Truth;
   readonly lies: readonly Lie[];

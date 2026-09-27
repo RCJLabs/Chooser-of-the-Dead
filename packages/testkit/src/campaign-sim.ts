@@ -22,6 +22,7 @@ import {
   fight,
   heldFronts,
   newRun,
+  pleaOf,
   Rng,
   type RunAction,
   type RunSave,
@@ -40,7 +41,6 @@ import {
   startSave,
   stepRun,
   storyOffer,
-  storyPlea,
 } from '@cots/engine';
 import { type ScenePath, sceneEnv, scenePaths } from '@cots/story';
 
@@ -291,7 +291,7 @@ function shiftActions(
     // A bot that takes bribes takes what a story soul offers (docs/tech-spec.md §47), as a choice, not a slip; one
     // that grants pleas gives a story soul the stamp it asks for (docs/tech-spec.md §51).
     const offer = bribes ? storyOffer(content, c) : null;
-    const plea = pleas ? storyPlea(content, c) : null;
+    const plea = pleas ? pleaOf(content, c) : null;
     const dest: Destination = offer
       ? offer.dest
       : plea

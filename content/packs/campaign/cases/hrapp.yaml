@@ -1,0 +1,26 @@
+# DRAFT writing (docs/tech-spec.md §59). Day 13: Hrapp Oddsson, a miser from up past the ford, died in his bed at
+# seventy-one and was buried with his silver at his feet. He doesn't want Hel's hall; he wants to go back and sit on
+# his chest. He offers rings for a RETURN stamp: the stamp that sends the living home. The stamp is the answer, as the
+# jarl's is (§47). RETURN takes his rings at the audit, and it's a wrong stamp all the same, with its usual costs (no
+# wage, a citation, a fine past the day's warnings); and a dead man sent home walks as a draugr. HEL refuses them. The
+# 40 is in his words too (case.hrapp.offer) and in Muninn's that night (d13.night).
+id: case.hrapp
+personas: [honest]
+truth:
+  alive: { is: false }
+  cause: { is: oldAge }
+  grip: { is: none }
+  woundsFront: { is: 0 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+lies: []
+look: { gender: m, name: Hrapp, patronym: Oddsson, age: 71, build: lean, beard: long }
+lines: [case.hrapp.chest, case.hrapp.nephews, case.hrapp.offer]
+expect: HEL
+onStamp:
+  - { stamped: '*', effects: [{ flag: hrapp_judged }] }
+  - { stamped: RETURN, effects: [{ rings: 40 }, { flag: hrapp_draugr }] }
+  - { stamped: HEL, effects: [{ flag: hrapp_refused }] }

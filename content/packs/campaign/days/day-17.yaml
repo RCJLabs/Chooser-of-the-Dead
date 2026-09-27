@@ -21,6 +21,9 @@ params:
       - { id: whim.odin.ulfberht, text: whim.odin.ulfberht, is: { fact: blade, is: ulfberht } }
 queue:
   count: [13, 15]
+  # Hel at the desk (docs/tech-spec.md §46, §59), once three souls have been sent, before the spear-marked skald.
+  visits:
+    - { scene: scene.d17.desk, at: 3 }
   teachFirst: arch.spear_marked
   scripted:
     - { case: case.thrand, at: 5 }

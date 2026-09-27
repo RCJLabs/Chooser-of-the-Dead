@@ -1,8 +1,13 @@
 # draft
 // FIRST DRAFT (M7): rewrite or sign off. Voice: docs/voice.md. Flags: docs/story-drafts.md.
+EXTERNAL flag(name)
 Two decrees this morning. One is birch bark, in the quartermaster's very small hand. The other is a feather written on in gold, and it is already arguing with the first.
 Odin now names his own claim each day, as Freyja does. When both of them want the same worthy soul, Odin's claim wins.
 Freyja arrives before the first soul does. The dead in the queue turn toward her like flowers, and then, uncertainly, back toward the hall, as if they're no longer sure where the sun is.
+// Her visit on Day 11 (docs/tech-spec.md §59).
+{ flag("watch_odr"):
+  "Still watching for him?" she asks you, before anything else, and doesn't wait for the answer. # speaker: freyja
+}
 "Half," she says. "Half the slain are mine. It's in the old songs. It isn't in his new decrees." # speaker: freyja
 "Today he claims the scarred, or the ones with good swords. Tomorrow he'll claim everyone with two feet." # speaker: freyja
 "You hold the stamp, little chooser. When he and I both want a soul, you can still send it to my field. He'll be angry. I'll remember." # speaker: freyja

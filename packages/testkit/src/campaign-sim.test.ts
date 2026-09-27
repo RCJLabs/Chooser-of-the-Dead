@@ -142,9 +142,11 @@ describe('a jarl’s bribe (docs/tech-spec.md §47)', () => {
         (l.mistakes ?? []).filter((m) => (m.paid ?? 0) > 0).map((m) => ({ day: l.day, paid: m.paid })),
       );
     expect(paid(false)).toEqual([]);
-    const taken = paid(true);
-    expect(taken).toHaveLength(1);
-    expect(taken[0]?.paid).toBeGreaterThan(0);
+    // The jarl's thirty for Valhalla on Day 9, and the miser's forty for a stamp home on Day 13 (§59).
+    expect(paid(true)).toEqual([
+      { day: 9, paid: 30 },
+      { day: 13, paid: 40 },
+    ]);
     expect(simulateRun(content, 'bribe-0', bot('expert'), 'payAll', { bribes: true }).ledgerOk).toBe(true);
   }, 120_000);
 

@@ -29,6 +29,13 @@ Loki is sitting on the end of your table in no borrowed face at all, only his ow
 { flag("lied_to_odin"):
   "You lied to him. To his face, such as it is. I could almost be proud of you." # speaker: loki
 }
+// The old woman at the desk on Day 15 (docs/tech-spec.md §59).
+{
+- flag("saw_thokk"):
+  "You knew me in the shawl. Nobody ever knows me in the shawl. I've been in a good mood about it for three days." # speaker: loki
+- flag("missed_thokk"):
+  "An old woman stopped at your table three days ago and asked the way to Hel's bridge." He waits. "That was me. I thought you'd want to know." # speaker: loki
+}
 * { flag("loki_deal") } ["We're still friends."]
   # fx: standing loki +1
   "Good. I'd hate to rub the names out. Chalk smudges." # speaker: loki

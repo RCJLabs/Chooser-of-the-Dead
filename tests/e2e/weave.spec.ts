@@ -54,7 +54,8 @@ test('the weave opens once a run has reached an ending, and a woven run says so'
   await page.getByTestId('campaign-quit').click();
   await expect(page.getByTestId('slot-0').getByTestId('slot-summary')).toContainText('· Woven');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cots.campaign.0') ?? 'null'));
-  expect(['weave.sea', 'weave.clerkLast']).toContain(saved?.save.mornings[0].weave);
+  // A new run's seed is fresh each time, so it may draw any of the build's weaves.
+  expect((content.campaign?.weaving?.weaves ?? []).map((w) => w.id)).toContain(saved?.save.mornings[0].weave);
 });
 
 test('the clerk’s thread last: the morning names it, and the rulebook reads his rule after the halls', async ({

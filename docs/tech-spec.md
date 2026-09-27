@@ -3556,6 +3556,114 @@ The brainstorm's version, and what changed:
 - **The ride is the same for every player:** 15, not scaled to how well the run went. Scaling it by skill would have given the best players their surplus back.
 - **The words are drafts:** about 50 of them (the ride's heading, lead, labels and hint).
 
+## 59. After the rundown: the one-off systems, used more often
+
+**Why.** Item 2 of the rundown. Each of the systems that interrupt a day had been used once: one god at the desk (Day 18), one bribe (Day 9), one noon decree (Day 19), and pleas from one story soul (Day 16). There were two weaves and four day events. The code behind each was general; the content wasn't.
+
+**What's new**
+
+| System | Before | Added |
+|---|---|---|
+| A god at the desk (§46) | Odin, Day 18 | Freyja (Day 11), Loki as the old woman Þökk (Day 15), Hel (Day 17) |
+| A bribe (§47) | Jarl Asgaut, Day 9: 30 rings for Valhalla | Hrapp Oddsson, a miser (Day 13): 40 rings for a Return stamp |
+| A noon decree (§45) | Freyja's whim, Day 19 | Odin's claim, Day 18 |
+| A plea (§51) | Kari, Day 16 | ordinary souls, on half the days from Day 7 |
+| Day events (§52) | storm, sickness, battle, feast | a hard frost (from Day 10), the jarl's hunt (from Day 6) |
+| The Norns' weave (§53) | Rán's thread first, the clerk's thread last | Freyja's thread first |
+
+**Gods at the desk** (drafts: `scene.d11.desk`, `scene.d15.desk`, `scene.d17.desk`)
+- **Freyja, Day 11, after 4 souls.** She's looking for her husband, Óðr, who went travelling and hasn't come back, and weeps red gold for him (Gylfaginning).
+  - "I'll watch for him" sets `watch_odr`; she asks about it on Day 15's morning.
+  - Her tear: send it home to Asa (`tear_asa`, which the epilogue remembers) or give it back (Freyja +1).
+  - The tear isn't rings: a desk scene's effects land at the audit, which has no row for rings a scene gives.
+- **Loki as Þökk, Day 15, after 4.** Þökk is the old woman who wouldn't weep for Baldr (Gylfaginning); Móðguðr said on Day 14 that he waits in Hel's hall. Her lips carry the stitch scars, the Day 12 tell. See through her (`saw_thokk`, Loki +1) or not (`missed_thokk`); on Night 18, Loki says which.
+- **Hel, Day 17, after 3.** It's the day of the spear mark, Odin's loophole for deaths in bed, and she comes to watch it work.
+  - "It's the rule" is Odin +1, Hel −1; "It's a cheat" is Hel +1, Odin −1; or say nothing.
+  - If you sided with her on Night 14, she says so.
+- Nothing new in the engine: each is a scene and a line in the day's queue.
+
+**A miser's bribe** (`case.hrapp`, Day 13, after 4 souls)
+- **Who:** Hrapp Oddsson died in his bed at 71 and was buried with his silver. The fairness check proves he belongs in Hel under every whim of the day.
+- **The offer:** 40 rings for a Return stamp, the one that sends the living home.
+  - Taken (`hrapp_draugr`), it's a mistake with its rings at the audit, as the jarl's is.
+  - Refused (`hrapp_refused`), he goes to Hel.
+- **A different shape from the jarl's.** He doesn't want a better hall; he wants none. A dead man sent home walks as a draugr. Muninn remembers it that night; on Night 16 Bera's letter says he sat on his own doorstep till dawn; the epilogue says where he sits now.
+- **His name** is for the draugr of Laxdæla saga. No generated soul has it, so no other soul's name changed (reserving a generated name, such as Ketil, renamed souls on every day).
+
+**Odin's noon decree** (Day 18)
+- **The decree:** `noon: { at: 8, notice: 2, redraw: [odinClaim], teach: arch.contested }`. From the ninth soul, Odin's claim is drawn again, never to the morning's. The raven comes two souls earlier. Its first soul is one both he and Freyja want under the new claim.
+- **Odin's day:** his visit after the third soul, his decree at noon.
+- **Day 18 was an event day.** Events never fall on a day with a decree, so new runs don't draw one there. A run that drew one before this change loses it: `eventOn` gives none on a decree day.
+- **Fairness:** the Day 18 sweep (200 seeds) meets every threshold.
+  - The generator's adversarial test read every soul under the morning's rules. It failed on Day 18, as it should, and now reads each soul under its own, as the other fairness tests have since §45.
+  - The decree tests that hold for any decree run on both days.
+
+**Pleas from ordinary souls** (`campaign.pleas`, engine `campaign/pleas.ts`)
+- **When:** on half the days from Day 7, one of the day's own souls asks for another hall.
+  - It's drawn on a stream of its own, so the line is the same with it or without it.
+  - Never the day's or the decree's teaching soul, one who waited through the night, or a story soul, and never on a day a story soul pleads (Kari's).
+- **The six pleas,** by the soul's hall (drafts):
+
+  | Hall | Asks for | Why |
+  |---|---|---|
+  | Hel | Valhalla | to drink with their brothers on Odin's benches |
+  | Hel | Rán | to be with a husband or wife who went down with the herring boats |
+  | Valhalla | Hel | to sit with their mother, who died in her bed |
+  | Valhalla | Fólkvangr | to be with their sister in Freyja's hall |
+  | Rán | Valhalla | to sit with the crew they rowed with, who fell at the ford |
+  | Transfer (from Day 10) | Hel | to be with a mother and father who were never baptized |
+
+- **The banner** is Kari's (§51), with one line more: "Granted, he'll stand with that hall's host at the last battle, not run from it."
+- **Granted, it's a mistake like any:** no wage, a citation, a fine past the day's warnings, and the standing any such mistake moves. It's filed `pled`.
+- **What's new is what happens at Ragnarök.** The soul stands in the host of the hall it asked for, as a soul given to a god who asked does (§42).
+  - It isn't a misfit, so it doesn't run.
+  - The host names it among those who'll stand.
+  - In Valhalla it counts with the worthy.
+- **It doesn't appeal:** it got what it asked for.
+- **Kari now stands too.** Before, granting his plea made him a misfit in Rán's host, who would run.
+- **Measured** (40 seeds, Days 4–20): a plea comes on 36% of days, about six a run. The six kinds are spread fairly evenly: 30–60 each over 242.
+
+**Events and the weave** (drafts)
+- **A hard frost** (from Day 10): 85% of the day's sun, and the hearth costs half again that night.
+- **The jarl's hunt** (from Day 6): three outlaws in the line, in place of three of the day's own.
+- **Freyja's thread first:** her rule is read before Odin's claim (585 against 590). So from Day 15, when both want the same worthy soul, hers wins. Its two souls a day are contested souls bound for Fólkvangr.
+- **The compiler checks them as it checks the others:**
+  - the events' souls can be made on every day they can fall on;
+  - the weave changes some day, keeps Hel's catch-all last, can bring its souls under every choice of the day's params, and moves no story soul.
+
+**Numbers** (`pnpm sim campaign`, 200 runs per policy, plain story, against §58's run)
+- **Rings and demotions barely move:**
+  - experts end 1–10 rings poorer;
+  - novices are demoted in 27% of runs paying every bill (29.5% before), 5.5% frugal (9.0%) and 59% buying upgrades first (59.5%). That's within noise or close to it.
+  - Nobody lost family.
+- **The battle is as it was:** experts hold 3.7 fronts, competent bots 3.0, novices 1.3–1.4.
+- **Experts reach Odin's ending more often:** 133–145 runs of 200, against 87–109.
+  - The cause is established by elimination. These bots take the first answer when nothing else decides, and the first answer to Hel ("It's the rule") is Odin +1. Nothing else new moves Odin's standing for bots that take no bribes and grant no pleas.
+  - A player chooses; the bots' tie-break doesn't.
+- **What the sim can't show:** the bots judge by where a soul belongs, never grant an ordinary plea unless told, and take no bribes unless told. So the new pleas and the miser cost them nothing, and Day 18's decree costs them no time.
+
+**Checks**
+- **Engine:**
+  - ordinary pleas come only where they should, one a day at most, and are the same every time, with the line otherwise as a build without pleas makes it;
+  - granted, a plea is a mistake like any, but the soul stands (in Valhalla, with the worthy) and never appeals; Kari stands too;
+  - the miser's offer, taken and refused;
+  - no event on a decree day;
+  - the decree tests on both decree days.
+- **Sim:** a bot that takes bribes takes both, and its accounts add up.
+- **e2e** (phone and desktop):
+  - an ordinary soul's plea, with an accessibility scan, cited when granted;
+  - Hel at the desk, with her words at the audit;
+  - the miser's banner, citation, audit row and Muninn's line;
+  - Odin's visit and his raven on Day 18;
+  - Kari's banner with its new line.
+- **Goldens:** Day 18's summaries changed (its decree). Days 1–5 and the Dailies didn't.
+
+**Known limits**
+- **More to take in, not less.** Some days now carry two interruptions: Day 17 (Hel after 3 souls, Thrand at 5) and Day 18 (Odin after 3, the raven after 6). That adds to a risk nobody has tested yet: the first playtests may well say "too much" before "too little".
+- **Six reasons to plead.** A long run hears some of them twice.
+- **The bots never grant an ordinary plea unless told,** so what a person does with them, and whether standing at Ragnarök is reason enough, is a playtest question.
+- **The words are drafts:** about 1,340 of them. The three desk scenes are about 720, their callbacks in other scenes about 200, and the miser, the pleas, the decree, the events and the weave about 420.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

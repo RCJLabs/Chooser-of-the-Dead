@@ -2,6 +2,10 @@
 day: 18
 sunS: 900
 decree: decree.d18
+# Odin's day. He stops at the desk after the third soul (below), and at noon a raven brings word that he has changed
+# his claim (docs/tech-spec.md §45, §59): from the day's ninth soul it's drawn again, never to the same one, and that
+# soul is one both he and Freyja want under it. The raven comes two souls earlier.
+noon: { at: 8, notice: 2, redraw: [odinClaim], text: decree.d18.noon, teach: arch.contested }
 scenes: { morning: scene.d18.morning, night: scene.d18.night }
 economy:
   wage: 8

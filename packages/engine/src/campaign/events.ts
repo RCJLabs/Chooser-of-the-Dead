@@ -47,10 +47,14 @@ export function drawEvents(content: Content, seed: string): DayEventAt[] {
   return drawn.sort((a, b) => a.day - b.day);
 }
 
-/** The event the run drew for `day`, if any. */
+/**
+ * The event the run drew for `day`, if any. None on a day with a noon decree (`eventDays`), even for a run that drew
+ * one there before the day had its decree (Day 18's came later, docs/tech-spec.md §59).
+ */
 export function eventOn(run: Pick<RunState, 'events'>, content: Content, day: number): DayEventDef | undefined {
   const at = run.events?.find((e) => e.day === day);
-  return at ? content.campaign?.events?.pool.find((e) => e.id === at.id) : undefined;
+  if (!at || content.days.find((d) => d.day === day)?.noon) return undefined;
+  return content.campaign?.events?.pool.find((e) => e.id === at.id);
 }
 
 /** `n` in percent `p`, to the nearest whole number (half up). */

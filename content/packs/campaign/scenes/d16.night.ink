@@ -28,6 +28,11 @@ EXTERNAL home(id)
   Under it, in Bera's big slanting hand:
   "They say Kari's on Odin's benches now, with a horn in each hand. Solveig would have hated it, and been proud." # speaker: bera
 }
+// The miser sent home on Day 13 (docs/tech-spec.md §59) walks.
+{ flag("hrapp_draugr"):
+  At the very bottom, in Bera's hand, squeezed in sideways:
+  "Old Hrapp Oddsson walked out of his barrow at the dark of the moon and sat on his own doorstep till dawn. Nobody goes up past the ford now." # speaker: bera
+}
 -> thorvald
 
 === thorvald ===

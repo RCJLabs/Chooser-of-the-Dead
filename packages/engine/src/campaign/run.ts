@@ -43,6 +43,7 @@ import {
   unwovenContext,
 } from './events';
 import { dayGrade } from './grade';
+import { pleaOf, withPlea } from './pleas';
 import {
   type Appeal,
   type AppealHeard,
@@ -459,11 +460,25 @@ export const soulName = (c: CaseSpec): string => `${c.evidence.look.name} ${c.ev
 
 /**
  * Whether a soul stamped to a hall is one the last battle names there (docs/tech-spec.md §54): one who'll run (to
- * Valhalla, the unworthy; elsewhere, one sent by mistake and not given to a god who asked), or a story soul.
+ * Valhalla, the unworthy; elsewhere, one sent by mistake and not given to a god who asked), a story soul, or one who
+ * asked to be there (§59).
  */
-function namedAs(campaign: CampaignDef, c: CaseSpec, day: number, hall: Destination, runs: boolean): NamedSoul[] {
+function namedAs(
+  campaign: CampaignDef,
+  c: CaseSpec,
+  day: number,
+  hall: Destination,
+  runs: boolean,
+  asked = false,
+): NamedSoul[] {
   if (!(campaign.ragnarok?.hosts ?? []).some((h) => h.hall === hall)) return [];
-  return runs || c.script ? [{ name: soulName(c), day, hall, runs }] : [];
+  return runs || c.script || asked ? [{ name: soulName(c), day, hall, runs }] : [];
+}
+
+/** Whether a verdict sent its soul, wrongly, where the soul asked to go (docs/tech-spec.md §51, §59): a plea granted. */
+function pleaGranted(content: Content, shift: ShiftState, v: Verdict): boolean {
+  const c = shift.cases[v.index];
+  return c !== undefined && v.stamped !== null && v.stamped !== v.expected && pleaOf(content, c)?.dest === v.stamped;
 }
 
 /** Moves a soul from one hall to another in the run's counts (Ragnarök's host is made of them). */
@@ -619,7 +634,9 @@ function extraSouls(seed: string, ctx: DayCtx, n: number, line: readonly CaseSpe
 export function campaignQueue(run: RunState, env: RunEnv): CaseSpec[] {
   const plain = unwovenContext(env.content, run, run.day);
   const line = lineFor(run.seed, env.ctx, run.waiting ?? [], lineEdits(run, env.content, run.day), plain);
-  const cases = [...line, ...extraSouls(run.seed, env.ctx, rankOf(run, env.content)?.souls ?? 0, line, plain)];
+  const extra = extraSouls(run.seed, env.ctx, rankOf(run, env.content)?.souls ?? 0, line, plain);
+  // On some days, one of them pleads for another hall (docs/tech-spec.md §59).
+  const cases = withPlea(env.content, run.seed, env.ctx, [...line, ...extra]);
   const slots = [...(env.ctx.spec.queue.scripted ?? [])].sort((a, b) => a.at - b.at);
   const noon = env.ctx.noon;
   for (const slot of slots) {
@@ -680,15 +697,6 @@ export function storyOffer(content: Content, c: CaseSpec): { dest: Destination; 
     if (rings > 0 && (!best || rings > best.rings)) best = { dest, rings };
   }
   return best;
-}
-
-/**
- * What a story soul asks for at the desk (docs/tech-spec.md §51), openly, where it doesn't belong: the stamp, and the
- * words for it. Granted, the stamp is a mistake all the same.
- */
-export function storyPlea(content: Content, c: CaseSpec): { dest: Destination; text: string } | null {
-  const plea = c.script ? content.scripted?.find((d) => d.id === c.script)?.plea : undefined;
-  return plea && plea.stamp !== c.expect.dest ? { dest: plea.stamp, text: plea.text } : null;
 }
 
 /** The story consequences of how today's story souls were stamped. */
@@ -848,6 +856,7 @@ function audit(
       return;
     }
     const finesBefore = fines;
+    const pled = pleaGranted(env.content, shift, v);
     if (v.correct) {
       correct++;
       pay += economy.wage;
@@ -855,7 +864,6 @@ function audit(
     } else {
       wrong++;
       const paid = c ? stampRings(env.content, c, v.stamped) : 0;
-      const pled = c ? storyPlea(env.content, c)?.dest === v.stamped : false;
       mistakes.push({
         rule: v.rule,
         expected: v.expected,
@@ -878,7 +886,8 @@ function audit(
       : campaign.standing.find((r) => matches(r.expected, v.expected) && matches(r.stamped, v.stamped as Destination));
     for (const [f, n] of Object.entries(rule?.fx ?? {}))
       standing[f as Faction] = (standing[f as Faction] ?? 0) + (n ?? 0);
-    const worthy = c ? eval2({ ref: campaign.worthy }, c.truth, env.ctx) : false;
+    // A soul that asked for Valhalla and was sent there stands with the worthy (docs/tech-spec.md §59).
+    const worthy = c ? pled || eval2({ ref: campaign.worthy }, c.truth, env.ctx) : false;
     if (v.stamped === 'VALHALLA' && c) {
       if (worthy) einherjar.worthy++;
       else einherjar.unworthy++;
@@ -924,11 +933,13 @@ function audit(
   for (const [f, n] of Object.entries(line?.waiting.standing ?? {})) nextStanding[f as Faction] += n ?? 0;
   for (const r of requests) for (const [f, n] of Object.entries(r.standing)) nextStanding[f as Faction] += n ?? 0;
   // A soul given to a god whose request was done in full is that god's now, and doesn't appeal: righting it would
-  // keep the reward without its cost.
-  const given = (v: Verdict) => requests.some((r) => r.met && v.expected === r.from && v.stamped === r.to);
+  // keep the reward without its cost. Nor does a soul sent where it asked to go (docs/tech-spec.md §59).
+  const given = (v: Verdict) =>
+    requests.some((r) => r.met && v.expected === r.from && v.stamped === r.to) || pleaGranted(env.content, shift, v);
   // Souls sent to a hall they didn't belong in, but for those given: at Ragnarök they break and run (§54).
   const misfits: Partial<Record<Destination, number>> = { ...run.misfits };
-  // And the souls the battle will name: who'll run from each host, and the story's own who'll stand in one.
+  // And the souls the battle will name: who'll run from each host, the story's own who'll stand in one, and those who
+  // asked to be there.
   const named: NamedSoul[] = [...(run.named ?? [])];
   for (const v of shift.verdicts) {
     if (v.stamped === null) continue;
@@ -936,7 +947,8 @@ function audit(
     if (wrong) misfits[v.stamped] = (misfits[v.stamped] ?? 0) + 1;
     const c = shift.cases[v.index];
     const runs = v.stamped === 'VALHALLA' ? !(costs.get(v.index)?.worthy ?? false) : wrong;
-    if (c) named.push(...namedAs(campaign, c, run.day, v.stamped, runs));
+    const asked = pleaGranted(env.content, shift, v);
+    if (c) named.push(...namedAs(campaign, c, run.day, v.stamped, runs, asked));
   }
   const appeal = chooseAppeal(run, shift, campaign, costs, fined, given);
   const asked = drawRequests(run, env, line?.carried ?? []);

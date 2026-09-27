@@ -31,6 +31,8 @@ A dry comedy about paperwork at the end of the world, told straight, over a fami
 | **The clerk** (Day 10) | Of the White Christ's department of the dead. Polite, precise, tired; loves a form, fears a duplicate. Kind to the souls in his care. He never preaches and nobody mocks his faith: the joke is two departments sharing one table. |
 | **Muninn** (Day 13) | Odin's raven of memory, forgetting more each day. Speaks in short, certain sentences, then loses the thread. |
 | **Móðguðr** (Day 14) | Keeper of the bridge to Hel's hall. Pale, formal, literal. Speaks for Hel and waits to be noticed. |
+| **Hel** (Day 17, at the desk) | Half a young woman's face, half a week-old bruise, both held still. Says little, expects nothing, is never angry. Speaks of Odin as someone who likes to be first. |
+| **Þökk** (Day 15, at the desk) | Loki as an old woman in a grey shawl, the one who wouldn't weep for Baldr. Warm hands, which the dead's never are; a young man's laugh when seen through. The lips give her away. |
 | **Thorvald the Unlucky** | Cheerful, bewildered and never quite dead. He should have died many times; the joke is that he's the luckiest man alive. |
 | **The ferryman** | Never seen. Older than the rocks, won't give his name, takes rings. |
 | **The dead** | By persona: braggarts perform for an audience, the confused ask about tables, cowards look for a quieter hall. Each line is something a person would say at a gate, not a clue read aloud. |

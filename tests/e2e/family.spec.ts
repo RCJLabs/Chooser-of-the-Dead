@@ -113,7 +113,7 @@ test('Solveig’s boy asks for Rán, openly: granted, it’s cited all the same,
     if (i === at) {
       const name = `${c.evidence.look.name} ${c.evidence.look.patronym}`;
       await expect(page.getByTestId('plea-banner')).toHaveText(
-        `${name} asks for a Rán stamp, to be with his mother: a mistake all the same.`,
+        `${name} asks for a Rán stamp, to be with his mother: a mistake all the same. Granted, he'll stand with that hall's host at the last battle, not run from it.`,
       );
       await expectAccessible(page);
       await stampAndSend(page, 'RAN', false);

@@ -43,6 +43,13 @@ The raven shakes himself, and a feather comes loose and drifts down onto your bl
 - flag("jarl_refused"):
   "I remember a jarl, though. He offered you thirty rings, and you sent him to Hel anyway. Odd, what stays." # speaker: muninn
 }
+// And the miser at the desk today (docs/tech-spec.md §59).
+{
+- flag("hrapp_draugr"):
+  "And a miser, today. Forty rings, and you sent him home to his silver. The dead don't go home, you know. They come back wrong." # speaker: muninn
+- flag("hrapp_refused"):
+  "And a miser, today. Forty rings to be sent home, and you sent him to Hel. She'll have him counting her spoons." # speaker: muninn
+}
 * ["Try. What else did she tell him?"]
   # fx: flag truth +1
   Muninn closes his eyes. For so long that you think he's gone to sleep.

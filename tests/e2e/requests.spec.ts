@@ -135,6 +135,13 @@ test('a god asks a favour in the morning: its terms, its count at the desk, and 
   );
   await expect.poll(async () => (await overflow()).box).toBeGreaterThan(0);
   expect((await overflow()).page).toBe(0);
+  // The box refits to the larger text in the frame after it grows (its snap stop is the held column's width): wait
+  // for that before scrolling, or a slow machine snaps to the old width in between.
+  await expect
+    .poll(() =>
+      box.evaluate((el) => el.style.getPropertyValue('--held') === `${el.querySelector('th')?.offsetWidth ?? 0}px`),
+    )
+    .toBe(true);
   const halfHidden = () =>
     box.evaluate((el) => {
       const edge = el.querySelector('th')?.getBoundingClientRect().right ?? 0;
