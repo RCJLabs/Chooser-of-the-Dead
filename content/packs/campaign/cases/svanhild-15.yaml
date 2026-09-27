@@ -1,0 +1,28 @@
+# DRAFT writing (docs/tech-spec.md §60). Day 15, if you sent her home on Day 7 (svanhild_home): Svanhild again, killed
+# at the same ford this time, spear in hand, and belonging in Valhalla. She used the days you gave her.
+id: case.svanhild15
+personas: [honest]
+truth:
+  alive: { is: false }
+  cause: { is: battle }
+  grip: { is: weapon }
+  weaponOwner: { is: self }
+  blade: { is: plain }
+  woundsFront: { is: 1 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+  gripHand: { is: right }
+  hair: { is: fair }
+  ornament: { is: none }
+lies: []
+look: { gender: f, name: Svanhild, patronym: Hallvardsdottir, age: 24, build: lean, beard: none }
+lines: [case.svanhild15.days, case.svanhild15.ford, case.svanhild15.used]
+words: { pool.weapons: spear }
+expect: VALHALLA
+when: { state: flags.svanhild_home, gte: 1 }
+onStamp:
+  - { stamped: '*', effects: [{ flag: svanhild15_judged }] }
+  - { stamped: VALHALLA, effects: [{ flag: svanhild_valhalla }] }

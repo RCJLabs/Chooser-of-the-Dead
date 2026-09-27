@@ -1,0 +1,22 @@
+# DRAFT writing (docs/tech-spec.md §60). Day 7: Svanhild Hallvardsdottir was pulled out from under the shield wall at the
+# ford before she was quite dead: she belongs at home (RETURN). If she's sent home, she comes back on Day 15, killed at
+# the same ford (case.svanhild15), with what she did with the days between.
+id: case.svanhild7
+personas: [confused]
+truth:
+  alive: { is: true }
+  cause: { is: battle }
+  grip: { is: weapon }
+  weaponOwner: { is: self }
+  blade: { is: plain }
+  woundsFront: { is: 1 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+lies: []
+look: { gender: f, name: Svanhild, patronym: Hallvardsdottir, age: 24, build: lean, beard: none }
+lines: [case.svanhild7.dead, case.svanhild7.quiet, case.svanhild7.father]
+words: { pool.weapons: spear }
+expect: RETURN
+onStamp:
+  - { stamped: '*', effects: [{ flag: svanhild_judged }] }
+  - { stamped: RETURN, effects: [{ flag: svanhild_home }] }

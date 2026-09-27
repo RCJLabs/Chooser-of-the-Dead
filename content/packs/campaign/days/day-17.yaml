@@ -26,6 +26,9 @@ queue:
     - { scene: scene.d17.desk, at: 3 }
   teachFirst: arch.spear_marked
   scripted:
+    # The jarl's son (one of two, by whether his father's rings were taken on Day 9) (§60).
+    - { case: case.thorolf_bench, at: 9 }
+    - { case: case.thorolf_hel, at: 9 }
     - { case: case.thrand, at: 5 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }

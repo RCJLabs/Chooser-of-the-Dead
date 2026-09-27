@@ -18,6 +18,11 @@ params:
 queue:
   count: [13, 15]
   teachFirst: arch.bedridden
+  scripted:
+    # Geir's widow, asking for his hall (one of two, by where Geir went), and the miser's nephew, if the miser walks (§60).
+    - { case: case.jofrid_valhalla, at: 6 }
+    - { case: case.jofrid_hel, at: 6 }
+    - { case: case.kolskegg, at: 10 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }
     - { id: arch.freyja_pick, w: 2 }

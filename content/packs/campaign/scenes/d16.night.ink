@@ -31,7 +31,11 @@ EXTERNAL home(id)
 // The miser sent home on Day 13 (docs/tech-spec.md §59) walks.
 { flag("hrapp_draugr"):
   At the very bottom, in Bera's hand, squeezed in sideways:
-  "Old Hrapp Oddsson walked out of his barrow at the dark of the moon and sat on his own doorstep till dawn. Nobody goes up past the ford now." # speaker: bera
+  { flag("kolskegg_judged"):
+    "Old Hrapp Oddsson walked out of his barrow at the dark of the moon and sat on his own doorstep till dawn. Nobody goes up past the ford now, not since the Thorkelsson boy." # speaker: bera
+  - else:
+    "Old Hrapp Oddsson walked out of his barrow at the dark of the moon and sat on his own doorstep till dawn. Nobody goes up past the ford now." # speaker: bera
+  }
 }
 -> thorvald
 

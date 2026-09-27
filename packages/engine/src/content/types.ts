@@ -688,6 +688,8 @@ export interface CampaignDef {
   readonly requests?: RequestsDef;
   /** Ordinary souls who plead for a hall where they don't belong (docs/tech-spec.md §59); none without it. */
   readonly pleas?: PleasDef;
+  /** The kin of souls sent to the wrong hall, at the desk later (docs/tech-spec.md §60); none without it. */
+  readonly kin?: KinDef;
   /** What each god grants while their standing is high enough (docs/tech-spec.md §43); none without it. */
   readonly favours?: readonly FavourDef[];
   /** Ranks a strong player is offered, each harder and better paid (docs/tech-spec.md §44); none without it. */
@@ -944,6 +946,23 @@ export interface PleaDef {
   readonly text: string;
   /** from this day (absent: from `from`). */
   readonly since?: number;
+}
+
+/**
+ * The kin of the misjudged (docs/tech-spec.md §60). On some days from `from`, when the run has sent a soul to a hall
+ * where it didn't belong at least `after` days before, one of the day's own souls is its husband, wife or cousin, and
+ * says so at the desk. Unless it belongs where that soul went, it asks to go there too: a plea (§59).
+ */
+export interface KinDef {
+  readonly from: number;
+  /** Percent of days, from then on, when kin come (when there's a soul whose kin haven't come yet). */
+  readonly chance: number;
+  /** Days after the mistake before kin can come. */
+  readonly after: number;
+  /** The desk's words (a string key), given `name`, `gender`, `kin`, `kinGender`, `relation`, `hall` and `day`. */
+  readonly text: string;
+  /** Its plea's words (a string key), given `name`, `gender`, `dest` and `kinGender`. */
+  readonly plea: string;
 }
 
 /**

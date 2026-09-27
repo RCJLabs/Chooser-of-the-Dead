@@ -18,6 +18,9 @@ params:
 queue:
   count: [10, 12]
   teachFirst: arch.borrowed_blade
+  scripted:
+    # A shieldmaiden carried from the ford before she was quite dead (docs/tech-spec.md §60); she comes back on Day 15 if sent home.
+    - { case: case.svanhild7, at: 5 }
   archetypes:
     - { id: arch.honest_warrior, w: 3 }
     - { id: arch.freyja_pick, w: 2 }

@@ -9,6 +9,10 @@ She is very pale and very tidy, and her hair is braided so tight it looks painfu
   "Your mother crossed my bridge this morning. She asked the way to her father's bench, and whether anyone in the hall needed feeding." # speaker: modgudr
   "My lady is letting nobody in. She let her in." # speaker: modgudr
 }
+// Geir's widow at the desk today (docs/tech-spec.md §60), sent to her husband in Hel's hall.
+{ flag("jofrid_with_geir") && flag("geir_hel"):
+  "A widow crossed my bridge this afternoon, asking for Geir Hallsson. My lady is letting nobody in. She let her in." # speaker: modgudr
+}
 "The bridge rings when the dead cross it. It hasn't stopped ringing since the first winter. My lady would like it to stop for a while." # speaker: modgudr
 "She isn't full. She's tired. The gods send her everyone who didn't die the way they like, and then they sing about the ones who did." # speaker: modgudr
 "She'll open her doors again when someone at this gate says out loud that the quiet dead count." # speaker: modgudr

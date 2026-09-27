@@ -599,6 +599,8 @@ export const CampaignPartSchema = z.strictObject({
         .min(1),
     })
     .optional(),
+  // The kin of the misjudged (docs/tech-spec.md §60): later at the desk, and asking to join them.
+  kin: z.strictObject({ from: Day, chance: Percent, after: Int.min(1), text: Key, plea: Key }).optional(),
   // The Norns' weave (docs/tech-spec.md §53): the same rules in another order, for a run begun woven.
   weaving: z
     .strictObject({

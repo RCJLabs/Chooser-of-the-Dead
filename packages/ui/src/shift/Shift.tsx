@@ -7,6 +7,8 @@ import {
   type Field,
   factionKey,
   freeQuestion,
+  genderOfName,
+  kinRelation,
   type Lesson,
   nextHint,
   PENALTY,
@@ -1017,10 +1019,31 @@ function PleaNote({ s, c }: { s: Session; c: CaseSpec }) {
   const { name, patronym, gender } = c.evidence.look;
   // Granted, the soul stands with the host of the hall it asked for, where the last battle has one.
   const host = s.content.campaign?.ragnarok?.hosts.some((h) => h.hall === plea.dest) ?? false;
+  const kinGender = c.kin ? genderOfName(c.kin.name) : 'm';
   return (
     <p class="shift__appeal" data-testid="plea-banner">
-      {t(plea.text, { name: `${name} ${patronym}`, gender })}
+      {t(plea.text, { name: `${name} ${patronym}`, gender, dest: t(`dest.${plea.dest}`), kinGender })}
       {host && <span data-testid="plea-stands"> {t('ui.plea.stands', { gender })}</span>}
+    </p>
+  );
+}
+
+/** Kin of a soul sent to a hall where it didn't belong (docs/tech-spec.md §60), who says so while at the desk. */
+function KinNote({ s, c }: { s: Session; c: CaseSpec }) {
+  const def = s.content.campaign?.kin;
+  if (!def || !c.kin) return null;
+  const { name, patronym, gender } = c.evidence.look;
+  return (
+    <p class="shift__appeal" data-testid="kin-banner">
+      {t(def.text, {
+        name: `${name} ${patronym}`,
+        gender,
+        kin: c.kin.name,
+        kinGender: genderOfName(c.kin.name),
+        relation: kinRelation(gender, c.kin.name),
+        hall: c.kin.hall,
+        day: c.kin.day,
+      })}
     </p>
   );
 }
@@ -1143,6 +1166,7 @@ export function ShiftScreen() {
           </p>
         ) : null}
         {s.mode.kind === 'campaign' && c ? <OfferNote s={s} c={c} /> : null}
+        {s.mode.kind === 'campaign' && c ? <KinNote s={s} c={c} /> : null}
         {s.mode.kind === 'campaign' && c ? <PleaNote s={s} c={c} /> : null}
         <CoachBar s={s} lesson={lesson} />
         {c ? <SoulDesk key={c.id} s={s} c={c} layout={layout} /> : null}

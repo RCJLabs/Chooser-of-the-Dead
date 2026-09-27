@@ -1,0 +1,25 @@
+# DRAFT writing (docs/tech-spec.md §60). Day 20, the last shift, if you met Thorvald the Unlucky (thorvald_met): his
+# mother, Gudrid, dead of old age on the morning of the horn. Hel's hall is full, so the clerk takes her. She knows her
+# son has been here, more than once, and that he'll be fine.
+id: case.gudrid
+personas: [honest]
+truth:
+  alive: { is: false }
+  cause: { is: oldAge }
+  grip: { is: none }
+  blade: { is: plain }
+  spearMark: { is: false }
+  woundsFront: { is: 0 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+lies: []
+look: { gender: f, name: Gudrid, patronym: Arnkelsdottir, age: 77, build: lean, beard: none }
+lines: [case.gudrid.son, case.gudrid.worry, case.gudrid.home]
+words: { pool.weapons: seax }
+expect: TRANSFER
+when: { state: flags.thorvald_met, gte: 1 }
+onStamp:
+  - { stamped: '*', effects: [{ flag: gudrid_judged }] }

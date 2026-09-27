@@ -26,6 +26,8 @@ queue:
     - { scene: scene.d15.desk, at: 4 }
   teachFirst: arch.contested
   scripted:
+    # Svanhild again, dead this time, if she was sent home on Day 7 (§60).
+    - { case: case.svanhild15, at: 10 }
     - { case: case.bjarni_old, at: 8 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }

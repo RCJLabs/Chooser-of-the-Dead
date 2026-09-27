@@ -21,6 +21,9 @@ params:
       - { id: whim.odin.ulfberht, text: whim.odin.ulfberht, is: { fact: blade, is: ulfberht } }
 queue:
   count: [20, 24]
+  scripted:
+    # Thorvald's mother, on the last shift, if you met her son (§60).
+    - { case: case.gudrid, at: 5 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }
     - { id: arch.freyja_pick, w: 2 }
