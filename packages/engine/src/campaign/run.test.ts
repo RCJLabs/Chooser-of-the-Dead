@@ -2058,6 +2058,10 @@ describe('a plea at the desk (docs/tech-spec.md §51)', () => {
     // He asked to be there: at Ragnarök he stands with the drowned instead of running (§59).
     expect(granted.misfits?.[plea] ?? 0).toBe(0);
     expect(granted.named).toContainEqual({ name: 'Kari Solveigarson', day: spec.day, hall: plea, runs: false });
+    // Filed either way, as a story soul's plea, for the playtest report (docs/tech-spec.md §60).
+    const kari = { name: 'Kari Solveigarson', belongs: def.expect, to: plea, story: true as const };
+    expect(refused.ledger.at(-1)?.pleas).toEqual([{ ...kari, granted: false }]);
+    expect(l?.pleas).toEqual([{ ...kari, granted: true }]);
   });
 });
 
@@ -2151,7 +2155,23 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
       }
       // It got what it asked for, so it never appeals.
       expect(granted.appeal?.case.id).not.toBe(soul.id);
+      // Filed either way for the playtest report, which can't tell a refused plea from any right stamp otherwise.
+      const filed = { name: soulName(soul), belongs: soul.expect.dest, to };
+      expect(refused.ledger.at(-1)?.pleas).toEqual([{ ...filed, granted: false }]);
+      expect(granted.ledger.at(-1)?.pleas).toEqual([{ ...filed, granted: true }]);
     }
+  });
+
+  it('leave the day’s list empty when nobody asked, and a build without them keeps none', () => {
+    const quiet = Array.from({ length: 12 }, (_, i) => lineOn(`quiet${i}`, def.from)).find(
+      ({ queue }) => !queue.some((c) => c.kin || pleaOf(full, c)),
+    );
+    if (!quiet) throw new Error(`nobody's Day ${def.from} is quiet in 12 seeds`);
+    const [first] = quiet.queue;
+    if (!first) throw new Error('an empty line');
+    expect(judgedDay(quiet.run, first, first.expect.dest).ledger.at(-1)?.pleas).toEqual([]);
+    const d1 = drive(demo, newRun(demo, 'quiet'), shiftActions(newRun(demo, 'quiet'), demo)).run;
+    expect(d1.ledger.at(-1)).not.toHaveProperty('pleas');
   });
 });
 
@@ -2279,6 +2299,17 @@ describe('kin of the misjudged (docs/tech-spec.md §60)', () => {
     if (!soul) throw new Error('no kin');
     const day = judgedDay(found.run, soul, soul.expect.dest);
     expect(day.kin).toEqual([wronged.name]);
+    // Filed for the playtest report with whose kin it was, and what it asked for, if anything.
+    const asks = pleaOf(full, soul);
+    expect(day.ledger.at(-1)?.pleas).toEqual([
+      {
+        name: soulName(soul),
+        belongs: soul.expect.dest,
+        ...(asks ? { to: asks.dest } : {}),
+        kin: wronged.name,
+        granted: false,
+      },
+    ]);
     expect(kinIn(lineOn(found.run.seed, 10, { named: [wronged], kin: day.kin ?? [] }).queue)).toEqual([]);
   });
 });

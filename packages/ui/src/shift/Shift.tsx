@@ -1003,7 +1003,7 @@ function OfferNote({ s, c }: { s: Session; c: CaseSpec }) {
   if (!offer) return null;
   const name = `${c.evidence.look.name} ${c.evidence.look.patronym}`;
   return (
-    <p class="shift__appeal" data-testid="offer-banner">
+    <p class="shift__note" data-testid="offer-banner">
       {t('ui.offer', { name, n: offer.rings, dest: t(`dest.${offer.dest}`) })}
     </p>
   );
@@ -1021,7 +1021,7 @@ function PleaNote({ s, c }: { s: Session; c: CaseSpec }) {
   const host = s.content.campaign?.ragnarok?.hosts.some((h) => h.hall === plea.dest) ?? false;
   const kinGender = c.kin ? genderOfName(c.kin.name) : 'm';
   return (
-    <p class="shift__appeal" data-testid="plea-banner">
+    <p class="shift__note" data-testid="plea-banner">
       {t(plea.text, { name: `${name} ${patronym}`, gender, dest: t(`dest.${plea.dest}`), kinGender })}
       {host && <span data-testid="plea-stands"> {t('ui.plea.stands', { gender })}</span>}
     </p>
@@ -1034,7 +1034,7 @@ function KinNote({ s, c }: { s: Session; c: CaseSpec }) {
   if (!def || !c.kin) return null;
   const { name, patronym, gender } = c.evidence.look;
   return (
-    <p class="shift__appeal" data-testid="kin-banner">
+    <p class="shift__note" data-testid="kin-banner">
       {t(def.text, {
         name: `${name} ${patronym}`,
         gender,
@@ -1165,9 +1165,14 @@ export function ShiftScreen() {
             {t('ui.line.waited', { n: c.day })}
           </p>
         ) : null}
-        {s.mode.kind === 'campaign' && c ? <OfferNote s={s} c={c} /> : null}
-        {s.mode.kind === 'campaign' && c ? <KinNote s={s} c={c} /> : null}
-        {s.mode.kind === 'campaign' && c ? <PleaNote s={s} c={c} /> : null}
+        {/* What the soul says of itself: an offer, whose kin it is, a plea. One box, empty (and hidden) for most. */}
+        {s.mode.kind === 'campaign' && c ? (
+          <div class="shift__notes">
+            <OfferNote s={s} c={c} />
+            <KinNote s={s} c={c} />
+            <PleaNote s={s} c={c} />
+          </div>
+        ) : null}
         <CoachBar s={s} lesson={lesson} />
         {c ? <SoulDesk key={c.id} s={s} c={c} layout={layout} /> : null}
       </div>

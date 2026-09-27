@@ -961,7 +961,8 @@ select {
 
 .drawer .stage {
   flex: 0 0 38%;
-  min-height: 0;
+  /* Never smaller than its tools: the notes above a soul shrink the evidence below it first. */
+  min-height: 10rem;
 }
 
 .drawer .clues {
@@ -1068,6 +1069,7 @@ select {
   .drawer .stage {
     grid-area: stage;
     height: 100%;
+    min-height: 0;
     justify-content: flex-start;
     padding-left: 0.5rem;
   }
@@ -1099,6 +1101,7 @@ select {
 
   .drawer .drawer__panel {
     grid-area: panel;
+    min-height: 0;
   }
 
   .drawer .comparebar {
@@ -1134,7 +1137,8 @@ select {
 
 .drawer__panel {
   flex: 1;
-  min-height: 0;
+  /* A few lines of what the soul says, whatever is above it: a crowded desk scrolls instead (see .shift--drawer). */
+  min-height: 7rem;
   overflow-y: auto;
   padding: 0.6rem 0.75rem;
 }
@@ -1148,6 +1152,20 @@ select {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   background: var(--panel);
   border-top: 1px solid var(--line);
+}
+
+/*
+ * A crowded desk on a short phone: the notes above a soul, its floor and the evidence below can outgrow the screen.
+ * The shift then scrolls rather than cutting anything off, and the action bar stays at the bottom of the screen.
+ */
+.shift--drawer {
+  overflow-y: auto;
+}
+
+.shift--drawer .actionbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
 }
 
 .actionbar .btn {
@@ -1404,6 +1422,30 @@ select {
   color: var(--accent);
   font-weight: 600;
   text-align: center;
+}
+
+/*
+ * What a soul says of itself at the desk: an offer for a stamp, whose kin it is, a plea (docs/tech-spec.md §47, §51,
+ * §60). Sentences, not headlines: one box, set as notes, so on a phone they leave the soul its room.
+ */
+.shift__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.shift__notes:empty {
+  display: none;
+}
+
+.shift__note {
+  margin: 0;
 }
 
 /* A god's request in the morning, in their words (docs/tech-spec.md §42). */

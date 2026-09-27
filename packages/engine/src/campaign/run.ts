@@ -50,6 +50,7 @@ import {
   type Bills,
   type DayLedger,
   type DayMistake,
+  type DayPlea,
   type DayRequest,
   type DayWaiting,
   evalState,
@@ -848,6 +849,8 @@ function audit(
   const nailRings = granted.reduce((n, f) => n + ('nailRings' in f.effect ? f.effect.nailRings : 0), 0);
   let nails = 0;
   const mistakes: DayMistake[] = [];
+  // Who asked for another hall today, and kin who came, whatever the stamp (docs/tech-spec.md §60): the report's.
+  const pleas: DayPlea[] = [];
   // What each verdict cost, for an appeal to give back.
   const costs = new Map<number, { fine: number; standing: Partial<Record<Faction, number>>; worthy: boolean }>();
   shift.verdicts.forEach((v: Verdict) => {
@@ -858,6 +861,17 @@ function audit(
     }
     const finesBefore = fines;
     const pled = pleaGranted(env.content, shift, v);
+    const plea = c ? pleaOf(env.content, c) : null;
+    if (c && (plea || c.kin)) {
+      pleas.push({
+        name: soulName(c),
+        belongs: v.expected,
+        ...(plea ? { to: plea.dest } : {}),
+        ...(c.kin ? { kin: c.kin.name } : {}),
+        ...(c.script ? { story: true as const } : {}),
+        granted: pled,
+      });
+    }
     if (v.correct) {
       correct++;
       pay += economy.wage;
@@ -918,6 +932,8 @@ function audit(
     standing,
     ...(assists ? { assists } : {}),
     ...(mistakes.length > 0 ? { mistakes } : {}),
+    // Kept, even empty, where the campaign has pleas or kin, so a day nobody asked differs from a day not counted.
+    ...(campaign.pleas || campaign.kin ? { pleas } : {}),
     ...(run.appealHeard ? { appeal: run.appealHeard } : {}),
     ...(line ? { waiting: line.waiting } : {}),
     ...(requests.length > 0 ? { requests } : {}),
