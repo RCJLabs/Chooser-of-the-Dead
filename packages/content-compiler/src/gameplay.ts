@@ -197,6 +197,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('waiting') ? { waiting: last('waiting') as NonNullable<CampaignDef['waiting']> } : {}),
     ...(last('requests') ? { requests: last('requests') as NonNullable<CampaignDef['requests']> } : {}),
     ...(last('pleas') ? { pleas: last('pleas') as NonNullable<CampaignDef['pleas']> } : {}),
+    ...(last('kin') ? { kin: last('kin') as NonNullable<CampaignDef['kin']> } : {}),
     ...(all('favours').length > 0 ? { favours: all('favours') } : {}),
     ...(last('promotion') ? { promotion: last('promotion') as NonNullable<CampaignDef['promotion']> } : {}),
     ...(last('events') ? { events: last('events') as NonNullable<CampaignDef['events']> } : {}),
@@ -813,6 +814,10 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
     key(p.text, where);
     if (p.from === p.to) problems.push(`The ${where} asks for the hall the soul already belongs in.`);
     if (p.to === 'RETURN' || p.to === 'DETAIN') problems.push(`The ${where} asks for a stamp no soul asks for.`);
+  }
+  if (c.kin) {
+    key(c.kin.text, 'kin');
+    key(c.kin.plea, 'kin');
   }
   problems.push(...lintEvents(content, key));
   problems.push(...lintWeaving(content, key));

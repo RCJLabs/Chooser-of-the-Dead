@@ -43,7 +43,7 @@ import {
   unwovenContext,
 } from './events';
 import { dayGrade } from './grade';
-import { pleaOf, withPlea } from './pleas';
+import { pleaOf, withKin, withPlea } from './pleas';
 import {
   type Appeal,
   type AppealHeard,
@@ -634,9 +634,7 @@ function extraSouls(seed: string, ctx: DayCtx, n: number, line: readonly CaseSpe
 export function campaignQueue(run: RunState, env: RunEnv): CaseSpec[] {
   const plain = unwovenContext(env.content, run, run.day);
   const line = lineFor(run.seed, env.ctx, run.waiting ?? [], lineEdits(run, env.content, run.day), plain);
-  const extra = extraSouls(run.seed, env.ctx, rankOf(run, env.content)?.souls ?? 0, line, plain);
-  // On some days, one of them pleads for another hall (docs/tech-spec.md §59).
-  const cases = withPlea(env.content, run.seed, env.ctx, [...line, ...extra]);
+  const cases = [...line, ...extraSouls(run.seed, env.ctx, rankOf(run, env.content)?.souls ?? 0, line, plain)];
   const slots = [...(env.ctx.spec.queue.scripted ?? [])].sort((a, b) => a.at - b.at);
   const noon = env.ctx.noon;
   for (const slot of slots) {
@@ -648,8 +646,11 @@ export function campaignQueue(run: RunState, env: RunEnv): CaseSpec[] {
     const made = scriptedCase(def, late ? noon.ctx : env.ctx, run.seed, slot.at);
     if (made.ok) cases.splice(Math.min(slot.at, cases.length), 0, late ? { ...made.case, noon: true } : made.case);
   }
+  // On some days, one of the day's own is kin to a soul sent where it didn't belong (docs/tech-spec.md §60), and on some
+  // one pleads for another hall (§59): each on a stream of its own, so the line is otherwise the same.
+  const asked = withPlea(env.content, run.seed, env.ctx, withKin(env.content, run, env.ctx, cases));
   // Souls who waited through the night can push the day's own later: keep the decree's souls last.
-  return noon ? [...cases.filter((c) => !c.noon), ...cases.filter((c) => c.noon)] : cases;
+  return noon ? [...asked.filter((c) => !c.noon), ...asked.filter((c) => c.noon)] : asked;
 }
 
 /**
@@ -950,6 +951,11 @@ function audit(
     const asked = pleaGranted(env.content, shift, v);
     if (c) named.push(...namedAs(campaign, c, run.day, v.stamped, runs, asked));
   }
+  // The souls whose kin came to the desk today and were judged (docs/tech-spec.md §60): their kin won't come again.
+  const kinCame = shift.verdicts.flatMap((v) => {
+    const kin = shift.cases[v.index]?.kin;
+    return kin && v.stamped !== null ? [kin.name] : [];
+  });
   const appeal = chooseAppeal(run, shift, campaign, costs, fined, given);
   const asked = drawRequests(run, env, line?.carried ?? []);
   const promotion = promote(run, env, wrong === 0 && unjudged === 0);
@@ -965,6 +971,7 @@ function audit(
       naglfar,
       ...(Object.keys(misfits).length > 0 ? { misfits } : {}),
       ...(named.length > 0 ? { named } : {}),
+      ...(kinCame.length > 0 ? { kin: [...(run.kin ?? []), ...kinCame] } : {}),
       ledger: [...run.ledger, ledger],
       ...(appeal ? { appeal } : {}),
       ...(line && line.carried.length > 0 ? { waiting: line.carried } : {}),

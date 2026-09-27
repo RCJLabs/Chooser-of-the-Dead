@@ -3601,7 +3601,7 @@ The brainstorm's version, and what changed:
 **Pleas from ordinary souls** (`campaign.pleas`, engine `campaign/pleas.ts`)
 - **When:** on half the days from Day 7, one of the day's own souls asks for another hall.
   - It's drawn on a stream of its own, so the line is the same with it or without it.
-  - Never the day's or the decree's teaching soul, one who waited through the night, or a story soul, and never on a day a story soul pleads (Kari's).
+  - Never the day's or the decree's teaching soul, one who waited through the night, or a story soul, and never on a day someone in the line already pleads (a story soul: Kari, and since §60 Jofrid and Thorolf) or kin have come (§60).
 - **The six pleas,** by the soul's hall (drafts):
 
   | Hall | Asks for | Why |
@@ -3663,6 +3663,87 @@ The brainstorm's version, and what changed:
 - **Six reasons to plead.** A long run hears some of them twice.
 - **The bots never grant an ordinary plea unless told,** so what a person does with them, and whether standing at Ragnarök is reason enough, is a playtest question.
 - **The words are drafts:** about 1,340 of them. The three desk scenes are about 720, their callbacks in other scenes about 200, and the miser, the pleas, the decree, the events and the weave about 420.
+
+## 60. After the rundown: souls who come back
+
+**Why.** Item 5 of the rundown. A soul, once judged, was gone: only a few scene lines ever brought a stamp back. The story had 17 story cases (13 people) of the about 30 the plan budgets (§2).
+
+**What's new**
+- **Kin of the misjudged:** the husband, wife or cousin of a soul sent where it didn't belong comes to the desk later, and says so.
+- **Five story souls in eight cases,** each there because of how an earlier soul was stamped. That makes 25 story cases (18 people).
+
+**Kin of the misjudged** (`campaign.kin`, engine `campaign/pleas.ts`)
+- **When:** on 40% of days from Day 8, when the run has sent a soul where it didn't belong at least two days before, one of the day's own souls is its kin.
+  - "Where it didn't belong" means a misfit who'd run at Ragnarök (§54): a soul that pleaded, or was given to a god who asked, stands, and brings nobody.
+  - It's drawn on a stream of its own, as pleas are, so the line is otherwise the same.
+  - Kin come once for each such soul. The audit keeps the soul's name once its kin are judged (`RunState.kin`).
+  - Never for a story soul: the story has its own kin (Jofrid, Thorolf). Never to a story soul, a soul that teaches the day's rule or its noon decree, or one who waited through the night.
+  - One new soul a day at most asks for another hall. On a day kin come, no ordinary soul pleads (§59), and kin don't come on a day someone in the line already pleads: a story soul (Kari, Jofrid, Thorolf), or a soul who waited through the night.
+- **Who they are:** a wife or husband when the two differ in sex, a cousin otherwise, read from the patronym (a daughter's ends -dottir).
+- **Never a soul whose name already makes it closer kin.** Fathers' names come from a pool of 24, so a generated soul shares the wronged soul's father about one time in 24, and is named as its child or parent about as often. "Thora Ketilsdottir is Bjorn Ketilsson's wife" would read as a sister. Such a soul isn't made kin; another of the day's own is.
+- **The desk says so,** in a banner above the plea's: "Thora Grimsdottir is Bjorn Ketilsson's wife. You sent him to Hel's hall on Day 6, where he didn't belong." The citation said so the day the mistake was made, so the banner tells the player nothing they couldn't know. It makes the mistake matter again.
+- **They ask to join it** where it went, when that isn't where they belong: a plea (§59), "…asks for a Hel stamp, to be with him: a mistake all the same." Granted, it's a mistake like any, and the soul stands in that host at Ragnarök. Where they belong anyway, the banner is all there is.
+
+**The story's souls** (drafts; `content/packs/campaign/cases/`)
+
+| Soul | Day | Comes if | Belongs | What follows |
+|---|---|---|---|---|
+| Svanhild Hallvardsdottir, carried from the ford still breathing | 7 | always | home (Return) | Sent home (`svanhild_home`), she comes back on Day 15. |
+| Svanhild again, killed at the same ford | 15 | `svanhild_home` | Valhalla | She married in the eight days between, and says so. |
+| Jofrid Arnorsdottir, Geir's widow | 14 | Geir sent to Hel (`geir_hel`) or to Valhalla (`geir_spared`) on Day 6 | the clerk (Hel's hall is full) | She asks for Geir's hall. Granted (`jofrid_with_geir`), she stands there; in Hel's, Móðguðr says that night that Hel let her in. |
+| Kolskegg Thorkelsson, the miser's nephew | 14 | the miser walks (`hrapp_draugr`) | Hel (he fought his uncle with a spade) | Bera's letter on Night 16 says nobody goes past the ford since. |
+| Thorolf Asgautsson, the jarl's son | 17 | `jarl_bribe` or `jarl_refused` on Day 9 | Valhalla | If his father's rings were taken, he asks nothing of the stamp, only to sit at the far end from him. If not, he asks for Hel's hall, to sit with his father among strangers (`thorolf_with_father`). |
+| Gudrid Arnkelsdottir, Thorvald's mother | 20 | `thorvald_met` | the clerk (Hel's hall is full) | Nothing: "If he comes again, send him home." |
+
+- **Each has an epilogue line** (`epi.svanhild`, `epi.jofrid`, `epi.kolskegg`, `epi.thorolf`, `epi.gudrid`), by what became of them.
+- **Fair as every story soul is:** the compiler makes each for every day that places it, under every choice of the day's params and every weave, and fails if one can't be made or would go elsewhere (§21).
+  - The first draft of Svanhild was pulled from under the ice alive. The world's rule that the living come from battle (`world.aliveFromBattle`) rejected her, so she's a shieldmaiden carried from the ford.
+  - Their names are reserved, and none is in the generated pools, so no generated soul's name changed.
+- **Each is one more soul in its day's line, under the same sun.** Day 14 can have two more: up to 17 souls before a rank adds its own (§44), in 820 seconds, so at worst 48 seconds a soul against 55 before. Day 20 has one more: up to 25 in 1,100 seconds, at worst 44 a soul against 46.
+
+**The pleas and kin since §59**
+- **Pleas and kin are now given after the story's souls are in the line,** so "never on a day someone pleads already" reads the line itself. Before, it read the day's placements, so a story soul who might not come (Jofrid, Thorolf) would have kept the day free of pleas either way, and a soul who waited through the night with a plea didn't count.
+- **The day's teaching soul is the first that isn't a story soul,** wherever story souls stand before it, as the jarl does at the gate on Day 9. A test with a story soul at the gate checks that neither kin nor a plea come to it.
+
+**How often** (40 seeds, Days 8–20, fresh lines with Geir sent to Hel and the jarl refused, as most runs have them)
+- **With no soul sent where it didn't belong,** 62% of days bring a soul who asks for another hall: an ordinary plea on 39%, a story soul's on 23% (Days 14, 16, 17).
+- **After one such mistake,** 79%: kin on 36%, an ordinary plea on 20%, a story soul's on 23%.
+- **No day brought two souls who ask.**
+- **In bot runs** (40 each, plain story, paying every bill), kin came 2.3 times a run for the expert bot (97% accurate; in 38 runs of 40) and 5.8 times for the competent bot (85%; in every run), which is nearly every day the draw allows.
+- **The new souls, met** (same runs): Svanhild on Day 7 in every run, and again on Day 15 in 39 of 40 for the expert and 33 for the competent bot (as often as they sent her home rightly); Jofrid in 38 and 35; Thorolf in 38 and 35; Gudrid in every run; Kolskegg only when the miser was sent home, in no expert run unless it took bribes (then all 40), and in 4 competent runs by a slip.
+
+**Numbers** (`pnpm sim campaign`, 200 runs per policy, plain story, against §59's run on the same seeds)
+- **More souls, more wages.** The five souls add a soul to Days 7, 15, 17 and 20, and one or two to Day 14.
+  - Experts end 33–38 rings richer (paying every bill, 160 against 125).
+  - Competent bots end 7–15 richer paying bills or frugal, and about the same buying upgrades first.
+- **Novices end 2–4.5 rings poorer.** They're demoted in 28% of runs paying every bill (27% before), 9.0% frugal (5.5%) and 57.5% buying upgrades first (59%).
+  - The frugal rise is 7 runs of 200. At this size that can't be told from the scatter any change brings to the same seeds, but it's the one number that moved the wrong way.
+  - A likely reason, not established: a novice past its day's warnings is fined for about one soul in three, so an extra soul pays it about nothing on average.
+- **The battle is a little stronger at the top.** Experts hold 3.8–3.9 fronts (3.7), with Svanhild and Thorolf in Valhalla's host. Competent bots hold 3.0 and novices 1.3–1.4, as before; the wolf wins 98, 111 and 49 of the novices' runs (105, 119 and 52).
+- **The endings are otherwise as they were:** experts reach Odin's in 128–147 runs of 200 (133–145), and competent bots the last stand in 198–199.
+- **Nobody lost family.**
+- **What the sim can't show:** bots never grant a plea unless told, so kin cost them nothing but reading the banner.
+
+**Checks**
+- **Engine:**
+  - kin come only for a soul sent where it didn't belong, from their first day and two days after the mistake, once, never for a story soul or one who stands, and never on a day a story soul pleads (Kari's, Day 16);
+  - they ask to join it unless they belong there, and nobody else pleads that day;
+  - neither kin nor a plea come to the soul that teaches the day's rule when a story soul stands before it in the line, and kin never come to a soul whose name makes it closer kin (each with a control: the same day brings them to another soul);
+  - wife, husband or cousin by the names; the audit keeps the name, and the next day brings no second kin for it;
+  - the ordinary plea tests (§59) read the line's story pleas (Kari, Jofrid, Thorolf).
+- **Content:** the compiler proves the eight cases fair; `pnpm story:script` finds no flag that's set and never read (86 flags).
+- **e2e** (phone and desktop):
+  - kin at the desk: the banner's words, the plea's, an accessibility scan, and the citation when granted;
+  - Geir's widow: her banner with the line about the last battle, the citation, and Móðguðr's line that night.
+  - The last battle's test built its battle from a run judged rightly to the end, and Svanhild and Thorolf now add two to Valhalla's host, so both the wolf and Hel's gate held in any order. It now cuts that host as far as it takes (two) for the order to decide between them, as it was written to show.
+- **Goldens and the Dailies** didn't change: the goldens are the days' generated souls, without the story's, and the Daily has no story.
+
+**Known limits**
+- **Most days now bring someone who asks,** 62% of days from Day 8 with no mistakes and 79% after one that stands (measured above). Whether that stays a choice each time or turns into noise is a playtest question. `kin.chance` (40) and `pleas.chance` (50) are one-line changes.
+- **The bots never grant a plea unless told,** so kin cost them nothing, and what people do with them is untested.
+- **"The ford"** is now in many lines (Svanhild, Thorolf, Bera's letter, the Rán plea, a day event). One ford in one valley may be what the story wants; if not, some should be another place.
+- **Kin are only ever a husband, wife or cousin,** and say nothing of the soul's life; the story's own kin (Jofrid, Thorolf) carry that.
+- **The words are drafts:** about 600. The five souls' lines and pleas are about 320, their epilogue lines about 225, the kin's words about 30, and the scene lines about 25.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

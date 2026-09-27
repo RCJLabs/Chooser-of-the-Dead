@@ -42,22 +42,41 @@ const RUNNERS: readonly NamedSoul[] = [
   { name: 'Hallvard Sveinsson', day: 12, hall: 'HEL', runs: true },
   { name: 'Torunn Oddsdottir', day: 15, hall: 'HEL', runs: true },
 ];
-const save: RunSave = {
-  ...base,
-  mornings: [
-    ...base.mornings.slice(0, -1),
-    {
-      ...lastMorning,
-      sent: { ...lastMorning.sent, FOLKVANGR: 0 },
-      misfits: { ...lastMorning.misfits, HEL: 5 },
-      named: [...(lastMorning.named ?? []), ...RUNNERS],
-    },
-  ],
-};
-const night = resumeSave(save, content, ENGINE_MAJOR).run;
-const horn = stepRun(night, { t: 'endNight' }, { content, ctx: runContext(content, night) }).state;
 const ids = def?.fronts.map((f) => f.id) ?? [];
 const gateFirst = ['front.gate', ...ids.filter((id) => id !== 'front.gate')];
+/** The save, with `cut` fewer of the worthy in Valhalla's host, and the run at the horn. */
+const withHost = (cut: number) => {
+  const save: RunSave = {
+    ...base,
+    mornings: [
+      ...base.mornings.slice(0, -1),
+      {
+        ...lastMorning,
+        sent: { ...lastMorning.sent, FOLKVANGR: 0 },
+        misfits: { ...lastMorning.misfits, HEL: 5 },
+        einherjar: { ...lastMorning.einherjar, worthy: lastMorning.einherjar.worthy - cut },
+        named: [...(lastMorning.named ?? []), ...RUNNERS],
+      },
+    ],
+  };
+  const night = resumeSave(save, content, ENGINE_MAJOR).run;
+  return { save, horn: stepRun(night, { t: 'endNight' }, { content, ctx: runContext(content, night) }).state };
+};
+// Valhalla's host as small a cut as it takes for the order to decide between the wolf and the gate, and riding to the
+// wolf to hold both: the story's souls add to the host as the content grows (docs/tech-spec.md §60).
+const { save, horn } = (() => {
+  const held = (run: RunState, order: readonly string[], ride?: string) =>
+    def ? heldFronts(fight(run, def, order, ride)) : [];
+  for (let cut = 0; cut <= 12; cut++) {
+    const s = withHost(cut);
+    const [listed, gated, ridden] = [held(s.horn, ids), held(s.horn, gateFirst), held(s.horn, gateFirst, 'front.wolf')];
+    const wantSame = listed.includes('front.wolf') && !listed.includes('front.gate') && !gated.includes('front.wolf');
+    if (wantSame && gated.includes('front.gate') && ridden.includes('front.wolf') && ridden.includes('front.gate')) {
+      return s;
+    }
+  }
+  throw new Error('No cut to Valhalla’s host up to 12 makes the wolf and the gate want the same souls');
+})();
 const battle = (order: readonly string[], ride?: string): Battle | undefined =>
   def ? fight(horn, def, order, ride) : undefined;
 const RIDE = def?.ride?.strength ?? 0;

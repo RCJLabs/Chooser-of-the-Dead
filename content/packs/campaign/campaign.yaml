@@ -33,7 +33,8 @@ requests:
 # for a hall where it doesn't belong, as Kari does on Day 16 (§51). The stamp is the answer. Granted, it's a mistake all
 # the same (no wage, a citation, a fine past the day's warnings, the standing any such mistake moves), but the soul
 # stands at Ragnarök in the hall it asked for instead of running from it, and doesn't appeal. Never a story soul, the
-# day's teaching soul or one who waited through the night, and never on a day a story soul pleads. DRAFT text.
+# day's teaching soul or one who waited through the night, and never on a day a story soul in the line pleads or kin
+# have come (§60). DRAFT text.
 pleas:
   from: 7
   chance: 50
@@ -44,6 +45,16 @@ pleas:
     - { from: VALHALLA, to: FOLKVANGR, text: plea.valhalla.folkvangr }
     - { from: RAN, to: VALHALLA, text: plea.ran.valhalla }
     - { from: TRANSFER, to: HEL, text: plea.transfer.hel, since: 10 }
+# The kin of the misjudged (docs/tech-spec.md §60): from Day 8, when a soul was sent to a hall where it didn't belong
+# at least two days before, on some days one of the day's own souls is its husband, wife or cousin, and says so at
+# the desk. If that soul's hall isn't where this one belongs, it asks to be sent there too: a plea (§59), and granted,
+# it stands there at Ragnarök. A soul's kin come once. DRAFT text.
+kin:
+  from: 8
+  chance: 40
+  after: 2
+  text: kin.text
+  plea: kin.plea
 # Favour (docs/tech-spec.md §43): at the gate each morning, every god whose standing is at a favour's mark grants
 # it for the day and its night, and a god's favours add up. Like the upgrades, favours give time, information or
 # money, never what decides a soul. The first come at 4, or at 3 for the two that ease hardship (sickness and
@@ -439,6 +450,38 @@ epilogue:
         - { when: { state: flags.hrapp_draugr, gte: 1 }, text: epi.hrapp.draugr }
         - { when: { state: flags.hrapp_refused, gte: 1 }, text: epi.hrapp.hel }
         - { when: { state: flags.hrapp_judged, gte: 1 }, text: epi.hrapp.judged }
+    # The souls who come back (docs/tech-spec.md §60): the shieldmaiden sent home, Geir's widow, the miser's nephew, the
+    # jarl's son and Thorvald's mother.
+    - id: epi.svanhild
+      section: dead
+      lines:
+        - when: { all: [{ state: flags.svanhild_valhalla, gte: 1 }, { state: day, gte: 20 }] }
+          text: epi.svanhild.rode
+        - { when: { state: flags.svanhild_valhalla, gte: 1 }, text: epi.svanhild.bench }
+        - { when: { state: flags.svanhild15_judged, gte: 1 }, text: epi.svanhild.judged }
+        - { when: { state: flags.svanhild_home, gte: 1 }, text: epi.svanhild.home }
+        - { when: { state: flags.svanhild_judged, gte: 1 }, text: epi.svanhild.alive }
+    - id: epi.jofrid
+      section: dead
+      lines:
+        - { when: { state: flags.jofrid_with_geir, gte: 1 }, text: epi.jofrid.geir }
+        - { when: { state: flags.jofrid_judged, gte: 1 }, text: epi.jofrid.judged }
+    - id: epi.kolskegg
+      section: dead
+      lines:
+        - { when: { state: flags.kolskegg_judged, gte: 1 }, text: epi.kolskegg }
+    - id: epi.thorolf
+      section: dead
+      lines:
+        - { when: { state: flags.thorolf_with_father, gte: 1 }, text: epi.thorolf.father }
+        - when: { all: [{ state: flags.thorolf_valhalla, gte: 1 }, { state: flags.jarl_bribe, gte: 1 }] }
+          text: epi.thorolf.farEnd
+        - { when: { state: flags.thorolf_valhalla, gte: 1 }, text: epi.thorolf.bench }
+        - { when: { state: flags.thorolf_judged, gte: 1 }, text: epi.thorolf.judged }
+    - id: epi.gudrid
+      section: dead
+      lines:
+        - { when: { state: flags.gudrid_judged, gte: 1 }, text: epi.gudrid }
     # Kari asked to be sent to Rán, where he thought his mother was: whether she is depends on Day 5.
     - id: epi.kari
       section: dead

@@ -13,7 +13,7 @@ import { type Assists, DUSK_GRACE_MS, ruledOut, stepShift } from '../shift/shift
 import { battleDue } from './battle';
 import { eventDays, eventLineChange, eventOn, eventSoulsOn } from './events';
 import { beatsDay, dayGrade, GRADES } from './grade';
-import { pleaOf } from './pleas';
+import { genderOfName, kinRelation, pleaOf, withKin, withPlea } from './pleas';
 import {
   battleMarks,
   billForecast,
@@ -2008,7 +2008,7 @@ describe('a jarl’s bribe (docs/tech-spec.md §47)', () => {
 });
 
 describe('a plea at the desk (docs/tech-spec.md §51)', () => {
-  const def = full.scripted?.find((d) => d.plea);
+  const def = full.scripted?.find((d) => d.id === 'case.kari');
   const spec = full.days.find((d) => (d.queue.scripted ?? []).some((s) => s.case === def?.id));
   if (!def || !spec) throw new Error('no story soul in this build pleads');
   const morning = (): RunState => ({ ...newRun(full, 'plea'), day: spec.day });
@@ -2083,10 +2083,6 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
   if (!def) throw new Error('no pleas in this build');
   const { pleas: _, ...rest } = campaignOf(full);
   const none: Content = { ...full, campaign: rest };
-  const told = (d: number) =>
-    (full.days.find((x) => x.day === d)?.queue.scripted ?? []).some(
-      (s) => full.scripted?.find((x) => x.id === s.case)?.plea,
-    );
   /** A fresh run's line on `day`. */
   const lineOn = (seed: string, day: number) => {
     const run: RunState = { ...newRun(full, seed), day };
@@ -2114,14 +2110,15 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
         const asking = queue.filter((c) => c.plea);
         days++;
         if (asking.length > 0) asked++;
-        // Not before their first day, nor on a day a story soul pleads (Kari's), and one a day at most.
-        if (day < def.from || told(day)) expect(asking).toEqual([]);
+        // Not before their first day, nor on a day a story soul in the line pleads (Kari, Jofrid, Thorolf), and one a
+        // day at most.
+        if (day < def.from || queue.some((c) => c.script && pleaOf(full, c))) expect(asking).toEqual([]);
         expect(asking.length).toBeLessThanOrEqual(1);
         for (const c of asking) {
           const plea = pleaOf(full, c);
           expect(c.script).toBeUndefined();
           expect(c.day).toBe(day);
-          expect(c === queue[0] && c.archetype === ctx.spec.queue.teachFirst).toBe(false);
+          expect(c === queue.find((x) => !x.script) && c.archetype === ctx.spec.queue.teachFirst).toBe(false);
           expect(plea?.dest).not.toBe(c.expect.dest);
           expect(def.list.some((p) => p.from === c.expect.dest && p.to === plea?.dest && p.text === plea?.text)).toBe(
             true,
@@ -2155,6 +2152,134 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
       // It got what it asked for, so it never appeals.
       expect(granted.appeal?.case.id).not.toBe(soul.id);
     }
+  });
+});
+
+describe('kin of the misjudged (docs/tech-spec.md §60)', () => {
+  const def = campaignOf(full).kin;
+  if (!def) throw new Error('no kin in this build');
+  const wronged = { name: 'Bjorn Ketilsson', day: 6, hall: 'HEL' as const, runs: true };
+  /** A fresh run's line on `day`, with souls it sent where they didn't belong. */
+  const lineOn = (seed: string, day: number, change: Partial<RunState>) => {
+    const run: RunState = { ...newRun(full, seed), day, ...change };
+    const ctx = runContext(full, run);
+    return { run, ctx, queue: campaignQueue(run, { content: full, ctx }) };
+  };
+  const kinIn = (queue: readonly CaseSpec[]) => queue.filter((c) => c.kin);
+
+  it('come for a soul sent where it didn’t belong, from their first day and two days after, and ask to join it', () => {
+    let came = 0;
+    for (let i = 0; i < 16; i++) {
+      const { ctx, queue } = lineOn(`kin${i}`, 9, { named: [wronged] });
+      const kin = kinIn(queue);
+      expect(kin.length).toBeLessThanOrEqual(1);
+      for (const c of kin) {
+        came++;
+        expect(c.kin).toEqual({ name: wronged.name, day: wronged.day, hall: wronged.hall });
+        expect(c.script).toBeUndefined();
+        expect(c === queue.find((x) => !x.script) && c.archetype === ctx.spec.queue.teachFirst).toBe(false);
+        // Unless it belongs where he went, it asks to go there too. Nobody else pleads the day kin come.
+        if (c.expect.dest !== 'HEL') expect(pleaOf(full, c)).toEqual({ dest: 'HEL', text: def.plea });
+        else expect(pleaOf(full, c)).toBeNull();
+        expect(queue.filter((x) => x !== c && pleaOf(full, x))).toEqual([]);
+      }
+    }
+    expect(came).toBeGreaterThan(0);
+    // Not before their first day or two days after the mistake; not for a soul whose kin came; not for a story soul;
+    // and not for one who'll stand, having been sent where it asked.
+    for (let i = 0; i < 16; i++) {
+      expect(kinIn(lineOn(`kin${i}`, def.from - 1, { named: [{ ...wronged, day: 1 }] }).queue)).toEqual([]);
+      expect(kinIn(lineOn(`kin${i}`, 9, { named: [{ ...wronged, day: 8 }] }).queue)).toEqual([]);
+      expect(kinIn(lineOn(`kin${i}`, 9, { named: [wronged], kin: [wronged.name] }).queue)).toEqual([]);
+      expect(kinIn(lineOn(`kin${i}`, 9, { named: [{ ...wronged, name: 'Geir Hallsson' }] }).queue)).toEqual([]);
+      expect(kinIn(lineOn(`kin${i}`, 9, { named: [{ ...wronged, runs: false }] }).queue)).toEqual([]);
+      // Nor on a day a story soul pleads (Kari, second in Day 16's line): one soul a day at most asks for another hall.
+      expect(kinIn(lineOn(`kin${i}`, 16, { named: [wronged] }).queue)).toEqual([]);
+    }
+    // Without Kari, some of those days would have brought them.
+    const noKari: Content = { ...full, scripted: (full.scripted ?? []).filter((d) => d.id !== 'case.kari') };
+    const noKariLine = (seed: string) => {
+      const run: RunState = { ...newRun(noKari, seed), day: 16, named: [wronged] };
+      return campaignQueue(run, { content: noKari, ctx: runContext(noKari, run) });
+    };
+    expect(Array.from({ length: 16 }, (_, i) => kinIn(noKariLine(`kin${i}`)).length).some((n) => n > 0)).toBe(true);
+  });
+
+  it('never come to the soul that teaches the day’s rule, nor does a plea, wherever story souls stand before it', () => {
+    const run: RunState = { ...newRun(full, 'kin-teach'), day: def.from, named: [wronged] };
+    const ctx = runContext(full, run);
+    const queue = campaignQueue(run, { content: full, ctx });
+    const teacher = queue[0];
+    if (!teacher || teacher.archetype !== ctx.spec.queue.teachFirst) throw new Error(`no soul teaches Day ${run.day}`);
+    const pleas = campaignOf(full).pleas;
+    if (!pleas) throw new Error('no pleas in this build');
+    const asks = (c: CaseSpec) => pleas.list.some((p) => p.from === c.expect.dest && ctx.destinations.has(p.to));
+    const other = queue.find((c, i) => i > 0 && !c.script && c.day === run.day && asks(c));
+    if (!other) throw new Error(`no other soul of Day ${run.day} who could plead`);
+    // Kin and a plea come every day here, and the teacher could ask for another hall: when neither comes to it, that's
+    // because it teaches.
+    expect(asks(teacher)).toBe(true);
+    const sure: Content = {
+      ...full,
+      campaign: { ...campaignOf(full), kin: { ...def, chance: 100 }, pleas: { ...pleas, chance: 100 } },
+    };
+    // A story soul at the gate, as the jarl is on Day 9: the teacher is second in the line.
+    const story: CaseSpec = { ...other, id: 'story', script: 'case.story' };
+    for (let i = 0; i < 8; i++) {
+      const seeded = { ...run, seed: `kin-teach${i}` };
+      expect(kinIn(withKin(sure, seeded, ctx, [story, teacher]))).toEqual([]);
+      expect(withPlea(sure, seeded.seed, ctx, [story, teacher]).filter((c) => c.plea)).toEqual([]);
+      // With another of the day's own after it, that one is given them.
+      expect(kinIn(withKin(sure, seeded, ctx, [story, teacher, other])).map((c) => c.id)).toEqual([other.id]);
+      const pled = withPlea(sure, seeded.seed, ctx, [story, teacher, other]).filter((c) => c.plea);
+      expect(pled.map((c) => c.id)).toEqual([other.id]);
+    }
+  });
+
+  it('are the soul’s husband or wife, or else a cousin, by the name the soul had', () => {
+    expect(genderOfName('Bjorn Ketilsson')).toBe('m');
+    expect(genderOfName('Thora Ketilsdottir')).toBe('f');
+    expect(kinRelation('f', 'Bjorn Ketilsson')).toBe('wife');
+    expect(kinRelation('m', 'Thora Ketilsdottir')).toBe('husband');
+    expect(kinRelation('m', 'Bjorn Ketilsson')).toBe('cousin');
+  });
+
+  it('are never a soul whose name makes it closer kin already: the same father, or named as the other’s father is', () => {
+    const run: RunState = { ...newRun(full, 'kin-names'), day: 9 };
+    const ctx = runContext(full, run);
+    const own = campaignQueue(run, { content: full, ctx }).filter((c) => !c.script && c.day === 9 && !c.plea);
+    const father = (c: CaseSpec) => c.evidence.look.patronym.replace(/s(?:son|dottir)$/, '');
+    const x = own.find((c) => c.evidence.look.gender === 'm');
+    if (!x) throw new Error('no man of Day 9’s own');
+    // Another soul none of the names below make kin.
+    const y = own.find(
+      (c) => father(c) !== father(x) && father(c) !== x.evidence.look.name && c.evidence.look.name !== father(x),
+    );
+    if (!y) throw new Error('no other soul of Day 9’s own');
+    const sure: Content = { ...full, campaign: { ...campaignOf(full), kin: { ...def, chance: 100 } } };
+    const given = (name: string, seed: string) =>
+      kinIn(withKin(sure, { ...run, seed, named: [{ ...wronged, name }] }, ctx, [x, y])).map((c) => c.id);
+    const closer = [
+      `Hoskuld ${father(x)}sson`, // the same father
+      `${father(x)} Hoskuldsson`, // x's father's name
+      `Hoskuld ${x.evidence.look.name}sson`, // x's son
+    ];
+    for (let i = 0; i < 8; i++) for (const name of closer) expect(given(name, `kin-names${i}`)).toEqual([y.id]);
+    // A name that says nothing of either: some days, it's x.
+    const picked = Array.from({ length: 8 }, (_, i) => given('Hoskuld Hoskuldsson', `kin-names${i}`)[0]);
+    expect(picked).toContain(x.id);
+  });
+
+  it('come once: the audit keeps the name of the soul they came for', () => {
+    const found = Array.from({ length: 16 }, (_, i) => lineOn(`kin${i}`, 9, { named: [wronged] })).find(
+      (x) => kinIn(x.queue).length > 0,
+    );
+    if (!found) throw new Error('no kin in 16 seeds');
+    const soul = kinIn(found.queue)[0];
+    if (!soul) throw new Error('no kin');
+    const day = judgedDay(found.run, soul, soul.expect.dest);
+    expect(day.kin).toEqual([wronged.name]);
+    expect(kinIn(lineOn(found.run.seed, 10, { named: [wronged], kin: day.kin ?? [] }).queue)).toEqual([]);
   });
 });
 

@@ -86,6 +86,8 @@ export interface CaseSpec {
   readonly noon?: true;
   /** What an ordinary soul asks for at the desk (docs/tech-spec.md §59): a stamp where it doesn't belong, and the words. */
   readonly plea?: { readonly stamp: Destination; readonly text: string };
+  /** Whose kin it is (docs/tech-spec.md §60): a soul the run sent to a hall where it didn't belong. */
+  readonly kin?: { readonly name: string; readonly day: number; readonly hall: Destination };
   readonly archetype: string;
   readonly truth: Truth;
   readonly lies: readonly Lie[];

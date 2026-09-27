@@ -1,0 +1,32 @@
+# DRAFT writing (docs/tech-spec.md §60). Day 17, if you turned down Jarl Asgaut's rings on Day 9 (jarl_refused): his
+# son, Thorolf, killed holding the ford, spear in hand. He belongs in Valhalla, and asks, openly, for Hel's hall, where
+# his father sits among strangers. The same soul as case.thorolf_bench; only what he asks differs.
+id: case.thorolf_hel
+personas: [veteran]
+truth:
+  alive: { is: false }
+  cause: { is: battle }
+  grip: { is: weapon }
+  weaponOwner: { is: self }
+  blade: { is: plain }
+  spearMark: { is: false }
+  woundsFront: { is: 1 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+  gripHand: { is: right }
+  hair: { is: fair }
+  ornament: { is: none }
+lies: []
+look: { gender: m, name: Thorolf, patronym: Asgautsson, age: 38, build: heavy, beard: short }
+lines: [case.thorolf.ford, case.thorolf.refused, case.thorolf.strangers]
+words: { pool.weapons: spear }
+expect: VALHALLA
+when: { state: flags.jarl_refused, gte: 1 }
+plea: { stamp: HEL, text: case.thorolf.plea }
+onStamp:
+  - { stamped: '*', effects: [{ flag: thorolf_judged }] }
+  - { stamped: VALHALLA, effects: [{ flag: thorolf_valhalla }] }
+  - { stamped: HEL, effects: [{ flag: thorolf_with_father }] }

@@ -238,6 +238,8 @@ export interface RunState {
    * souls who'll stand. Kept as the misfits are; absent in runs begun before it was, and when there are none.
    */
   readonly named?: readonly NamedSoul[];
+  /** The souls whose kin have come to the desk (docs/tech-spec.md §60), by name; absent until one has. */
+  readonly kin?: readonly string[];
   readonly family: readonly FamilyMember[];
   readonly upgrades: readonly string[];
   /** Story memory across days. Integers only (Ink reads them). */

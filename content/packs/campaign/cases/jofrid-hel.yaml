@@ -1,0 +1,24 @@
+# DRAFT writing (docs/tech-spec.md §60). Day 14, if you sent Geir Hallsson to Hel on Day 6 (geir_hel): his widow,
+# Jofrid, dead of the coughing sickness. Hel's hall is full, so the clerk takes her; she asks, openly, for Hel's, where
+# her husband is. The same soul as case.jofrid_valhalla; only where she asks to go differs.
+id: case.jofrid_hel
+personas: [honest]
+truth:
+  alive: { is: false }
+  cause: { is: sickness }
+  grip: { is: none }
+  woundsFront: { is: 0 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+lies: []
+look: { gender: f, name: Jofrid, patronym: Arnorsdottir, age: 47, build: broad, beard: none }
+lines: [case.jofrid.bread, case.jofrid.geir, case.jofrid.cough]
+expect: TRANSFER
+when: { state: flags.geir_hel, gte: 1 }
+plea: { stamp: HEL, text: case.jofrid.plea.hel }
+onStamp:
+  - { stamped: '*', effects: [{ flag: jofrid_judged }] }
+  - { stamped: HEL, effects: [{ flag: jofrid_with_geir }] }
