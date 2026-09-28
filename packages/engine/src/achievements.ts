@@ -69,8 +69,11 @@ export const SHIFT_FACTS: readonly string[] = [
   'untimed',
 ];
 
-/** What an Endless run's tests can read: souls judged rightly, the round, and wrong stamps so far. */
-export const ENDLESS_FACTS: readonly string[] = ['score', 'round', 'strikes'];
+/**
+ * What an Endless run's tests can read: souls judged rightly (`score`), the round, strikes so far, and, where Endless
+ * is a run (docs/tech-spec.md §68), its points and the curses it has taken.
+ */
+export const ENDLESS_FACTS: readonly string[] = ['score', 'round', 'strikes', 'points', 'curses'];
 
 export type AchievementMoment =
   | { readonly at: 'soul'; readonly mode: PlayMode; readonly facts: Facts }

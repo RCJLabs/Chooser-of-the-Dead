@@ -90,7 +90,10 @@ export function endlessRound(content: Content, seed: string, round: number): End
   };
 }
 
-/** Spoiler-free share text for a finished Endless run: how many souls, how far, and any assists. */
+/**
+ * Spoiler-free share text for a finished Endless run: how many souls, how far, and any assists. A run with boons and
+ * curses (docs/tech-spec.md §68) leads with its score and says how many curses it took.
+ */
 export function endlessShareText(opts: {
   readonly title: string;
   readonly label: string;
@@ -100,11 +103,17 @@ export function endlessShareText(opts: {
   readonly day: number;
   readonly assists?: Assists;
   readonly url?: string;
+  /** The run's score, in a build where Endless is a run. */
+  readonly score?: number;
+  readonly curses?: number;
 }): string {
   const notes = assistNotes(opts.assists);
+  const souls = `${opts.judged} ${opts.judged === 1 ? 'soul' : 'souls'} judged rightly`;
+  const curses = opts.curses ? [`${opts.curses} ${opts.curses === 1 ? 'curse' : 'curses'}`] : [];
+  const tail = [...curses, ...notes];
   return [
     `${opts.title} · ${opts.label} (g${opts.genVersion})`,
-    `${opts.judged} ${opts.judged === 1 ? 'soul' : 'souls'} judged rightly · round ${opts.round + 1}, Day ${opts.day}'s rules${notes.length > 0 ? ` · ${notes.join(', ')}` : ''}`,
+    `${opts.score !== undefined ? `Score ${opts.score} · ` : ''}${souls} · round ${opts.round + 1}, Day ${opts.day}'s rules${tail.length > 0 ? ` · ${tail.join(', ')}` : ''}`,
     ...(opts.url ? [opts.url] : []),
   ].join('\n');
 }

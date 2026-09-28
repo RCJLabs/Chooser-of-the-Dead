@@ -309,6 +309,51 @@ describe('gameplay content lints', () => {
     );
   });
 
+  it('lints Endless boons and curses', () => {
+    const run = (yaml: string, strings: Record<string, string> = { 'b.a': 'A' }): PackFixture => {
+      const d = day('arch.liar');
+      return { ...d, strings: { ...d.strings, ...strings }, files: { ...d.files, 'boons.yaml': yaml } };
+    };
+    const base = core({ 'archetypes.yaml': archetype('') });
+    const b = (id: string, kind: string, effect: string, more = '') =>
+      `- { id: ${id}, kind: ${kind}, name: b.a, text: b.a, since: 1, ${more}effect: ${effect} }\n`;
+    const three = b('boon.a', 'boon', '{ strikes: 1 }') + b('boon.b', 'boon', '{ hints: 3 }');
+    const ok = three + b('boon.c', 'boon', '{ bounty: 1 }') + b('curse.a', 'curse', '{ sun: true }', 'max: 1, ');
+    const build = (yaml: string, strings?: Record<string, string>) => () =>
+      compile({ core: base, demo: run(yaml, strings) });
+    expect(build(ok)).not.toThrow();
+    expect(build(ok + b('boon.a', 'boon', '{ strikes: 1 }'))).toThrow(/Duplicate Endless boon or curse "boon\.a"/);
+    expect(build(ok, {})).toThrow(/Endless boon boon\.a uses missing string "b\.a"/);
+    expect(
+      build(
+        ok.replace(
+          'id: boon.c, kind: boon, name: b.a, text: b.a, since: 1',
+          'id: boon.c, kind: boon, name: b.a, text: b.a, since: 2',
+        ),
+      ),
+    ).toThrow(/boon\.c starts on day 2, after the build's last day/);
+    // A boon helps and a curse hinders.
+    expect(build(ok + b('boon.d', 'boon', '{ oath: true }'))).toThrow(/boon boon\.d hinders/);
+    expect(build(ok + b('curse.b', 'curse', '{ hints: 3 }'))).toThrow(/curse curse\.b helps/);
+    // Sun effects wait for the sun, which a curse must bring.
+    expect(build(ok + b('boon.d', 'boon', '{ sunS: 60 }'))).toThrow(/boon\.d changes the sun, so it needs the sun/);
+    expect(
+      build(ok.replace('{ sun: true }', '{ oath: true }') + b('boon.d', 'boon', '{ sunS: 60 }', 'needs: sun, ')),
+    ).toThrow(/boon\.d needs the sun, and no curse brings it/);
+    // Presses and tools only from the day they're taught (this build has neither).
+    expect(build(ok + b('boon.d', 'boon', '{ patience: 1 }'))).toThrow(/adds presses before souls are pressed/);
+    expect(build(ok + b('boon.d', 'boon', '{ toolPct: 50 }', 'needs: sun, '))).toThrow(
+      /changes the tools' costs before any tool/,
+    );
+    // The first break has three boons and a curse to choose from.
+    expect(build(three + b('curse.a', 'curse', '{ sun: true }'))).toThrow(/The first break offers fewer than 3 boons/);
+    expect(build(three + b('boon.c', 'boon', '{ bounty: 1 }'))).toThrow(/The first break offers no curse/);
+    // One pack says.
+    const theirs = ok.replaceAll('b.a', 'c.a');
+    const both = { ...base, files: { ...base.files, 'boons.yaml': theirs }, strings: { ...base.strings, 'c.a': 'C' } };
+    expect(() => compile({ core: both, demo: run(ok) })).toThrow(/Only one pack may define boons\.yaml/);
+  });
+
   it('lints achievements', () => {
     const base = core({ 'archetypes.yaml': archetype('') });
     const earn = (yaml: string, strings: Record<string, string> = { 'ach.a.title': 'A', 'ach.a.text': 'Do A.' }) => {

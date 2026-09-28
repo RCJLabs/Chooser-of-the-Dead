@@ -25,6 +25,10 @@ export interface ShiftMods {
   readonly freeQuestions?: number;
   /** Percent of each fine the day's audit charges (a god's favour). */
   readonly finePct?: number;
+  /** Presses more each soul will take (an Endless boon, docs/tech-spec.md §68). */
+  readonly patience?: number;
+  /** The most hints Skögul gives this shift (an Endless run's, docs/tech-spec.md §68); no limit when absent. */
+  readonly hints?: number;
 }
 
 /**
@@ -73,6 +77,8 @@ export interface ShiftConfig {
   readonly dailyNumber?: number;
   /** No sun timer (Story Mode, practice). */
   readonly untimed?: boolean;
+  /** The shift's own sun, in seconds, instead of its day's: an Endless round under the sun (docs/tech-spec.md §68). */
+  readonly sunS?: number;
   readonly mods?: ShiftMods;
   /** Set as the shift begins, from the `begin` action, so replays keep them. */
   readonly assists?: Assists;
@@ -141,6 +147,8 @@ export interface ShiftState {
   readonly recentQ: readonly string[];
   /** Questions asked for free so far (`mods.freeQuestions`); absent before the first. */
   readonly freeAsked?: number;
+  /** Hints given so far, when the shift has a limit (`mods.hints`); absent before the first. */
+  readonly hintsAsked?: number;
 }
 
 export type ShiftAction =
@@ -232,7 +240,7 @@ export function startShift(
     v: 1,
     config: { ...config, day: ctx.day },
     phase: 'briefing',
-    sunMs: (ctx.spec.sunS + (config.mods?.sunS ?? 0)) * 1000,
+    sunMs: ((config.sunS ?? ctx.spec.sunS) + (config.mods?.sunS ?? 0)) * 1000,
     cases,
     cursor: 0,
     soul: freshSoul(),
@@ -306,6 +314,12 @@ export function nextHint(state: ShiftState): string | null {
   return c.meta.proof.find((id) => !seen.includes(id) && !hinted.includes(id)) ?? null;
 }
 
+/** Hints Skögul will still give this shift, when it has a limit (an Endless run's); undefined when it has none. */
+export function hintsLeft(state: ShiftState): number | undefined {
+  const cap = state.config.mods?.hints;
+  return cap === undefined ? undefined : Math.max(0, cap - (state.hintsAsked ?? 0));
+}
+
 /** Stamps available today, in a stable order. */
 export function stampsFor(ctx: DayCtx): Destination[] {
   return DESTINATIONS.filter((d) => ctx.destinations.has(d));
@@ -347,7 +361,8 @@ export function pressTaught(state: ShiftState, ctx: DayCtx): boolean {
 /** How many more times the soul at the gate will be pressed. */
 export function patienceLeft(state: ShiftState, ctx: DayCtx): number {
   const press = ctx.content.press;
-  return press ? Math.max(0, press.patience - (state.soul.pressed?.length ?? 0)) : 0;
+  const patience = press ? press.patience + (state.config.mods?.patience ?? 0) : 0;
+  return Math.max(0, patience - (state.soul.pressed?.length ?? 0));
 }
 
 /** The claims the soul at the gate can be pressed on now: heard, and not yet caught, questioned or pressed. */
@@ -572,11 +587,14 @@ export function stepShift(
     }
     case 'hint': {
       if (s.config.oath) return withSun(reject(s, 'no hints under the oath'));
+      const cap = s.config.mods?.hints;
+      if (cap !== undefined && (s.hintsAsked ?? 0) >= cap) return withSun(reject(s, 'no hints left'));
       const field = nextHint(s);
       if (!field) return withSun(reject(s, 'nothing left to point at'));
       const soul = { ...s.soul, hinted: [...(s.soul.hinted ?? []), field] };
+      const asked = cap !== undefined ? { ...s, soul, hintsAsked: (s.hintsAsked ?? 0) + 1 } : { ...s, soul };
       const penaltyMs = sunCosts(day.content).hint;
-      return withSun({ state: penalize({ ...s, soul }, penaltyMs), events: [{ e: 'hint', field, penaltyMs }] });
+      return withSun({ state: penalize(asked, penaltyMs), events: [{ e: 'hint', field, penaltyMs }] });
     }
     case 'stamp': {
       if (!ctx.destinations.has(action.dest)) return withSun(reject(s, `no ${action.dest} stamp today`));

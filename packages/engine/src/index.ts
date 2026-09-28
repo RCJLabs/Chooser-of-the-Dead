@@ -35,6 +35,7 @@ export * from './narrative/press';
 export * from './narrative/questions';
 export { fnv1a32, hashParts } from './rng/hash';
 export { Rng } from './rng/rng';
+export * from './shift/boons';
 export * from './shift/checks';
 export * from './shift/endless';
 export * from './shift/shift';
