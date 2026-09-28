@@ -278,6 +278,44 @@ export interface QuestionTemplate {
   readonly weight: number;
 }
 
+/**
+ * Pressing a soul on what it said before anything shows it false (`press.yaml`, docs/tech-spec.md §66): a faster,
+ * riskier way to a lie than finding what shows it false, and never the only way. Never in the Daily or the primer.
+ */
+export interface PressDef {
+  /** The first day a soul can be pressed, in practice, Endless and the campaign. */
+  readonly since: number;
+  /** Sun-seconds each press costs. */
+  readonly cost: number;
+  /** How many times a soul will be pressed before it says no more. */
+  readonly patience: number;
+  /** Out of 100, by how the soul talks: how often a soul pressed on its lie gives way. */
+  readonly gives: Readonly<Record<string, number>>;
+  /** What a soul holding to a claim can add about another fact (see `pressAnswer`). */
+  readonly details: readonly PressDetail[];
+}
+
+export interface PressDetail {
+  /** The claim the soul holds to. */
+  readonly on: { readonly fact: string; readonly claimed: Value };
+  /** What it adds. */
+  readonly says: { readonly fact: string; readonly value: Value };
+}
+
+/** A pressed soul's line, holding to a claim or adding to it: never chosen by whether the claim is true. */
+export interface PressTemplate {
+  readonly id: string;
+  readonly on: {
+    readonly kind: 'hold' | 'detail';
+    /** A hold's claim ('*' for any), or the fact a detail is about. */
+    readonly fact: string;
+    readonly value?: Value;
+    readonly persona?: readonly string[];
+  };
+  readonly msgs: readonly string[];
+  readonly weight: number;
+}
+
 export interface Knobs {
   /** Percent multiplier on archetype lie chances. */
   readonly lieRate: number;
@@ -1065,4 +1103,8 @@ export interface Content {
   readonly twists?: readonly EndlessTwist[];
   /** What can be earned in this build: each pack brings its own. */
   readonly achievements?: readonly AchievementDef[];
+  /** Pressing a soul on what it said (docs/tech-spec.md §66); none in a build without it. */
+  readonly press?: PressDef;
+  /** What pressed souls say. */
+  readonly pressLines?: readonly PressTemplate[];
 }

@@ -1,5 +1,6 @@
 import type { ToolId } from '../content/types';
 import type { DayCtx } from '../logic/context';
+import { saidFrom } from '../narrative/press';
 import { type ShiftAction, type ShiftState, stepShift, type Verdict } from './shift';
 
 /**
@@ -18,9 +19,11 @@ export interface SoulTrace {
   readonly tools: readonly ToolId[];
   /** Field ids looked at before the soul was sent. */
   readonly seen: readonly string[];
-  /** Lies called out (testimony field ids). */
+  /** Lies caught (testimony field ids): called out, or given up when pressed (docs/tech-spec.md §66). */
   readonly caught: readonly string[];
   readonly questioned: readonly string[];
+  /** Claims the soul was pressed on. */
+  readonly pressed: readonly string[];
   /** Compares that found nothing. */
   readonly badCompares: number;
   /** Null while the soul is still at the gate. */
@@ -53,7 +56,7 @@ export function traceShift(
     a.actions.push(action);
     last.set(cursor, before.soul);
     for (const e of r.events) {
-      if (e.e === 'flipped' || e.e === 'toolUsed' || e.e === 'answer') a.penaltyMs += e.penaltyMs;
+      if (e.e === 'flipped' || e.e === 'toolUsed' || e.e === 'answer' || e.e === 'pressed') a.penaltyMs += e.penaltyMs;
       if (e.e === 'noConflict') {
         a.penaltyMs += e.penaltyMs;
         a.badCompares++;
@@ -76,8 +79,9 @@ export function traceShift(
       flipped: soul?.flipped ?? false,
       tools: soul?.tools ?? [],
       seen: soul?.seen ?? [],
-      caught: soul?.flagged.map((f) => f.lie) ?? [],
+      caught: soul ? [...new Set([...soul.flagged.map((f) => saidFrom(f.lie) ?? f.lie), ...(soul.gave ?? [])])] : [],
       questioned: soul?.questioned ?? [],
+      pressed: soul?.pressed ?? [],
       badCompares: a.badCompares,
       verdict,
     };

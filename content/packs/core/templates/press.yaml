@@ -1,0 +1,22 @@
+# What a pressed soul says (docs/tech-spec.md §66). Holding to a claim: by the claim and how the soul talks, never by
+# whether the claim is true, so holding sounds the same either way. Adding to it: one line about one fact, the same
+# words whether it's true or a slip.
+- { id: p.hold.any.1, on: { kind: hold, fact: '*' }, msgs: [p.hold.any.1] }
+- { id: p.hold.any.2, on: { kind: hold, fact: '*' }, msgs: [p.hold.any.2] }
+- { id: p.hold.any.3, on: { kind: hold, fact: '*' }, msgs: [p.hold.any.3] }
+- { id: p.hold.veteran, on: { kind: hold, fact: '*', persona: [veteran] }, msgs: [p.hold.veteran.1] }
+- { id: p.hold.braggart, on: { kind: hold, fact: '*', persona: [braggart] }, msgs: [p.hold.braggart.1] }
+- { id: p.hold.honest, on: { kind: hold, fact: '*', persona: [honest] }, msgs: [p.hold.honest.1] }
+- { id: p.hold.coward, on: { kind: hold, fact: '*', persona: [coward] }, msgs: [p.hold.coward.1] }
+- { id: p.hold.confused, on: { kind: hold, fact: '*', persona: [confused] }, msgs: [p.hold.confused.1] }
+- { id: p.hold.cause.battle, on: { kind: hold, fact: cause, value: battle }, msgs: [p.hold.cause.battle.1] }
+- id: p.hold.cause.battle.braggart
+  on: { kind: hold, fact: cause, value: battle, persona: [braggart] }
+  msgs: [p.hold.cause.battle.braggart.1]
+- { id: p.hold.grip.weapon, on: { kind: hold, fact: grip, value: weapon }, msgs: [p.hold.grip.weapon.1] }
+- { id: p.hold.fled.false, on: { kind: hold, fact: fled, value: false }, msgs: [p.hold.fled.false.1] }
+- { id: p.hold.fled.false.coward, on: { kind: hold, fact: fled, value: false, persona: [coward] }, msgs: [p.hold.fled.false.coward.1] }
+- { id: p.detail.grip.weapon, on: { kind: detail, fact: grip, value: weapon }, msgs: [p.detail.grip.weapon.1] }
+# Exactly one wound, so a chest with none or with two says otherwise.
+- { id: p.detail.woundsFront.1, on: { kind: detail, fact: woundsFront, value: 1 }, msgs: [p.detail.woundsFront.1] }
+- { id: p.detail.cause.battle, on: { kind: detail, fact: cause, value: battle }, msgs: [p.detail.cause.battle.1] }
