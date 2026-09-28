@@ -1,7 +1,15 @@
 import { ENGINE_MAJOR } from '@cots/engine';
 import { loadContent, scenarioSave } from '@cots/testkit';
 import { describe, expect, it } from 'vitest';
-import { type Backup, type Here, mergeBackup, parseBackup, type SlotRecord, validSlot } from './save-data';
+import {
+  type Backup,
+  type Here,
+  isEndlessResult,
+  mergeBackup,
+  parseBackup,
+  type SlotRecord,
+  validSlot,
+} from './save-data';
 import type { DailyProgress, DailyResult, EndlessProgress, Settings } from './store';
 
 /*
@@ -285,6 +293,31 @@ describe('restoring a backup', () => {
       { from: 0, outcome: 'unplayable' },
       { from: 1, outcome: 'unreadable' },
     ]);
+  });
+
+  it('takes on a run’s boons, curses and score (docs/tech-spec.md §68), and nothing malformed', () => {
+    const run = endlessRun(null);
+    const picked: EndlessProgress = {
+      ...run,
+      score: 20,
+      mode: { ...run.mode, score: 18, picks: [{ round: 1, id: 'curse.sun' }], hintsUsed: 2, sunPct: 50 },
+    };
+    expect(mergeBackup(here(), backup({ endless: picked }), OPTS).next.endless).toEqual(picked);
+    const bad = { ...picked, mode: { ...picked.mode, picks: [{ round: -1, id: 'curse.sun' }] } };
+    expect(mergeBackup(here(), backup({ endless: bad }), OPTS).next.endless).toBeNull();
+    const scored = {
+      n: 91,
+      date: '2027-03-01',
+      preview: false,
+      g: 1,
+      judged: 9,
+      round: 1,
+      day: 2,
+      score: 14,
+      curses: 1,
+    };
+    expect(isEndlessResult(scored)).toBe(true);
+    expect(isEndlessResult({ ...scored, score: -1 })).toBe(false);
   });
 
   it('takes on an unfinished run only where there’s none, and never one already finished here', () => {

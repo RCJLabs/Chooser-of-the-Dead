@@ -335,6 +335,9 @@ function isDated(x: unknown): boolean {
   return isObject(x) && isInt(x.n) && typeof x.date === 'string' && typeof x.preview === 'boolean';
 }
 
+/** An optional number that, when there, is a count. */
+const maybeCount = (x: unknown): boolean => x === undefined || isCount(x);
+
 export function isEndlessResult(x: unknown): x is EndlessResult {
   return (
     isDated(x) &&
@@ -343,12 +346,21 @@ export function isEndlessResult(x: unknown): x is EndlessResult {
     isCount(x.judged) &&
     isCount(x.round) &&
     isInt(x.day) &&
-    (x.tracker === undefined || typeof x.tracker === 'boolean')
+    (x.tracker === undefined || typeof x.tracker === 'boolean') &&
+    maybeCount(x.score) &&
+    maybeCount(x.curses) &&
+    (x.sunPct === undefined || isInt(x.sunPct))
   );
 }
 
+/** What an Endless run chose between rounds (docs/tech-spec.md §68). */
+const isPicks = (x: unknown): boolean =>
+  x === undefined || (Array.isArray(x) && x.every((p) => isObject(p) && isCount(p.round) && typeof p.id === 'string'));
+
 export function isEndlessProgress(x: unknown): x is EndlessProgress {
-  if (!isObject(x) || x.v !== 1 || !isInt(x.g) || !isCount(x.judged) || !isCount(x.strikes)) return false;
+  if (!isObject(x) || x.v !== 1 || !isInt(x.g) || !isCount(x.judged) || !isCount(x.strikes) || !maybeCount(x.score)) {
+    return false;
+  }
   const m = x.mode;
   return (
     Array.isArray(x.actions) &&
@@ -362,7 +374,11 @@ export function isEndlessProgress(x: unknown): x is EndlessProgress {
     isCount(m.strikes) &&
     isCount(m.bestBefore) &&
     typeof m.tracker === 'boolean' &&
-    (m.dated === null || isDated(m.dated))
+    (m.dated === null || isDated(m.dated)) &&
+    maybeCount(m.score) &&
+    isPicks(m.picks) &&
+    maybeCount(m.hintsUsed) &&
+    (m.sunPct === undefined || isInt(m.sunPct))
   );
 }
 

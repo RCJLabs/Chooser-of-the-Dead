@@ -27,6 +27,8 @@
   --paper-muted: #675743;
   --good: #79b36f;
   --bad: #d86a52;
+  /* A curse's words (Endless, docs/tech-spec.md §68): the strike's red, light enough for text on dark (6:1 or more). */
+  --curse: #ec8a73;
   --focus: #8fbcff;
   font-family: "Noto Sans Runic", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.45;
@@ -390,6 +392,74 @@ select {
   color: var(--accent);
   font-weight: 600;
   margin: 0;
+}
+
+/* Endless's choice between rounds (docs/tech-spec.md §68): boons in the accent, the curse in a strike's colour. */
+.endless-offer h2 {
+  margin-top: 0;
+}
+
+.boons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.6rem;
+}
+
+.boon {
+  font: inherit;
+  display: grid;
+  gap: 0.25rem;
+  align-content: start;
+  text-align: left;
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--panel-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.boon:hover {
+  background: #33291e;
+}
+
+.boon__name {
+  color: var(--accent);
+}
+
+.boon--curse {
+  border-color: var(--bad);
+  background: #2c1a15;
+}
+
+.boon--curse:hover {
+  background: #3a211a;
+}
+
+.boon--curse .boon__name {
+  color: var(--curse);
+}
+
+.endless-offer__curse {
+  margin: 1rem 0 0.5rem;
+  color: var(--muted);
+}
+
+.picks {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pick--boon strong {
+  color: var(--accent);
+}
+
+.pick--curse strong {
+  color: var(--curse);
 }
 
 .rules ol,
@@ -863,6 +933,11 @@ select {
   padding: 0.4rem 0.75rem;
   background: #3b2e17;
   color: var(--accent);
+}
+
+/* Týr's oath (an Endless curse): a Compare that finds nothing is a strike. */
+.comparebar__oath {
+  color: var(--curse);
 }
 
 .sr-only {
@@ -1378,6 +1453,9 @@ select {
   place-items: center;
   padding: 1rem;
   background: rgb(10 8 6 / 0.7);
+  /* A dialog taller than the screen (a long citation, large text on a small phone) scrolls, from its top. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dialog {

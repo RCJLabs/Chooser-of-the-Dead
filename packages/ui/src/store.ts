@@ -5,6 +5,7 @@ import {
   beatsDay,
   type CivilDate,
   type Content,
+  canPick,
   cleanAssists,
   DAILY_EPOCH,
   type DayCtx,
@@ -14,9 +15,12 @@ import {
   dailyDate,
   dailyNumber,
   dailySeed,
-  ENDLESS_STRIKES,
+  type EndlessOffer,
+  type EndlessPick,
   earnedAt,
+  endlessConfig,
   endlessContext,
+  endlessOffer,
   endlessRound,
   endlessSeed,
   endlessShareText,
@@ -24,8 +28,11 @@ import {
   type GradeId,
   type GuardResult,
   guardDaily,
+  hasBoons,
   type PlayMode,
   queueChecksum,
+  type RunRules,
+  runRules,
   type ShiftAction,
   type ShiftEvent,
   type ShiftState,
@@ -37,6 +44,7 @@ import {
   startShift,
   stepShift,
   sunLeft,
+  tallyEvent,
   type Verdict,
 } from '@cots/engine';
 import { isPersisted, type KeyValueStore, memoryStore, requestPersistence, type ShareResult } from '@cots/platform';
@@ -515,6 +523,10 @@ export interface EndlessResult extends DatedRun {
   readonly round: number;
   readonly day: number;
   readonly tracker?: boolean;
+  /** Where Endless is a run (docs/tech-spec.md §68): its score, the curses it took, the slowest sun it had. */
+  readonly score?: number;
+  readonly curses?: number;
+  readonly sunPct?: number;
 }
 
 /** The Endless run being played, saved after every action so a reload resumes it (docs/tech-spec.md §27). */
@@ -528,6 +540,8 @@ export interface EndlessProgress {
   /** The score and strikes as they stand, for the title card. */
   readonly judged: number;
   readonly strikes: number;
+  /** The run's score as it stands, where Endless is a run (docs/tech-spec.md §68). */
+  readonly score?: number;
 }
 
 export const endlessProgress = signal<EndlessProgress | null>(null);
@@ -609,6 +623,15 @@ export interface EndlessMode {
   readonly dated: DatedRun | null;
   /** Whether any round began with the rule tracker on (its share text says so). */
   readonly tracker: boolean;
+  /**
+   * Where Endless is a run (docs/tech-spec.md §68): the score (each soul judged rightly scores its worth), the boons
+   * and curses chosen between rounds, and the hints used. A run saved before them has none: a round's session sets them.
+   */
+  readonly score?: number;
+  readonly picks?: readonly EndlessPick[];
+  readonly hintsUsed?: number;
+  /** The slowest sun speed a round under the sun began with, other than as designed (its share text says so). */
+  readonly sunPct?: number;
 }
 
 export interface Session {
@@ -629,6 +652,8 @@ export interface Session {
   };
   /** Called every few seconds while the sun runs, to save how far it got. */
   readonly heartbeat?: () => void;
+  /** An Endless run as its round began: what its save keeps, with the round's actions (docs/tech-spec.md §27). */
+  readonly roundStart?: EndlessMode;
   /** Takes over when the shift is done, instead of the summary (an appeal goes back to its morning). */
   readonly done?: (s: Session) => void;
   /** What leaving it from the pause does, instead of going to the title. */
@@ -813,13 +838,21 @@ function onEvent(e: ShiftEvent, s: Session): void {
       compareFirst.value = null;
       break;
     case 'noConflict':
-      say(t('ui.compare.none', { s: e.penaltyMs / 1000 }), 'bad');
+      // Under Týr's oath (an Endless curse, docs/tech-spec.md §68) it's a strike, not sun.
+      say(
+        s.mode.kind === 'endless' && endlessRules(s).oath
+          ? t('ui.endless.oathStrike')
+          : t('ui.compare.none', { s: e.penaltyMs / 1000 }),
+        'bad',
+      );
       comparing.value = false;
       compareFirst.value = null;
+      if (s.mode.kind === 'endless') countEndless(e);
       break;
     case 'hint': {
       const f = cases[s.state.cursor]?.evidence.fields.find((x) => x.id === e.field);
       if (f) say(t(hintTarget(f, s.state).text));
+      if (s.mode.kind === 'endless') countEndless(e);
       break;
     }
     case 'answer': {
@@ -852,7 +885,7 @@ function onEvent(e: ShiftEvent, s: Session): void {
         : t(again ? 'ui.again.wrong' : 'ui.verdict.wrong', { dest, expected: t(`dest.${e.verdict.expected}`) });
       say(told, e.verdict.correct ? 'good' : 'bad');
       resetSoulUi();
-      if (s.mode.kind === 'endless') countEndless(e.verdict.correct);
+      if (s.mode.kind === 'endless') countEndless(e);
       break;
     }
     case 'citation':
@@ -895,10 +928,16 @@ function finish(s: Session): void {
     screen.value = 'audit';
     return;
   }
-  // An Endless round that ends without the third strike goes straight on to the next day's rules.
+  // An Endless round that ends with strikes to spare goes straight on to the next day's rules.
   if (s.mode.kind === 'endless') {
-    const m = session.peek()?.mode;
-    if (m?.kind === 'endless' && m.strikes < ENDLESS_STRIKES) startEndlessRound({ ...m, round: m.round + 1 });
+    const now = session.peek();
+    const m = now?.mode;
+    if (now && m?.kind === 'endless' && m.strikes < endlessRules(now).strikes) {
+      // Souls the sun set on were never judged: they score nothing (docs/tech-spec.md §68).
+      const lost = s.state.verdicts.filter((v) => v.stamped === null).length;
+      if (lost > 0) say(t('ui.endless.dusk', { n: lost }), 'bad');
+      startEndlessRound({ ...m, round: m.round + 1 });
+    }
     return;
   }
   // An appeal is its campaign's business (its `done` has it), never telemetry's; nor is a soul tried again.
@@ -1047,8 +1086,28 @@ export function startEndlessToday(): void {
 
 function freshRun(seed: string, dated: DatedRun | null): EndlessMode {
   const bestBefore = settings.peek().endlessBest;
-  return { kind: 'endless', seed, round: 0, day: 0, strikes: 0, judged: 0, bestBefore, dated, tracker: false };
+  return {
+    kind: 'endless',
+    seed,
+    round: 0,
+    day: 0,
+    strikes: 0,
+    judged: 0,
+    bestBefore,
+    dated,
+    tracker: false,
+    score: 0,
+    picks: [],
+    hintsUsed: 0,
+  };
 }
+
+/** What an Endless run's boons and curses add up to (docs/tech-spec.md §68); as Endless always was without them. */
+export const endlessRules = (s: Pick<Session, 'content' | 'mode'>): RunRules =>
+  runRules(s.content, s.mode.kind === 'endless' ? (s.mode.picks ?? []) : []);
+
+/** The strikes a saved run can take, for the title card. */
+export const savedStrikes = (p: EndlessProgress): number => runRules(gameContent, p.mode.picks ?? []).strikes;
 
 /** The saved run as it stands: its round rebuilt, the round's actions replayed. */
 function savedEndless(p: EndlessProgress): EndlessSession {
@@ -1061,7 +1120,7 @@ export function resumeEndless(): void {
   const p = endlessProgress.peek();
   if (!p) return;
   const s = savedEndless(p);
-  if (s.mode.strikes >= ENDLESS_STRIKES) {
+  if (s.mode.strikes >= endlessRules(s).strikes) {
     showEndless(s);
     endEndless(s.mode);
     screen.value = 'endless';
@@ -1084,31 +1143,63 @@ export function resumeEndless(): void {
 }
 
 /**
- * A round's session: its souls and its day context (with the round's twist), with `replay` stepped
- * through and scored, as a saved round is resumed.
+ * A round's session: its souls and its day context (with the round's twist), its shift set up by the run's boons and
+ * curses, with `replay` stepped through and scored, as a saved round is resumed.
  */
 type EndlessSession = Session & { readonly mode: EndlessMode };
 
+/** What an event does to the run's tally: a soul judged, a strike under Týr's oath, a hint used. */
+function tallied(m: EndlessMode, rules: RunRules, e: ShiftEvent): EndlessMode {
+  const d = tallyEvent(rules, e);
+  if (!d) return m;
+  return {
+    ...m,
+    judged: m.judged + d.right,
+    score: (m.score ?? m.judged) + d.points,
+    strikes: m.strikes + d.strikes,
+    hintsUsed: (m.hintsUsed ?? 0) + d.hints,
+  };
+}
+
+/** The assists a round began with, kept for the run's share text: the tracker, and a sun speed under the sun. */
+function withAssists(m: EndlessMode, assists: Assists | undefined, untimed: boolean): EndlessMode {
+  const pct = untimed ? undefined : cleanAssists(assists).sunPct;
+  return {
+    ...m,
+    ...(assists?.tracker ? { tracker: true } : {}),
+    ...(pct !== undefined ? { sunPct: Math.min(pct, m.sunPct ?? pct) } : {}),
+  };
+}
+
 function endlessSession(mode: EndlessMode, replay: readonly ShiftAction[] = []): EndlessSession {
+  // A run saved before boons and curses has no score of its own yet: it's the souls judged rightly.
   const r = endlessRound(gameContent, mode.seed, mode.round);
-  const ctx = endlessContext(gameContent, mode.seed, mode.round);
-  const { state } = startShift(gameContent, { mode: 'practice', seed: r.seed, day: r.day, untimed: true }, r.cases);
+  const start: EndlessMode = {
+    ...mode,
+    day: r.day,
+    score: mode.score ?? mode.judged,
+    picks: mode.picks ?? [],
+    hintsUsed: mode.hintsUsed ?? 0,
+  };
+  const ctx = endlessContext(gameContent, start.seed, start.round);
+  const rules = runRules(gameContent, start.picks ?? []);
+  const config = endlessConfig(ctx, start.seed, start.round, rules, rules.hints - (start.hintsUsed ?? 0));
+  const { state } = startShift(gameContent, config, r.cases, ctx);
   let st = state;
-  let judged = mode.judged;
-  let strikes = mode.strikes;
-  let tracker = mode.tracker;
+  let live = start;
+  let roundStart = start;
   for (const a of replay) {
-    if (a.t === 'begin' && a.assists?.tracker) tracker = true;
+    if (a.t === 'begin') {
+      live = withAssists(live, a.assists, config.untimed === true);
+      roundStart = withAssists(roundStart, a.assists, config.untimed === true);
+    }
     const step = stepShift(st, a, ctx);
     st = step.state;
-    for (const e of step.events) {
-      if (e.e !== 'judged') continue;
-      if (e.verdict.correct) judged++;
-      else strikes++;
-    }
+    for (const e of step.events) live = tallied(live, rules, e);
   }
   return {
-    mode: { ...mode, day: r.day, judged, strikes, tracker },
+    mode: live,
+    roundStart,
     content: gameContent,
     ctx,
     initial: state,
@@ -1133,25 +1224,50 @@ function startEndlessRound(mode: EndlessMode): void {
   saveEndless(s);
 }
 
+/**
+ * The choice before this round (docs/tech-spec.md §68): three boons and the curse on offer, while the round is still
+ * in its briefing and nothing has been chosen for it. Null otherwise, and always in a build without boons (the demo).
+ */
+export function endlessOfferFor(s: Session): EndlessOffer | null {
+  if (s.mode.kind !== 'endless' || s.state.phase !== 'briefing' || s.actions.length > 0) return null;
+  const m = s.mode;
+  if ((m.picks ?? []).some((p) => p.round === m.round)) return null;
+  return endlessOffer(s.content, m.seed, m.round, m.picks ?? [], m.strikes);
+}
+
+/** Takes a boon, or the curse on offer, before the round: the round is set up again with it, and the run saved. */
+export function chooseEndless(id: string): void {
+  const s = session.peek();
+  if (s?.mode.kind !== 'endless' || !endlessOfferFor(s)) return;
+  const m = s.roundStart ?? s.mode;
+  const picks = m.picks ?? [];
+  if (!canPick(s.content, m.seed, m.round, picks, m.strikes, id)) return;
+  const next = endlessSession({ ...m, picks: [...picks, { round: m.round, id }] });
+  showEndless(next);
+  saveEndless(next);
+  const curse = s.content.boons?.find((b) => b.id === id)?.kind === 'curse';
+  play(curse ? 'citation' : 'found');
+}
+
 /** Saves the run as its round began, with the round's actions (resumeEndless replays them). */
 function saveEndless(s: Session): void {
-  if (s.mode.kind !== 'endless' || s.mode.strikes >= ENDLESS_STRIKES) return;
-  const right = s.state.verdicts.filter((v) => v.correct).length;
-  const wrong = s.state.verdicts.length - right;
-  const mode: EndlessMode = { ...s.mode, judged: s.mode.judged - right, strikes: s.mode.strikes - wrong };
+  if (s.mode.kind !== 'endless' || s.mode.strikes >= endlessRules(s).strikes) return;
   saveEndlessProgress({
     v: 1,
     g: s.content.genVersion,
-    mode,
+    mode: s.roundStart ?? s.mode,
     actions: s.actions,
     judged: s.mode.judged,
     strikes: s.mode.strikes,
+    ...(hasBoons(s.content) ? { score: s.mode.score ?? s.mode.judged } : {}),
   });
 }
 
 /** The run is over: its best, the day's result when it was the day's run, then the saved run dropped. */
 function endEndless(m: EndlessMode): void {
-  const best = m.judged > settings.peek().endlessBest ? { endlessBest: m.judged } : {};
+  const score = m.score ?? m.judged;
+  const best = score > settings.peek().endlessBest ? { endlessBest: score } : {};
+  const run = hasBoons(gameContent) ? { score, curses: runRules(gameContent, m.picks ?? []).curses } : {};
   const dated = m.dated
     ? {
         endlessToday: {
@@ -1161,6 +1277,8 @@ function endEndless(m: EndlessMode): void {
           round: m.round,
           day: m.day,
           ...(m.tracker ? { tracker: true } : {}),
+          ...(m.sunPct !== undefined ? { sunPct: m.sunPct } : {}),
+          ...run,
         },
       }
     : {};
@@ -1177,15 +1295,27 @@ function closeEndless(): void {
   endEndless(savedEndless(p).mode);
 }
 
-/** Scores a stamp in Endless; the third wrong one ends the run where it stands. */
-function countEndless(correct: boolean): void {
+/**
+ * Scores an event in Endless: a soul judged (its worth, or a strike), a Compare that finds nothing under Týr's oath,
+ * a hint used. The strike that uses the run's last ends it where it stands.
+ */
+function countEndless(e: ShiftEvent): void {
   const s = session.peek();
   if (s?.mode.kind !== 'endless') return;
-  const m = s.mode;
-  const mode = correct ? { ...m, judged: m.judged + 1 } : { ...m, strikes: m.strikes + 1 };
+  const rules = endlessRules(s);
+  const mode = tallied(s.mode, rules, e);
+  if (mode === s.mode) return;
   session.value = { ...s, mode };
-  unlock({ at: 'endless', facts: { score: mode.judged, round: mode.round, strikes: mode.strikes } });
-  if (mode.strikes < ENDLESS_STRIKES) return;
+  if (e.e === 'judged') {
+    const facts = { score: mode.judged, round: mode.round, strikes: mode.strikes };
+    unlock({ at: 'endless', facts: { ...facts, points: mode.score ?? mode.judged, curses: rules.curses } });
+  }
+  if (mode.strikes < rules.strikes) return;
+  // Over mid-round: a round under the sun stops with the run, so no dusk comes to the screen that says it's over.
+  const over = session.peek();
+  if (over?.state.phase === 'shift' && over.state.clock.pausedAt === null) {
+    session.value = { ...over, state: { ...over.state, clock: { ...over.state.clock, pausedAt: clock() } } };
+  }
   endEndless(mode);
   screen.value = 'endless';
 }
@@ -1212,12 +1342,21 @@ export function startPrimer(): void {
 export const coachAcks = signal<readonly string[]>([]);
 
 export function begin(): void {
-  const assists = currentAssists(false, session.peek()?.state.config.untimed === true);
+  const before = session.peek();
+  // Endless's choice between rounds comes first (docs/tech-spec.md §68).
+  if (before && endlessOfferFor(before)) return;
+  const untimed = before?.state.config.untimed === true;
+  const assists = currentAssists(false, untimed);
   act({ t: 'begin', ...(Object.keys(assists).length > 0 ? { assists } : {}) });
   const s = session.peek();
-  // An Endless run played with the rule tracker in any round says so when shared.
-  if (s?.mode.kind === 'endless' && assists.tracker && !s.mode.tracker) {
-    const next = { ...s, mode: { ...s.mode, tracker: true } };
+  // An Endless run says when shared if any round began with the rule tracker, or a sun speed under the sun.
+  if (s?.mode.kind === 'endless') {
+    const start = s.roundStart;
+    const next: Session = {
+      ...s,
+      mode: withAssists(s.mode, assists, untimed),
+      ...(start ? { roundStart: withAssists(start, assists, untimed) } : {}),
+    };
     session.value = next;
     saveEndless(next);
   }
@@ -1257,7 +1396,15 @@ export function endlessShareBody(r: {
   readonly round: number;
   readonly day: number;
   readonly tracker?: boolean;
+  readonly sunPct?: number;
+  /** Where Endless is a run (docs/tech-spec.md §68): its score and the curses it took. */
+  readonly score?: number;
+  readonly curses?: number;
 }): { text: string; url: string | undefined } {
+  const assists = cleanAssists({
+    tracker: r.tracker === true,
+    ...(r.sunPct !== undefined ? { sunPct: r.sunPct } : {}),
+  });
   const text = endlessShareText({
     title: t('core.title'),
     label: endlessLabel(r.dated),
@@ -1265,14 +1412,19 @@ export function endlessShareBody(r: {
     judged: r.judged,
     round: r.round,
     day: r.day,
-    ...(r.tracker ? { assists: { tracker: true } } : {}),
+    ...(Object.keys(assists).length > 0 ? { assists } : {}),
+    ...(r.score !== undefined ? { score: r.score, curses: r.curses ?? 0 } : {}),
   });
   return { text, url: platform.shareUrl() };
 }
 
 /** Spoiler-free result text, and the link it points to. */
 export function shareBody(s: Session): { text: string; url: string | undefined } {
-  if (s.mode.kind === 'endless') return endlessShareBody({ ...s.mode, g: s.content.genVersion });
+  if (s.mode.kind === 'endless') {
+    const { score, ...run } = s.mode;
+    const scored = hasBoons(s.content) ? { score: score ?? run.judged, curses: endlessRules(s).curses } : {};
+    return endlessShareBody({ ...run, g: s.content.genVersion, ...scored });
+  }
   let label: string | undefined;
   if (s.mode.kind === 'daily') {
     label = s.mode.preview ? `Daily preview ${s.mode.date}` : `Daily #${s.mode.n}`;

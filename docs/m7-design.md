@@ -131,7 +131,7 @@ The problem: by Day 6 a competent player has about 126 rings and nothing to buy.
 
 Walk the days' rules in order, five souls per day's rules, three strikes, no sun. The score is the souls judged rightly. It reuses the day specs, so it needs no new content.
 
-As built: round *r* plays the first five souls of day *r*'s own queue (so each day's teaching soul, its new rule, comes first), then the last day's rules for as long as the player lasts. A wrong stamp, or unclipped nails, is a strike, and the third ends the run where it stands. The best score is kept on the device. The demo walks Days 1–3; the full game Days 1–20. `packages/engine/src/shift/endless.ts`; the UI keeps the run as a session mode (`packages/ui/src/store.ts`). Since then (audit item 9, [`tech-spec.md`](tech-spec.md) §27): a run of the day that's the same for everyone, share text, a run kept through a reload, and twists on rounds that bring nothing new.
+As built: round *r* plays the first five souls of day *r*'s own queue (so each day's teaching soul, its new rule, comes first), then the last day's rules for as long as the player lasts. A wrong stamp, or unclipped nails, is a strike, and the third ends the run where it stands. The best score is kept on the device. The demo walks Days 1–3; the full game Days 1–20. `packages/engine/src/shift/endless.ts`; the UI keeps the run as a session mode (`packages/ui/src/store.ts`). Since then (audit item 9, [`tech-spec.md`](tech-spec.md) §27): a run of the day that's the same for everyone, share text, a run kept through a reload, and twists on rounds that bring nothing new. And in the full game (§68): a boon or a curse chosen between rounds, and a score in which each curse makes a soul worth more.
 
 ## Order of work
 
