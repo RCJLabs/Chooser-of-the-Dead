@@ -9,6 +9,7 @@ import { questionResponse } from '../narrative/questions';
 import {
   atDesk,
   crossFlagged,
+  givenAtDesk,
   memberSoul,
   retractedOf,
   ruledOut,
@@ -21,8 +22,8 @@ import {
 } from '../shift/shift';
 import { traceShift } from '../shift/trace';
 import { companionShows, factValue, memberField } from './companions';
-import { generateDay } from './generate';
-import { linkParties, partyAt, partyOf } from './party';
+import { dressForDay, generateDay } from './generate';
+import { givenAt, linkParties, partyAt, partyOf } from './party';
 import type { CaseSpec } from './types';
 import { decisiveFacts, validateCase } from './validate';
 
@@ -126,7 +127,7 @@ describe('forming parties', () => {
     expect(linkParties(cases, ctx, dailySeed(1))).toBe(cases);
   });
 
-  it('makes a party of 2 or 3 souls of a kind standing together, never at the head of the line, each saying something of the next', () => {
+  it('makes a party of 2 or 3 souls of a kind standing together, never at the head of the line, each saying something of another', () => {
     let seen = 0;
     for (let s = 0; s < 12; s++) {
       for (const day of [9, 12, 16, 19, 20]) {
@@ -154,9 +155,14 @@ describe('forming parties', () => {
             }
             const said = m.evidence.fields.filter((f) => f.about);
             expect(said.length).toBeLessThanOrEqual(1);
-            for (const f of said) expect(f.about?.soul).toBe((k + 1) % p.members.length);
+            // Each of the next; in a retinue (docs/tech-spec.md §70), the jarl of his first man, and each man of him.
+            const lord = m.party?.lord;
+            const of = lord ? (k === lord.at ? 1 : lord.at) : (k + 1) % p.members.length;
+            for (const f of said) expect(f.about?.soul).toBe(of);
           });
-          expect(p.members.some((m) => m.evidence.fields.some((f) => f.about))).toBe(true);
+          // A fight or a crew always says something; a retinue is one for its oath, whatever it says.
+          if (!p.members[0]?.party?.lord)
+            expect(p.members.some((m) => m.evidence.fields.some((f) => f.about))).toBe(true);
         }
       }
     }
@@ -171,7 +177,7 @@ describe('forming parties', () => {
         const l = linked(day, `fair-${s}`);
         for (const p of parties(l.line)) {
           const companions = new Map(p.members.map((c, k) => [k, { case: c, ctx: soulCtx(l.ctx, c) }]));
-          for (const m of p.members) {
+          for (const [k, m] of p.members.entries()) {
             const cx = soulCtx(l.ctx, m);
             for (const f of m.evidence.fields) {
               if (!f.about) continue;
@@ -198,6 +204,7 @@ describe('forming parties', () => {
               cx,
               { ...cx.spec.queue.knobs, proofCostS: [0, 999], salienceFloor: 1 },
               companions,
+              givenAt(l.line, p.start + k, l.ctx),
             );
             expect(v.ok ? 'ok' : `${v.code}: ${v.detail}`).toBe('ok');
             expect(judge(m.truth, cx)).toEqual(m.expect);
@@ -424,4 +431,134 @@ describe('a party at the desk', () => {
     expect(late.state.party).toBeUndefined();
     for (let k = 0; k < p.members.length; k++) expect(late.state.verdicts[p.start + k]?.stamped).toBeNull();
   }, 60_000);
+});
+
+describe('a retinue (docs/tech-spec.md §70)', () => {
+  const follows = (c: CaseSpec) => c.expect.rule === 'rule.retinue';
+  /** A retinue with a man who goes where his jarl goes, to a hall his own evidence wouldn't send him. */
+  const moved = () =>
+    findParty([9, 10, 11, 12], (members, ctx) => {
+      if (!members[0]?.party?.lord) return false;
+      return members.slice(1).some((m) => {
+        const own = judge({ ...m.truth, lordHall: 'none' }, soulCtx(ctx, m));
+        return follows(m) && own.dest !== m.expect.dest;
+      });
+    });
+
+  it('comes on the day its rule is new: its jarl first, his men sworn to the hall he is bound for', () => {
+    let days = 0;
+    let led = 0;
+    for (let s = 0; s < 12; s++) {
+      const l = linked(9, `retinue-${s}`);
+      days++;
+      if (parties(l.line).some((x) => x.members[0]?.party?.lord)) led++;
+      for (const p of parties(l.line)) {
+        const lord = p.members[0]?.party?.lord;
+        if (!lord) continue;
+        const jarl = p.members[lord.at] as CaseSpec;
+        expect(['VALHALLA', 'FOLKVANGR', 'HEL']).toContain(jarl.expect.dest);
+        expect(jarl.truth.lordHall).toBe('none');
+        for (const [k, m] of p.members.entries()) {
+          if (k === lord.at) continue;
+          expect(m.truth.lordHall).toBe(jarl.expect.dest);
+          // A man who stood fast, and whom no earlier rule claims, goes where his jarl goes; one who fled doesn't.
+          if (m.truth.fled === true) expect(follows(m)).toBe(false);
+          if (follows(m)) expect(m.expect.dest).toBe(jarl.expect.dest);
+        }
+      }
+    }
+    // The day leads with one wherever its souls allow.
+    expect(led).toBeGreaterThanOrEqual(days - 2);
+  }, 60_000);
+
+  it('leaves every other soul sworn to no one: the rule never holds for them', () => {
+    const l = linked(12, 'retinue-others');
+    for (const c of l.line) {
+      if (c.party?.lord && c.party.index !== c.party.lord.at) continue;
+      expect(c.truth.lordHall).toBe('none');
+      expect(follows(c)).toBe(false);
+      const j = solve(c.evidence.fields, soulCtx(l.ctx, c), { reveals: new Map() });
+      expect(j.rules.find((r) => r.rule === 'rule.retinue')?.result).toBe('F');
+    }
+  }, 60_000);
+
+  it('at the desk, a sworn man is decided only once his jarl is, and then goes where he goes', () => {
+    const p = moved();
+    const k = p.members.findIndex((m, i) => i > 0 && follows(m));
+    const man = p.members[k] as CaseSpec;
+    const jarl = p.members[0] as CaseSpec;
+    const { state, ctx } = atParty(p, p.start);
+    // The man looked over, the jarl not yet: sworn, to a hall not yet known.
+    const looked = run(state, ctx, [
+      { t: 'turn', to: k, at: 2 },
+      ...(man.evidence.fields.some((f) => f.view === 'back') ? [{ t: 'flip' as const, at: 2 }] : []),
+      { t: 'inspect', fields: man.meta.proof, at: 2 },
+    ]).state;
+    const cx = soulCtx(ctx, man);
+    const seenOf = (st: ShiftState) => man.evidence.fields.filter((f) => st.soul.seen.includes(f.id));
+    const before = givenAtDesk(looked, k, ctx);
+    expect(before?.[0]?.values.length).toBeGreaterThan(1);
+    const open = solve(seenOf(looked), cx, { ...(before ? { given: before } : {}) }).judgment;
+    expect(open).toMatchObject({ kind: 'undetermined', rule: 'rule.retinue', blocking: ['lordHall'] });
+    expect(ruledOut(looked, ctx)).not.toContain('rule.retinue');
+    // The jarl judged from his own evidence (his claims caught against his men's): the man goes with him.
+    const jcx = soulCtx(ctx, jarl);
+    const judgedJarl = run(looked, ctx, [
+      { t: 'turn', to: 0, at: 3 },
+      ...(jarl.evidence.fields.some((f) => f.view === 'back') ? [{ t: 'flip' as const, at: 3 }] : []),
+      ...[...new Set(jarl.evidence.fields.flatMap((f) => (f.tool && f.tool !== 'flip' ? [f.tool] : [])))]
+        .filter((tool) => jcx.tools.has(tool))
+        .map((tool) => ({ t: 'tool' as const, tool, at: 3 })),
+      { t: 'inspect', fields: jarl.evidence.fields.map((f) => f.id), at: 3 },
+      { t: 'turn', to: k, at: 3 },
+    ]).state;
+    const after = givenAtDesk(judgedJarl, k, ctx);
+    if (!jarl.meta.crossProof) {
+      expect(after?.[0]?.values).toEqual([jarl.expect.dest]);
+      const j = solve(seenOf(judgedJarl), cx, { ...(after ? { given: after } : {}) }).judgment;
+      expect(j).toMatchObject({ kind: 'determined', dest: man.expect.dest, rule: 'rule.retinue' });
+    }
+    // His citation, stamped where his own evidence would send him, names the jarl's proof.
+    const own = judge({ ...man.truth, lordHall: 'none' }, cx).dest;
+    const sent = run(judgedJarl, ctx, [
+      { t: 'stamp', dest: own, at: 4 },
+      { t: 'turn', to: 0, at: 4 },
+      { t: 'stamp', dest: jarl.expect.dest, at: 4 },
+      ...p.members.flatMap((m, i) =>
+        i === 0 || i === k
+          ? []
+          : [
+              { t: 'turn' as const, to: i, at: 4 },
+              { t: 'stamp' as const, dest: m.expect.dest, at: 4 },
+            ],
+      ),
+      { t: 'send', at: 4 },
+    ]);
+    const v = sent.state.verdicts[p.start + k];
+    expect(v).toMatchObject({ correct: false, expected: man.expect.dest, rule: 'rule.retinue' });
+    expect(man.meta.crossProof?.some((x) => x.soul === 0)).toBe(true);
+  }, 60_000);
+
+  it('a hearth-man who waits for tomorrow comes alone, and is judged on his own', () => {
+    const p = moved();
+    const man = p.members.find((m, i) => i > 0 && follows(m)) as CaseSpec;
+    const next = createDayContext(full, p.ctx.day + 1, p.seed);
+    const alone = dressForDay(man, next);
+    expect(alone).not.toBeNull();
+    expect(alone?.party).toBeUndefined();
+    expect(alone?.truth.lordHall).toBe('none');
+    expect(alone?.expect.rule).not.toBe('rule.retinue');
+  }, 60_000);
+
+  it('from Day 16, a jarl caught lying about one of his men goes to Hel, and his men with him', () => {
+    const p = findParty([16, 17, 18, 19, 20], (members, ctx) => {
+      const jarl = members[0];
+      if (!jarl?.party?.lord || jarl.expect.rule !== 'rule.liars') return false;
+      return members.slice(1).some((m) => follows(m) && m.expect.dest === 'HEL') && soulCtx(ctx, jarl).day >= 16;
+    });
+    const jarl = p.members[0] as CaseSpec;
+    expect(jarl.lies.some((x) => x.about !== undefined)).toBe(true);
+    expect(jarl.meta.crossProof?.length).toBeGreaterThan(0);
+    for (const m of p.members.slice(1)) if (follows(m)) expect(m.expect.dest).toBe('HEL');
+  }, 120_000);
 });

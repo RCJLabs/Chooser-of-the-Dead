@@ -14,6 +14,7 @@ import type {
   ToolId,
   Value,
 } from '../content/types';
+import { ruleDests } from '../content/types';
 import type { CaseSpec } from '../gen/types';
 import { Rng } from '../rng/rng';
 
@@ -197,6 +198,6 @@ function buildContext(
     tools,
     archetypes,
     queueArchetypes,
-    destinations: new Set(rules.map((r) => r.then)),
+    destinations: new Set(rules.flatMap((r) => ruleDests(r, content.facts))),
   };
 }

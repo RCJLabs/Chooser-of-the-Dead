@@ -1,4 +1,4 @@
-import type { Destination, ObsPattern, Pred, Value } from '../content/types';
+import { type Destination, isDestination, type ObsPattern, type Pred, type Value } from '../content/types';
 import type { Field } from '../gen/types';
 import type { DayCtx } from './context';
 import { eval2, eval3, factsIn, type Tri } from './pred';
@@ -41,6 +41,16 @@ export interface SolveResult {
   readonly rules: readonly { readonly rule: string; readonly result: Tri }[];
 }
 
+/**
+ * What a soul's party settles about it (docs/tech-spec.md §70): the hall a sworn man's jarl is bound for, as far as
+ * the jarl's own evidence goes. Certain (trust 4); `support` names what settled it.
+ */
+export interface Given {
+  readonly fact: string;
+  readonly values: readonly Value[];
+  readonly support: readonly string[];
+}
+
 export interface SolveOptions {
   /** What questioning would reveal: lie field id -> the fact's true value. */
   readonly reveals?: ReadonlyMap<string, { readonly fact: string; readonly value: Value }>;
@@ -62,6 +72,11 @@ export interface SolveOptions {
    * given is a caught lie like any other: from Day 16 it proves the soul a liar.
    */
   readonly crossCaught?: ReadonlyMap<string, readonly string[]>;
+  /**
+   * Facts the soul's party settles (docs/tech-spec.md §70). A fact only a party sets (`fromParty`) is otherwise
+   * certainly its `inert` value: a soul no retinue brings is sworn to no one here.
+   */
+  readonly given?: readonly Given[];
 }
 
 export function isPerceivable(f: Field, ctx: DayCtx): boolean {
@@ -122,6 +137,16 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
 
   for (const [id, af] of ctx.facts) {
     if (af.def.derived) continue;
+    if (af.def.fromParty && !af.pinned) {
+      const g = opts.given?.find((x) => x.fact === id);
+      beliefs.set(
+        id,
+        g
+          ? { values: af.values.filter((v) => g.values.includes(v)), level: 4, support: g.support.slice() }
+          : { values: [af.def.inert], level: 4, support: ['world'] },
+      );
+      continue;
+    }
     beliefs.set(id, { values: af.values, level: af.pinned ? 4 : 0, support: af.pinned ? ['world'] : [] });
   }
 
@@ -354,8 +379,16 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
     const r = ctx.rules[i];
     const res = rules[i];
     if (!r || !res) break;
-    if (res.result === 'T') judgment = { kind: 'determined', dest: r.then, rule: r.id };
-    else if (res.result === 'U') {
+    const then = r.then;
+    if (res.result === 'T' && typeof then === 'string') judgment = { kind: 'determined', dest: then, rule: r.id };
+    else if (res.result === 'T' && typeof then !== 'string') {
+      // A hall named by a fact (docs/tech-spec.md §70): decided once the fact is, and no rule at all where it names none.
+      const fact = then.fact;
+      const halls = valuesOf(fact).filter(isDestination);
+      if (halls.length === valuesOf(fact).length && halls.length === 1) {
+        judgment = { kind: 'determined', dest: halls[0] as Destination, rule: r.id };
+      } else if (halls.length > 0) judgment = { kind: 'undetermined', rule: r.id, blocking: [fact] };
+    } else if (res.result === 'U') {
       const blocking = [...factsIn(r.when, ctx)].filter((id) => view(id).values.length > 1);
       judgment = { kind: 'undetermined', rule: r.id, blocking };
     }

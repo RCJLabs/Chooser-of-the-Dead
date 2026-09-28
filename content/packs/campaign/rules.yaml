@@ -32,3 +32,11 @@
   text: rule.liars
 # Day 17: the spear-mark loophole. A straw death marked for Odin before death is his.
 - { id: rule.spearMark, order: 640, since: 17, when: { fact: spearMark, is: true }, then: VALHALLA, text: rule.spearMark }
+# Day 9: a jarl's retinue is judged with him (docs/tech-spec.md §70). A hearth-man who stood by his jarl to the end goes
+# where his jarl goes, whatever else is true of him: after the living, Loki, the registry and the clerk, before the rest.
+- id: rule.retinue
+  order: 400
+  since: 9
+  when: { all: [{ fact: lordHall, in: [VALHALLA, FOLKVANGR, HEL] }, { fact: fled, is: false }] }
+  then: { fact: lordHall }
+  text: rule.retinue

@@ -228,6 +228,9 @@ if (process.argv.includes('--parties')) {
     `said of companions: ${p.claims}, lies ${p.lies} (${share(p.lies, p.claims)}%); souls a caught lie about a companion decides: ${p.decided}`,
   );
   console.log(
+    `retinues: ${p.retinues.n}, sworn men ${p.retinues.men}; going where their jarl goes ${p.retinues.follow}, a hall that changed for ${p.retinues.moved}`,
+  );
+  console.log(
     `careful bot at the desk: ${share(p.ideal.correct, p.ideal.total)}% of ${p.ideal.total} souls, caught ${p.ideal.caught} of ${p.lies} lies about companions`,
   );
   console.log(`forming parties: mean ${p.linkMsMean.toFixed(2)} ms, p99 ${p.linkMsP99.toFixed(2)} ms a day`);

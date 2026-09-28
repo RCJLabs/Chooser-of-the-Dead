@@ -78,6 +78,11 @@ export function sampleTruth(arch: ArchetypeDef, ctx: DayCtx, rng: Rng): SampleRe
       base[id] = false;
       continue;
     }
+    // Only a party sets it (docs/tech-spec.md §70), never the draw: no soul's other facts change for it.
+    if (af.def.fromParty) {
+      base[id] = af.def.inert;
+      continue;
+    }
     const req = reqs.allowed.get(id);
     const candidates = af.values.filter((v) => allows(arch.truth[id], v) && (!req || req.includes(v)));
     if (candidates.length === 0) return { ok: false, why: `no allowed value for ${id}` };

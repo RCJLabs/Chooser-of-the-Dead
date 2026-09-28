@@ -365,11 +365,11 @@ describe('gameplay content lints', () => {
       "- { id: q.p.confess, on: { fact: '*', kind: confess, about: true }, msgs: [p.q] }\n" +
       "- { id: q.p.excuse, on: { fact: '*', kind: excuse, about: true }, msgs: [p.q] }\n";
     const strings = { 'p.title': 'Fell together at {place}', 'p.line': '{companion} said so.', 'p.q': 'Fine.' };
-    const withDay = (parties: boolean) => {
+    const withDay = (parties: boolean, lead?: string) => {
       const d = day('arch.liar');
       const spec = d.files['days/day-01.yaml'].replace(
         '  mix:',
-        parties ? '  parties: { n: [1, 1] }\n  mix:' : '  mix:',
+        parties ? `  parties: { n: [1, 1]${lead ? `, lead: ${lead}` : ''} }\n  mix:` : '  mix:',
       );
       return { ...d, files: { ...d.files, 'days/day-01.yaml': spec } };
     };
@@ -377,8 +377,9 @@ describe('gameplay content lints', () => {
       files: Record<string, string>,
       more: Record<string, string> = strings,
       parties = true,
+      lead?: string,
     ): PackFixture => {
-      const d = withDay(parties);
+      const d = withDay(parties, lead);
       return { ...d, strings: { ...d.strings, ...more }, files: { ...d.files, ...files } };
     };
     const ok = {
@@ -413,6 +414,62 @@ describe('gameplay content lints', () => {
       /Day 1 forms parties, and there's no parties\.yaml/,
     );
     expect(build({ 'templates/party.yaml': lines }, strings, false)).toThrow(/Party lines with no parties\.yaml/);
+    // A day leads with a kind of party there is.
+    expect(() => compile({ core: base, demo: run(ok, strings, true, 'party.nope') })).toThrow(
+      /Day 1 leads with unknown party kind "party\.nope"/,
+    );
+    // A line said of a jarl or of his men only in a kind of party that has them.
+    expect(
+      build({ ...ok, 'templates/party.yaml': lines + line('pl.of', 'battle', ', kinds: [party.fight], of: lord') }),
+    ).toThrow(/pl\.of is said of a jarl or his men, in no kind of party that has them/);
+  });
+
+  it('lints retinues and the rules that read what they set (docs/tech-spec.md §70)', () => {
+    const lordFact = '- { id: lordHall, domain: { enum: [none, HEL] }, since: 1, fromParty: true }\n';
+    const lordRule =
+      '- { id: rule.retinue, order: 400, since: 1, when: { fact: lordHall, in: [HEL] }, then: { fact: lordHall }, text: rule.retinue }\n';
+    const hel = '- { id: rule.hel, order: 999, since: 1, when: { always: true }, then: HEL, text: rule.hel }\n';
+    const kinds = (lord: string) =>
+      `lie: 40\nonQuestion: { confess: 1 }\nkinds:\n  - { id: party.retinue, since: 1, title: p.title, words: {}, size: [2, 2], members: { cause: { is: battle } }, claims: [cause], lord: ${lord} }\n`;
+    const lines =
+      '- { id: pl.battle, asserts: { fact: cause, value: battle }, msg: p.line }\n' +
+      '- { id: pl.sickness, asserts: { fact: cause, value: sickness }, msg: p.line }\n';
+    const strings = { 'p.title': 'Jarl {lord}', 'p.line': 'So.', 'p.q': 'Fine.', 'rule.retinue': 'Goes with him.' };
+    const files = (over: Record<string, string> = {}) => ({
+      'facts.yaml': `- { id: cause, domain: { enum: [battle, sickness] } }\n${lordFact}`,
+      'rules.yaml': lordRule + hel,
+      ...over,
+    });
+    const d = day('arch.liar');
+    const demo: PackFixture = {
+      ...d,
+      strings: { ...d.strings, ...strings },
+      files: {
+        ...d.files,
+        'days/day-01.yaml': d.files['days/day-01.yaml'].replace('  mix:', '  parties: { n: [1, 1] }\n  mix:'),
+        'parties.yaml': kinds('lordHall'),
+        'templates/party.yaml': lines,
+        'templates/questions.yaml': "- { id: q.p, on: { fact: '*', kind: confess, about: true }, msgs: [p.q] }\n",
+      },
+    };
+    const build =
+      (over: Record<string, string>, party = kinds('lordHall')) =>
+      () =>
+        compile({
+          core: core({ 'archetypes.yaml': archetype(''), ...files(over) }),
+          demo: { ...demo, files: { ...demo.files, 'parties.yaml': party } },
+        });
+    expect(build({})).not.toThrow();
+    // A rule's hall named by a fact only a party sets, whose values are halls or nothing.
+    expect(
+      build({ 'rules.yaml': lordRule.replace('then: { fact: lordHall }', 'then: { fact: cause }') + hel }),
+    ).toThrow(/rule rule\.retinue sends souls where cause says, which no party sets/);
+    expect(build({ 'rules.yaml': lordRule.replace('fact: lordHall }', 'fact: nothing }') + hel })).toThrow(
+      /sends souls where unknown fact "nothing" says/,
+    );
+    // The men follow their jarl by such a fact, which a rule reads.
+    expect(build({}, kinds('cause'))).toThrow(/men follow their jarl by "cause", which isn't a fact a party sets/);
+    expect(build({ 'rules.yaml': hel })).toThrow(/men follow their jarl by lordHall, and no rule reads it/);
   });
 
   it('lints achievements', () => {

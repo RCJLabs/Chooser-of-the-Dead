@@ -69,3 +69,10 @@
   domain: { bool: true }
   since: 17
   prior: { 'false': 1, 'true': 0 }
+# Day 9: a jarl's sworn hearth-men who stood by him to the end go where he goes (docs/tech-spec.md §70). Never sampled:
+# only a retinue sets it, on each of the jarl's men, to the hall he's bound for. Every other soul is sworn to no one.
+- id: lordHall
+  domain: { enum: [none, VALHALLA, FOLKVANGR, HEL] }
+  since: 9
+  inert: none
+  fromParty: true

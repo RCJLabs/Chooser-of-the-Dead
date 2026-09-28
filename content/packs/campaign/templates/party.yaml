@@ -21,3 +21,12 @@
 - { id: pl.cause.battle.2, asserts: { fact: cause, value: battle }, kinds: [party.crew], personas: [braggart, veteran], msg: pl.cause.battle.2 }
 - { id: pl.cause.sickness.1, asserts: { fact: cause, value: sickness }, kinds: [party.crew], msg: pl.cause.sickness.1 }
 - { id: pl.cause.oldAge.1, asserts: { fact: cause, value: oldAge }, kinds: [party.crew], msg: pl.cause.oldAge.1 }
+
+# A retinue (docs/tech-spec.md §70): the men of their jarl (`of: lord`), and the jarl of his men (`of: sworn`).
+- { id: pl.ret.lord.fled.false.1, asserts: { fact: fled, value: false }, kinds: [party.retinue], of: lord, msg: pl.ret.lord.fled.false.1, weight: 2 }
+- { id: pl.ret.lord.fled.false.2, asserts: { fact: fled, value: false }, kinds: [party.retinue], of: lord, personas: [braggart, veteran], msg: pl.ret.lord.fled.false.2 }
+- { id: pl.ret.lord.fled.true.1, asserts: { fact: fled, value: true }, kinds: [party.retinue], of: lord, msg: pl.ret.lord.fled.true.1, weight: 2 }
+- { id: pl.ret.lord.fled.true.2, asserts: { fact: fled, value: true }, kinds: [party.retinue], of: lord, personas: [coward, confused], msg: pl.ret.lord.fled.true.2 }
+- { id: pl.ret.sworn.fled.false.1, asserts: { fact: fled, value: false }, kinds: [party.retinue], of: sworn, msg: pl.ret.sworn.fled.false.1, weight: 2 }
+- { id: pl.ret.sworn.fled.false.2, asserts: { fact: fled, value: false }, kinds: [party.retinue], of: sworn, personas: [braggart, veteran], msg: pl.ret.sworn.fled.false.2 }
+- { id: pl.ret.sworn.fled.true.1, asserts: { fact: fled, value: true }, kinds: [party.retinue], of: sworn, msg: pl.ret.sworn.fled.true.1, weight: 2 }

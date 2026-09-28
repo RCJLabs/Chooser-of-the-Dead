@@ -3,6 +3,7 @@ import { fc, test } from '@fast-check/vitest';
 import { describe, expect, it } from 'vitest';
 import { dailySeed } from '../calendar';
 import { DESTINATIONS, type Destination } from '../content/types';
+import { partyOf } from '../gen/party';
 import type { CaseSpec } from '../gen/types';
 import { revealsOf } from '../gen/validate';
 import { type DayCtx, soulCtx } from '../logic/context';
@@ -475,7 +476,13 @@ describe('assists', () => {
         const seen = c.evidence.fields.filter(() => rng.chance(2, 3)).map((f) => f.id);
         const questioned = c.lies.filter(() => rng.chance(1, 2)).map((l) => l.field);
         const soul = { ...begun.soul, seen, questioned };
-        expect(ruledOut({ ...begun, cursor: i, soul }, ctx)).not.toContain(c.expect.rule);
+        // A soul in a party stands at the desk with it (docs/tech-spec.md §69), the rest of it not yet looked at.
+        const { party: _, ...alone } = begun;
+        const span = partyOf(begun.cases, i);
+        const desk = span
+          ? { ...alone, party: { start: span.start, souls: Array.from({ length: span.size }, () => begun.soul) } }
+          : alone;
+        expect(ruledOut({ ...desk, cursor: i, soul }, ctx)).not.toContain(c.expect.rule);
       });
     },
   );

@@ -2,16 +2,19 @@ import type { Knobs, ObsPattern, ToolId, Value } from '../content/types';
 import type { DayCtx } from '../logic/context';
 import { type Judgment, judge, observe, sameJudgment, withOverride } from '../logic/judge';
 import { eval2, type Truth } from '../logic/pred';
-import { isPerceivable, type SolveResult, solve } from '../logic/solver';
+import { type Given, isPerceivable, type SolveResult, solve } from '../logic/solver';
 import { companionShows, factValue, memberField, parseMemberField } from './companions';
 import type { CaseSpec, Evidence, Field, Lie, RejectCode } from './types';
 
-/** Facts whose value decides the judgment: changing any one of them changes the destination or the procedures due. */
+/**
+ * Facts whose value decides the judgment: changing any one of them changes the destination or the procedures due. Not
+ * one a party sets (docs/tech-spec.md §70): the soul's own evidence never shows it, its party does.
+ */
 export function decisiveFacts(truth: Truth, expected: Judgment, ctx: DayCtx): string[] {
   const out: string[] = [];
   for (const id of ctx.sampled) {
     const af = ctx.facts.get(id);
-    if (!af || af.pinned) continue;
+    if (!af || af.pinned || af.def.fromParty) continue;
     if (
       af.values.some((v) => v !== truth[id] && !sameJudgment(judge(withOverride(truth, id, v, ctx), ctx), expected))
     ) {
@@ -56,7 +59,7 @@ export interface Proof {
   readonly tools: readonly ToolId[];
   /**
    * What the proof needs on the soul's companions (docs/tech-spec.md §69): the fields that show a lie in `fields` about
-   * one false. Empty when nothing.
+   * one false, and a sworn man's jarl's own proof when his hall decides the man's (§70). Empty when nothing.
    */
   readonly cross: readonly { readonly soul: number; readonly field: string }[];
 }
@@ -72,6 +75,7 @@ export function minimalProof(
   expected: Judgment,
   ctx: DayCtx,
   crossCaught?: ReadonlyMap<string, readonly string[]>,
+  given?: readonly Given[],
 ): Proof {
   const reveals = revealsOf(lies);
   const candidates = evidence.fields.filter((f) => f.cue === undefined);
@@ -80,12 +84,13 @@ export function minimalProof(
     .sort((a, b) => b.cost - a.cost || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map((f) => f.id);
   const keep = new Set(candidates.map((f) => f.id));
+  const opts = { reveals, ...(crossCaught ? { crossCaught } : {}), ...(given ? { given } : {}) };
   for (const id of order) {
     keep.delete(id);
     const r = solve(
       evidence.fields.filter((f) => keep.has(f.id)),
       ctx,
-      { reveals, ...(crossCaught ? { crossCaught } : {}) },
+      opts,
     ).judgment;
     if (r.kind !== 'determined' || !sameJudgment(r, expected)) keep.add(id);
   }
@@ -95,11 +100,17 @@ export function minimalProof(
   for (const f of proofFields) costS += f.cost;
   for (const t of tools) costS += ctx.tools.get(t) ?? 0;
   const cross: { soul: number; field: string }[] = [];
-  for (const f of proofFields) {
-    for (const id of crossCaught?.get(f.id) ?? []) {
+  const across = (ids: readonly string[]) => {
+    for (const id of ids) {
       const at = parseMemberField(id);
       if (at && !cross.some((x) => x.soul === at.soul && x.field === at.field)) cross.push(at);
     }
+  };
+  for (const f of proofFields) across(crossCaught?.get(f.id) ?? []);
+  // What the party settles, where the judgment needs it: a sworn man's jarl's hall, and so the jarl's own proof.
+  if (given && given.length > 0) {
+    const alone = solve(proofFields, ctx, { reveals, ...(crossCaught ? { crossCaught } : {}) }).judgment;
+    if (alone.kind !== 'determined' || !sameJudgment(alone, expected)) for (const g of given) across(g.support);
   }
   return { fields: proofFields.map((f) => f.id), costS, tools, cross };
 }
@@ -143,6 +154,7 @@ export function validateCase(
   ctx: DayCtx,
   knobs: Knobs,
   companions?: Companions,
+  given?: readonly Given[],
 ): Validation {
   // F8: content rules.
   if (evidence.look.age < 18 || evidence.look.age > 85) return fail('CONTENT_RULE', `age ${evidence.look.age}`);
@@ -207,7 +219,7 @@ export function validateCase(
   const untold = lies.find((l) => l.about !== undefined && !told.has(l.field));
   if (untold) return fail('UNSOUND', `a lie about member ${untold.about} is told by ${untold.field}, not about them`);
 
-  const solved = solve(evidence.fields, ctx, { reveals: revealsOf(lies), crossCaught });
+  const solved = solve(evidence.fields, ctx, { reveals: revealsOf(lies), crossCaught, ...(given ? { given } : {}) });
 
   // F2: no false alarms.
   if (solved.conflicts.length > 0) return fail('FALSE_ALARM', `conflict on ${solved.conflicts[0]?.fact}`);
@@ -273,7 +285,7 @@ export function validateCase(
   }
 
   // F7: effort limits.
-  const proof = minimalProof(evidence, lies, expected, ctx, crossCaught);
+  const proof = minimalProof(evidence, lies, expected, ctx, crossCaught, given);
   const [lo, hi] = knobs.proofCostS;
   if (proof.costS < lo || proof.costS > hi) return fail('EFFORT_BAND', `proof costs ${proof.costS}s`);
   if (proof.tools.length > knobs.maxTools) return fail('TOO_MANY_TOOLS', `${proof.tools.length} tools`);

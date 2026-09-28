@@ -713,6 +713,8 @@
   "ui.party.sent": "Sent together: {right} of {n} judged rightly.",
   "ui.party.next": "Now {name}.",
   "ui.party.on": "{name}: {what}",
+  "ui.party.lord": "jarl",
+  "coach.retinue": "A jarl and his hearth-men. A man who stood by his jarl to the end, and never fled, goes where the jarl goes: judge the jarl, then turn each man over. The rules above that one still come first.",
   "coach.party": "These came together. Turn to each by name, or with [ and ]. What one says of another, Compare with that one's own body: a lie about a companion is a lie like any other. Stamp each and send it on; the last one sends them all.",
   "ui.party.nextSoul": "Next: {name}"
 }

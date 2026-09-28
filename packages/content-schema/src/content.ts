@@ -98,6 +98,7 @@ export const FactSchema: z.ZodType<FactDef, unknown> = z
     presumption: ValueSchema.optional(),
     derived: PredSchema.optional(),
     fromLies: z.literal(true).optional(),
+    fromParty: z.literal(true).optional(),
     words: z.record(z.string(), z.record(z.string(), z.string())).optional(),
   })
   .refine(
@@ -105,6 +106,16 @@ export const FactSchema: z.ZodType<FactDef, unknown> = z
       !f.fromLies ||
       (f.domain.kind === 'bool' && f.presumption === false && f.prior === undefined && f.derived === undefined),
     { message: 'a fromLies fact is a bool, presumed false, with no prior and no derivation' },
+  )
+  .refine(
+    (f) =>
+      !f.fromParty ||
+      (f.domain.kind === 'enum' &&
+        f.presumption === undefined &&
+        f.prior === undefined &&
+        f.derived === undefined &&
+        f.fromLies === undefined),
+    { message: 'a fromParty fact is an enum with no presumption, no prior and no derivation' },
   )
   .transform(({ inert, ...f }) => {
     const d = f.domain;
@@ -178,7 +189,8 @@ export const RuleSchema: z.ZodType<RuleDef> = z.strictObject({
   since: Day,
   until: Day.optional(),
   when: PredSchema,
-  then: DestinationSchema,
+  // A hall, or the hall a fact names (docs/tech-spec.md §70).
+  then: z.union([DestinationSchema, z.strictObject({ fact: z.string() })]),
   text: Key,
   texts: z.array(z.strictObject({ since: Day, text: Key })).optional(),
 });
@@ -301,6 +313,7 @@ export const PartiesSchema: z.ZodType<PartiesDef> = z.strictObject({
         members: z.record(z.string(), TruthConstraintSchema),
         claims: z.array(z.string()).min(1),
         weight: Weight.default(1),
+        lord: z.string().optional(),
       }),
     )
     .min(1),
@@ -313,6 +326,7 @@ export const PartyLineTemplateSchema: z.ZodType<PartyLineTemplate> = z.strictObj
   id: Id,
   asserts: Asserts,
   kinds: z.array(Id).min(1).optional(),
+  of: z.enum(['lord', 'sworn']).optional(),
   personas: z.array(Id).min(1).optional(),
   msg: Key,
   weight: Weight.default(1),
@@ -469,7 +483,7 @@ export const DaySpecSchema: z.ZodType<DaySpec> = z.strictObject({
       .min(1)
       .optional(),
     archetypes: z.array(z.strictObject({ id: Id, w: Int.positive() })).min(1),
-    parties: z.strictObject({ n: z.tuple([Int.min(0), Int.min(0)]) }).optional(),
+    parties: z.strictObject({ n: z.tuple([Int.min(0), Int.min(0)]), lead: Id.optional() }).optional(),
     mix: z.partialRecord(DestinationSchema, z.tuple([Percent, Percent])),
     knobs: KnobsSchema,
   }),

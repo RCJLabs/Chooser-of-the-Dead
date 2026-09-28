@@ -910,8 +910,11 @@ function audit(
       : campaign.standing.find((r) => matches(r.expected, v.expected) && matches(r.stamped, v.stamped as Destination));
     for (const [f, n] of Object.entries(rule?.fx ?? {}))
       standing[f as Faction] = (standing[f as Faction] ?? 0) + (n ?? 0);
-    // A soul that asked for Valhalla and was sent there stands with the worthy (docs/tech-spec.md §59).
-    const worthy = c ? pled || eval2({ ref: campaign.worthy }, c.truth, env.ctx) : false;
+    // A soul that asked for Valhalla and was sent there stands with the worthy (docs/tech-spec.md §59), and so does a
+    // hearth-man rightly sent after his jarl (§70): he stood by him to the end.
+    const followed =
+      v.correct && c !== undefined && typeof env.ctx.rules.find((r) => r.id === c.expect.rule)?.then === 'object';
+    const worthy = c ? pled || followed || eval2({ ref: campaign.worthy }, c.truth, env.ctx) : false;
     if (v.stamped === 'VALHALLA' && c) {
       if (worthy) einherjar.worthy++;
       else einherjar.unworthy++;
@@ -939,6 +942,13 @@ function audit(
     lies: members.reduce((n, c) => n + c.lies.filter((l) => l.about !== undefined).length, 0),
     caught: shift.verdicts.reduce((n, v) => n + (v.caughtAbout ?? 0), 0),
   };
+  // Jarls' sworn men who go where their jarl goes (docs/tech-spec.md §70), and how many were sent there.
+  const follow = (c: CaseSpec) => typeof env.ctx.rules.find((r) => r.id === c.expect.rule)?.then === 'object';
+  const sworn = shift.verdicts.filter((v) => {
+    const c = shift.cases[v.index];
+    return c !== undefined && follow(c);
+  });
+  const retinue = { men: sworn.length, right: sworn.filter((v) => v.correct).length };
   const ledger: DayLedger = {
     day: run.day,
     correct,
@@ -953,7 +963,7 @@ function audit(
     ...(assists ? { assists } : {}),
     ...(mistakes.length > 0 ? { mistakes } : {}),
     ...(pressed > 0 ? { pressed: { n: pressed, gave } } : {}),
-    ...(parties.n > 0 ? { parties } : {}),
+    ...(parties.n > 0 ? { parties: retinue.men > 0 ? { ...parties, retinue } : parties } : {}),
     // Kept, even empty, where the campaign has pleas or kin, so a day nobody asked differs from a day not counted.
     ...(campaign.pleas || campaign.kin ? { pleas } : {}),
     ...(run.appealHeard ? { appeal: run.appealHeard } : {}),

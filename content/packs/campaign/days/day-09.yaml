@@ -1,4 +1,5 @@
-# Day 9: no new rule. Draupnir drips tonight. Story (M7 draft): the first big family choice, Ulf's work in the north.
+# Day 9: a jarl's retinue goes where he goes (docs/tech-spec.md §70). Draupnir drips tonight. Story (M7 draft): the first
+# big family choice, Ulf's work in the north.
 day: 9
 sunS: 690
 decree: decree.d9
@@ -33,8 +34,9 @@ queue:
     - { id: arch.borrowed_blade, w: 3 }
     - { id: arch.ulfberht_braggart, w: 2 }
     - { id: arch.long_nails, w: 2 }
-  # Souls from one fight or one crew, together at the desk (docs/tech-spec.md §69).
-  parties: { n: [1, 2] }
+  # Souls from one fight or one crew, together at the desk (docs/tech-spec.md §69); the day's first a jarl's retinue,
+  # the day its rule is new (§70).
+  parties: { n: [1, 2], lead: party.retinue }
   mix: { VALHALLA: [15, 35], FOLKVANGR: [5, 20], HEL: [35, 55], RETURN: [5, 10], RAN: [10, 25] }
   knobs:
     lieRate: 100
