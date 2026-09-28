@@ -1,7 +1,7 @@
 import type { ToolId } from '../content/types';
 import type { DayCtx } from '../logic/context';
 import { saidFrom } from '../narrative/press';
-import { type ShiftAction, type ShiftState, stepShift, type Verdict } from './shift';
+import { memberSoul, type ShiftAction, type ShiftState, stepShift, type Verdict } from './shift';
 
 /**
  * What happened to each soul, rebuilt from a shift's action log. Reports
@@ -36,6 +36,16 @@ interface Acc {
   badCompares: number;
 }
 
+/** Records the state of each soul at the desk: at a party (docs/tech-spec.md §69), every member's. */
+function keep(last: Map<number, ShiftState['soul']>, state: ShiftState): void {
+  const start = state.party?.start ?? state.cursor;
+  const n = state.party?.souls.length ?? 1;
+  for (let k = 0; k < n; k++) {
+    const soul = memberSoul(state, k);
+    if (soul) last.set(start + k, soul);
+  }
+}
+
 /** Replays `actions` from `initial` and splits what happened by soul. */
 export function traceShift(
   initial: ShiftState,
@@ -54,7 +64,7 @@ export function traceShift(
     const a = acc[cursor];
     if (!a) continue;
     a.actions.push(action);
-    last.set(cursor, before.soul);
+    keep(last, before);
     for (const e of r.events) {
       if (e.e === 'flipped' || e.e === 'toolUsed' || e.e === 'answer' || e.e === 'pressed') a.penaltyMs += e.penaltyMs;
       if (e.e === 'noConflict') {
@@ -64,7 +74,7 @@ export function traceShift(
     }
   }
   // The soul still at the gate (if any) shows its current state.
-  if (state.phase === 'shift') last.set(state.cursor, state.soul);
+  if (state.phase === 'shift') keep(last, state);
 
   const souls = initial.cases.map((_, i): SoulTrace => {
     const a = acc[i] as Acc;

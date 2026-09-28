@@ -13,6 +13,8 @@ import {
   LawSchema,
   NamedPredicateSchema,
   ObservationSchema,
+  PartiesSchema,
+  PartyLineTemplateSchema,
   PoolsSchema,
   PressSchema,
   PressTemplateSchema,
@@ -44,6 +46,8 @@ import type {
   FactLaw,
   NamedPredicate,
   ObservationDef,
+  PartiesDef,
+  PartyLineTemplate,
   Pred,
   PressDef,
   PressTemplate,
@@ -122,6 +126,10 @@ export interface PackContent {
   press?: PressDef;
   /** What pressed souls say (`templates/press.yaml`). */
   pressLines: PressTemplate[];
+  /** Souls who come to the desk together (`parties.yaml`, docs/tech-spec.md §69); the campaign pack has them. */
+  parties?: PartiesDef;
+  /** What they say of each other (`templates/party.yaml`). */
+  partyLines: PartyLineTemplate[];
 }
 
 type Parse = <T>(schema: z.ZodType<T, unknown>, value: unknown, file: string) => T;
@@ -139,6 +147,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
   const campaignFile = join(dir, 'campaign.yaml');
   const sunFile = join(dir, 'sun.yaml');
   const pressFile = join(dir, 'press.yaml');
+  const partiesFile = join(dir, 'parties.yaml');
   const each = <T>(sub: string, schema: z.ZodType<T, unknown>): T[] => {
     const folder = join(dir, sub);
     return existsSync(folder)
@@ -165,6 +174,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     ravens: list('templates/ravens.yaml', RavenTemplateSchema),
     questions: list('templates/questions.yaml', QuestionTemplateSchema),
     pressLines: list('templates/press.yaml', PressTemplateSchema),
+    partyLines: list('templates/party.yaml', PartyLineTemplateSchema),
     pools: existsSync(poolsFile) ? parse(PoolsSchema, readYaml(poolsFile) ?? {}, poolsFile) : {},
     days,
     scripted: each('cases', ScriptedCaseSchema),
@@ -178,6 +188,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     ...(existsSync(campaignFile) ? { campaign: parse(CampaignPartSchema, readYaml(campaignFile), campaignFile) } : {}),
     ...(existsSync(sunFile) ? { sun: parse(SunSchema, readYaml(sunFile), sunFile) } : {}),
     ...(existsSync(pressFile) ? { press: parse(PressSchema, readYaml(pressFile), pressFile) } : {}),
+    ...(existsSync(partiesFile) ? { parties: parse(PartiesSchema, readYaml(partiesFile), partiesFile) } : {}),
   };
 }
 
@@ -263,6 +274,7 @@ export function emptyPackContent(): PackContent {
     ravens: [],
     questions: [],
     pressLines: [],
+    partyLines: [],
     pools: {},
     days: [],
     scripted: [],
@@ -276,7 +288,7 @@ export function emptyPackContent(): PackContent {
 
 /** Merges packs in dependency order into one engine Content. */
 export function mergeContent(parts: readonly PackContent[], genVersion: number): Content {
-  const cat = <K extends Exclude<keyof PackContent, 'pools' | 'daily' | 'primer' | 'sun' | 'press'>>(
+  const cat = <K extends Exclude<keyof PackContent, 'pools' | 'daily' | 'primer' | 'sun' | 'press' | 'parties'>>(
     k: K,
   ): PackContent[K] => parts.flatMap((p) => p[k] as unknown[]) as PackContent[K];
   const one = (k: 'daily' | 'primer'): DaySpec | undefined => {
@@ -296,6 +308,11 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
   if (presses.length > 1) throw new Error('Only one pack may define press.yaml.');
   const press = presses[0];
   const pressLines = cat('pressLines');
+  // Parties (docs/tech-spec.md §69): one pack says, the campaign one.
+  const partyDefs = parts.flatMap((p) => (p.parties ? [p.parties] : []));
+  if (partyDefs.length > 1) throw new Error('Only one pack may define parties.yaml.');
+  const parties = partyDefs[0];
+  const partyLines = cat('partyLines');
   const campaign = mergeCampaign(parts.flatMap((p) => (p.campaign ? [p.campaign] : [])));
   const scripted = cat('scripted');
   const procedures = cat('procedures');
@@ -335,6 +352,8 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
     ...(achievements.length > 0 ? { achievements } : {}),
     ...(press ? { press } : {}),
     ...(pressLines.length > 0 ? { pressLines } : {}),
+    ...(parties ? { parties } : {}),
+    ...(partyLines.length > 0 ? { partyLines } : {}),
   };
 }
 
@@ -352,6 +371,8 @@ export function idsOf(c: PackContent): string[] {
     ...c.ravens.map((x) => x.id),
     ...c.questions.map((x) => x.id),
     ...c.pressLines.map((x) => x.id),
+    ...c.partyLines.map((x) => x.id),
+    ...(c.parties?.kinds ?? []).map((x) => x.id),
     ...c.twists.map((x) => x.id),
     ...c.boons.map((x) => x.id),
     ...Object.keys(c.pools),
@@ -588,7 +609,7 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
   }
   for (const k of kindsUsed) {
     const fallback = content.questions.some(
-      (q) => q.on.kind === k && q.on.fact === '*' && !q.on.claimed && !q.on.truth && !q.on.persona,
+      (q) => q.on.kind === k && q.on.fact === '*' && !q.on.claimed && !q.on.truth && !q.on.persona && !q.on.about,
     );
     if (!fallback) problems.push(`No fallback question template for "${k}" answers.`);
   }
@@ -600,6 +621,7 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
   problems.push(...lintBoons(content, strings));
   problems.push(...lintAchievements(content, strings));
   problems.push(...lintPress(content, strings));
+  problems.push(...lintParties(content, strings));
 
   const specs = content.days.map((d) => ({ d, name: `day ${d.day}` }));
   if (content.daily) specs.push({ d: content.daily, name: `the Daily (day ${content.daily.day} mechanics)` });
@@ -778,6 +800,87 @@ function lintPress(content: Content, strings: Readonly<Record<string, string>>):
       problems.push(`${where} adds to a claim, so it says one line about one fact.`);
     }
     for (const m of t.msgs) if (!(m in strings)) problems.push(`${where} uses missing string "${m}".`);
+  }
+  return problems;
+}
+
+/**
+ * Parties (docs/tech-spec.md §69): kinds with the strings, pools and facts the build has; a line any soul can say for
+ * every value each claim can take; answers for a soul caught lying about a companion; days that form parties only once a
+ * kind comes, and never the Daily.
+ */
+function lintParties(content: Content, strings: Readonly<Record<string, string>>): string[] {
+  const problems: string[] = [];
+  const def = content.parties;
+  const lines = content.partyLines ?? [];
+  const forming = content.days.filter((d) => d.queue.parties);
+  if (content.daily?.queue.parties) problems.push('The Daily forms parties; it never should.');
+  if (!def) {
+    if (lines.length > 0) problems.push('Party lines with no parties.yaml to say them.');
+    for (const d of forming) problems.push(`Day ${d.day} forms parties, and there's no parties.yaml.`);
+    return problems;
+  }
+  const facts = new Map(content.facts.map((f) => [f.id, f]));
+  const kinds = new Set<string>();
+  for (const k of def.kinds) {
+    const where = `party kind ${k.id}`;
+    if (kinds.has(k.id)) problems.push(`Duplicate party kind "${k.id}".`);
+    kinds.add(k.id);
+    if (!(k.title in strings)) problems.push(`${where} uses missing string "${k.title}".`);
+    for (const pool of Object.values(k.words)) {
+      if (!(pool in content.pools)) problems.push(`${where} shares words from unknown pool "${pool}".`);
+    }
+    if (k.size[0] > k.size[1]) problems.push(`${where} has a size range that runs backwards.`);
+    for (const f of Object.keys(k.members)) {
+      if (!facts.has(f)) problems.push(`${where}'s members refer to unknown fact "${f}".`);
+    }
+    for (const f of k.claims) {
+      const fd = facts.get(f);
+      if (!fd) {
+        problems.push(`${where} speaks of unknown fact "${f}".`);
+        continue;
+      }
+      for (const v of valuesOf(fd)) {
+        const said = lines.some(
+          (t) =>
+            t.asserts.fact === f &&
+            String(t.asserts.value) === v &&
+            (t.kinds === undefined || t.kinds.includes(k.id)) &&
+            t.personas === undefined,
+        );
+        if (!said) problems.push(`${where} has no line any soul can say that a companion's ${f} is ${v}.`);
+      }
+    }
+  }
+  const templates = new Set<string>();
+  for (const t of lines) {
+    const where = `party line ${t.id}`;
+    if (templates.has(t.id)) problems.push(`Duplicate party line "${t.id}".`);
+    templates.add(t.id);
+    const fd = facts.get(t.asserts.fact);
+    if (!fd) problems.push(`${where} refers to unknown fact "${t.asserts.fact}".`);
+    else if (!valuesOf(fd).includes(String(t.asserts.value)))
+      problems.push(`${where} says ${t.asserts.fact} is ${String(t.asserts.value)}, which it can't be.`);
+    for (const k of t.kinds ?? []) if (!kinds.has(k)) problems.push(`${where} is for unknown party kind "${k}".`);
+    if (!(t.msg in strings)) problems.push(`${where} uses missing string "${t.msg}".`);
+  }
+  for (const [kind, w] of Object.entries(def.onQuestion)) {
+    if ((w ?? 0) === 0) continue;
+    const fallback = content.questions.some(
+      (q) => q.on.about && q.on.kind === kind && q.on.fact === '*' && !q.on.claimed && !q.on.truth && !q.on.persona,
+    );
+    if (!fallback) problems.push(`No fallback question template for "${kind}" answers about a companion.`);
+  }
+  for (const q of content.questions) {
+    if (q.on.about && (q.on.kind === 'insist' || q.on.kind === 'deflect' || q.on.via)) {
+      problems.push(`question template ${q.id} answers about a companion as no lie about one is answered.`);
+    }
+  }
+  const first = Math.min(...def.kinds.map((k) => k.since));
+  for (const d of forming) {
+    const n = d.queue.parties?.n ?? [0, 0];
+    if (n[0] > n[1]) problems.push(`Day ${d.day}'s parties run backwards.`);
+    if (d.day < first) problems.push(`Day ${d.day} forms parties before any kind of party comes.`);
   }
   return problems;
 }

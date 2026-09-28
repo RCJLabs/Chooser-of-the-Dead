@@ -1,5 +1,6 @@
 import type { Content, DaySpec, EndlessTwist } from '../content/types';
 import { generateDay } from '../gen/generate';
+import { linkParties } from '../gen/party';
 import type { CaseSpec } from '../gen/types';
 import { createDayContext, type DayCtx } from '../logic/context';
 import { Rng } from '../rng/rng';
@@ -82,10 +83,13 @@ export function endlessContext(content: Content, seed: string, round: number): D
 export function endlessRound(content: Content, seed: string, round: number): EndlessRound {
   const ctx = endlessContext(content, seed, round);
   const twist = endlessTwist(content, seed, round);
+  const roundSeed = `${seed}|endless|${round}`;
+  // A round's souls, with any parties its day forms among them (docs/tech-spec.md §69).
+  const cases = linkParties(generateDay(roundSeed, ctx).cases.slice(0, ENDLESS_SOULS), ctx, roundSeed);
   return {
     day: ctx.day,
-    seed: `${seed}|endless|${round}`,
-    cases: generateDay(`${seed}|endless|${round}`, ctx).cases.slice(0, ENDLESS_SOULS),
+    seed: roundSeed,
+    cases,
     ...(twist ? { twist: twist.id } : {}),
   };
 }

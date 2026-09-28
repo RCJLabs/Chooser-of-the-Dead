@@ -15,6 +15,7 @@ import type {
 } from '../content/types';
 import { DESTINATIONS, FACTIONS } from '../content/types';
 import { dressForDay, generateCase, generateDay, planDay } from '../gen/generate';
+import { linkParties } from '../gen/party';
 import { weightedPick } from '../gen/pick';
 import { scriptedCase } from '../gen/scripted';
 import type { CaseSpec } from '../gen/types';
@@ -410,8 +411,8 @@ const GRUDGES: ReadonlySet<Destination> = new Set(['HEL', 'RAN', 'TRANSFER']);
 /**
  * The soul, if any, that asks tomorrow morning to be judged again (docs/tech-spec.md §40): most likely one of
  * today's souls sent to the wrong place; sometimes one judged rightly into a hall it resents, trying its luck.
- * Story souls have their own consequences and never appeal. Drawn from its own stream of the run's seed, so
- * the same run always brings the same appeals.
+ * Story souls have their own consequences and never appeal, nor do souls who came with a party (docs/tech-spec.md
+ * §69). Drawn from its own stream of the run's seed, so the same run always brings the same appeals.
  */
 function chooseAppeal(
   run: RunState,
@@ -423,7 +424,8 @@ function chooseAppeal(
 ): Appeal | undefined {
   const def = campaign.appeals;
   if (!def || run.day < def.from || run.day >= campaign.lastDay) return undefined;
-  const story = (v: Verdict) => shift.cases[v.index]?.script !== undefined;
+  // What a party's member said of its companions needs them there.
+  const story = (v: Verdict) => shift.cases[v.index]?.script !== undefined || shift.cases[v.index]?.party !== undefined;
   const judged = shift.verdicts.filter((v) => v.stamped !== null && !story(v));
   const wronged = judged.filter((v) => v.stamped !== v.expected && !given(v));
   const chancers = judged.filter((v) => v.correct && GRUDGES.has(v.expected));
@@ -648,19 +650,29 @@ export function campaignQueue(run: RunState, env: RunEnv): CaseSpec[] {
   // one pleads for another hall (§59): each on a stream of its own, so the line is otherwise the same.
   const asked = withPlea(env.content, run.seed, env.ctx, withKin(env.content, run, env.ctx, cases));
   // Souls who waited through the night can push the day's own later: keep the decree's souls last.
-  return noon ? [...asked.filter((c) => !c.noon), ...asked.filter((c) => c.noon)] : asked;
+  const ordered = noon ? [...asked.filter((c) => !c.noon), ...asked.filter((c) => c.noon)] : asked;
+  // Last, the day's parties (docs/tech-spec.md §69), from the line as it stands. A lie about a companion never moves a
+  // soul out of a hall the morning's requests ask for souls from, so they can still be done.
+  const keepHalls = new Set((run.requests ?? []).map((r) => r.from));
+  return [...linkParties(ordered, env.ctx, run.seed, { keepHalls })];
 }
 
 /**
  * Who is at the desk now (docs/tech-spec.md §46): the day's visit whose turn it is (once its `at` souls have been
- * sent), not yet played, and whose `when` holds. Null in any other phase, and between visits.
+ * sent), not yet played, and whose `when` holds. Null in any other phase, and between visits. A visit is played as its
+ * turn comes, so one waiting still is one whose turn came.
  */
 export function deskVisit(run: RunState, content: Content): DeskVisit | null {
   const shift = run.shift;
   if (run.phase !== 'shift' || !shift || shift.phase !== 'shift') return null;
   const visits = content.days.find((d) => d.day === run.day)?.queue.visits ?? [];
+  // Its turn comes once `at` souls have gone: after a party that stood over that place, whose members go together
+  // (docs/tech-spec.md §69).
   const found = visits.find(
-    (v) => v.at === shift.cursor && !run.scenes.includes(v.scene) && (v.when === undefined || evalState(v.when, run)),
+    (v) =>
+      v.at <= shift.verdicts.length &&
+      !run.scenes.includes(v.scene) &&
+      (v.when === undefined || evalState(v.when, run)),
   );
   return found ?? null;
 }
@@ -919,6 +931,14 @@ function audit(
   // Claims pressed at the gate, and lies that gave way (docs/tech-spec.md §66), for a playtest's report.
   const pressed = shift.verdicts.reduce((n, v) => n + (v.pressed ?? 0), 0);
   const gave = shift.verdicts.reduce((n, v) => n + (v.gave ?? 0), 0);
+  // Parties at the desk (docs/tech-spec.md §69), and the lies told about companions, for a playtest's report.
+  const members = shift.cases.filter((c) => c.party !== undefined);
+  const parties = {
+    n: new Set(members.map((c) => c.party?.id)).size,
+    souls: members.length,
+    lies: members.reduce((n, c) => n + c.lies.filter((l) => l.about !== undefined).length, 0),
+    caught: shift.verdicts.reduce((n, v) => n + (v.caughtAbout ?? 0), 0),
+  };
   const ledger: DayLedger = {
     day: run.day,
     correct,
@@ -933,6 +953,7 @@ function audit(
     ...(assists ? { assists } : {}),
     ...(mistakes.length > 0 ? { mistakes } : {}),
     ...(pressed > 0 ? { pressed: { n: pressed, gave } } : {}),
+    ...(parties.n > 0 ? { parties } : {}),
     // Kept, even empty, where the campaign has pleas or kin, so a day nobody asked differs from a day not counted.
     ...(campaign.pleas || campaign.kin ? { pleas } : {}),
     ...(run.appealHeard ? { appeal: run.appealHeard } : {}),

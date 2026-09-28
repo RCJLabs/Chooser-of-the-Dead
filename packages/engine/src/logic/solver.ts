@@ -56,6 +56,12 @@ export interface SolveOptions {
    * seen, and a confession (a value, not null) establishes the truth like a raven (trust 4).
    */
   readonly retracted?: ReadonlyMap<string, { readonly fact: string; readonly value: Value } | null>;
+  /**
+   * What the soul said of a companion that the companion's own evidence shows false (docs/tech-spec.md §69): each
+   * claim's field id, and the companion's fields that show it (as `@<member>:<field>`). A claim among the fields
+   * given is a caught lie like any other: from Day 16 it proves the soul a liar.
+   */
+  readonly crossCaught?: ReadonlyMap<string, readonly string[]>;
 }
 
 export function isPerceivable(f: Field, ctx: DayCtx): boolean {
@@ -273,6 +279,13 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
       if (b.level >= 3 && !b.values.includes(f.says.value)) {
         contradictions.push({ lie: f.id, fact: f.says.fact, against: b.support });
       }
+    }
+  }
+  // What the soul said of a companion, shown false by the companion's own evidence.
+  if (!opts.trustTestimony && opts.crossCaught) {
+    for (const f of perceived) {
+      const against = f.about ? opts.crossCaught.get(f.id) : undefined;
+      if (f.about && against) contradictions.push({ lie: f.id, fact: f.about.fact, against });
     }
   }
   // A claim taken back is caught even when nothing seen shows it false.

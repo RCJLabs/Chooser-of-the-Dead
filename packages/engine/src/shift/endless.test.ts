@@ -1,6 +1,7 @@
 import { loadContent } from '@cots/testkit';
 import { describe, expect, it } from 'vitest';
 import { generateDay } from '../gen/generate';
+import { linkParties } from '../gen/party';
 import { createDayContext } from '../logic/context';
 import {
   ENDLESS_SOULS,
@@ -46,7 +47,11 @@ describe('Endless', () => {
       const r = endlessRound(full, 'e', round);
       expect(r.cases).toHaveLength(ENDLESS_SOULS);
       const ctx = endlessContext(full, 'e', round);
-      expect(r.cases).toEqual(generateDay(r.seed, ctx).cases.slice(0, ENDLESS_SOULS));
+      // The day's first souls, with any parties its day forms among them (docs/tech-spec.md §69): the same souls, in
+      // the same order.
+      const plain = generateDay(r.seed, ctx).cases.slice(0, ENDLESS_SOULS);
+      expect(r.cases).toEqual(linkParties(plain, ctx, r.seed));
+      expect(r.cases.map((c) => c.id)).toEqual(plain.map((c) => c.id));
       const teach = ctx.spec.queue.teachFirst;
       if (teach && !r.twist) expect(r.cases[0]?.archetype).toBe(teach);
     }

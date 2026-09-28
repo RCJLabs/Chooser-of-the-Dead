@@ -1,6 +1,8 @@
-import type { Content, Destination, ToolId } from '../content/types';
+import type { Content, Destination, ToolId, Value } from '../content/types';
 import { DESTINATIONS } from '../content/types';
+import { companionShows, memberField, parseMemberField } from '../gen/companions';
 import { generateDay } from '../gen/generate';
+import { linkParties, partyAt } from '../gen/party';
 import type { CaseSpec, Field } from '../gen/types';
 import { createDayContext, type DayCtx, soulCtx } from '../logic/context';
 import { isPerceivable, solve } from '../logic/solver';
@@ -121,6 +123,8 @@ export interface Verdict {
   /** Claims pressed (docs/tech-spec.md §66), and lies given up when pressed; absent when none. */
   readonly pressed?: number;
   readonly gave?: number;
+  /** Of the lies caught, those about a companion (docs/tech-spec.md §69); absent when none. */
+  readonly caughtAbout?: number;
   readonly atMs: number;
 }
 
@@ -149,6 +153,12 @@ export interface ShiftState {
   readonly freeAsked?: number;
   /** Hints given so far, when the shift has a limit (`mods.hints`); absent before the first. */
   readonly hintsAsked?: number;
+  /**
+   * The party at the desk (docs/tech-spec.md §69), while there is one: where it starts in the line, and each member's
+   * state. The member the player is turned to stands at `cursor` and its state is `soul`; its entry here is only kept
+   * up to date when the player turns away.
+   */
+  readonly party?: { readonly start: number; readonly souls: readonly SoulState[] };
 }
 
 export type ShiftAction =
@@ -160,6 +170,8 @@ export type ShiftAction =
   | { readonly t: 'question'; readonly lie: string; readonly at: number }
   | { readonly t: 'press'; readonly field: string; readonly at: number }
   | { readonly t: 'hint'; readonly at: number }
+  /** Turns to another member of the party at the desk (its place in the party, from 0). */
+  | { readonly t: 'turn'; readonly to: number; readonly at: number }
   | { readonly t: 'stamp'; readonly dest: Destination; readonly at: number }
   | { readonly t: 'send'; readonly at: number }
   | { readonly t: 'pause'; readonly at: number }
@@ -171,11 +183,23 @@ export type ShiftEvent =
   | { readonly e: 'inspected'; readonly fields: readonly string[] }
   | { readonly e: 'flipped'; readonly view: 'front' | 'back'; readonly penaltyMs: number }
   | { readonly e: 'toolUsed'; readonly tool: ToolId; readonly fields: readonly string[]; readonly penaltyMs: number }
-  | { readonly e: 'contradiction'; readonly lie: string; readonly fact: string; readonly with: string }
+  /**
+   * A lie caught. `member`: at a party, the place of the soul who told it, when that isn't the member turned to; `with`
+   * names a companion's field as `@<member>:<field>`.
+   */
+  | {
+      readonly e: 'contradiction';
+      readonly lie: string;
+      readonly fact: string;
+      readonly with: string;
+      readonly member?: number;
+    }
   | { readonly e: 'noConflict'; readonly a: string; readonly b: string; readonly penaltyMs: number }
   | { readonly e: 'answer'; readonly lie: string; readonly response: QuestionResponse; readonly penaltyMs: number }
   | { readonly e: 'pressed'; readonly field: string; readonly answer: PressAnswer; readonly penaltyMs: number }
   | { readonly e: 'hint'; readonly field: string; readonly penaltyMs: number }
+  /** Turned to another member of the party at the desk; `next`: by sending a stamped one on to the next. */
+  | { readonly e: 'turned'; readonly to: number; readonly next?: true }
   | { readonly e: 'stamped'; readonly dest: Destination }
   | { readonly e: 'judged'; readonly verdict: Verdict }
   | { readonly e: 'citation'; readonly verdict: Verdict }
@@ -235,7 +259,9 @@ export function startShift(
   queue?: readonly CaseSpec[],
   ctx: DayCtx = shiftContext(content, config),
 ): { state: ShiftState; ctx: DayCtx } {
-  const cases = queue ?? generateDay(config.seed, ctx).cases;
+  // A shift that makes its own souls forms the day's parties too (docs/tech-spec.md §69): never on the Daily or the
+  // primer, whose specs have none.
+  const cases = queue ?? linkParties(generateDay(config.seed, ctx).cases, ctx, config.seed);
   const state: ShiftState = {
     v: 1,
     config: { ...config, day: ctx.day },
@@ -250,6 +276,66 @@ export function startShift(
     recentQ: [],
   };
   return { state, ctx };
+}
+
+/** The shift with the party that starts at its cursor at the desk, if one does; none otherwise. */
+function arrive(state: ShiftState): ShiftState {
+  const { party: _, ...rest } = state;
+  const span = partyAt(state.cases, state.cursor);
+  return span ? { ...rest, party: { start: span.start, souls: Array.from({ length: span.size }, freshSoul) } } : rest;
+}
+
+/** The place in the party at the desk of the member the player is turned to; 0 with no party. */
+export const turnedTo = (state: ShiftState): number => (state.party ? state.cursor - state.party.start : 0);
+
+/** Party member `k`'s state (the soul at the desk's own, with no party). */
+export function memberSoul(state: ShiftState, k: number): SoulState | undefined {
+  if (!state.party) return k === 0 ? state.soul : undefined;
+  return k === turnedTo(state) ? state.soul : state.party.souls[k];
+}
+
+/** The souls at the desk: the party's members, or the one soul. */
+export function atDesk(state: ShiftState): readonly CaseSpec[] {
+  if (state.phase !== 'shift') return [];
+  if (!state.party) return state.cases.slice(state.cursor, state.cursor + 1);
+  return state.cases.slice(state.party.start, state.party.start + state.party.souls.length);
+}
+
+/** The shift turned to party member `to` (at a party). */
+function turnTo(state: ShiftState, to: number): ShiftState {
+  const party = state.party;
+  if (!party) return state;
+  const souls = party.souls.slice();
+  souls[turnedTo(state)] = state.soul;
+  return { ...state, cursor: party.start + to, soul: souls[to] as SoulState, party: { ...party, souls } };
+}
+
+/** The shift with party member `k`'s state replaced. */
+function withMember(state: ShiftState, k: number, soul: SoulState): ShiftState {
+  if (!state.party || k === turnedTo(state)) return { ...state, soul };
+  const souls = state.party.souls.slice();
+  souls[k] = soul;
+  return { ...state, party: { ...state.party, souls } };
+}
+
+/**
+ * What a soul has owned up to, questioned: its confessions establish the truth (trust 4); a lie given up without one,
+ * or a lie about a companion (docs/tech-spec.md §69), only counts as caught.
+ */
+export function retractedOf(c: CaseSpec, soul: SoulState): Map<string, { fact: string; value: Value } | null> {
+  return new Map(
+    c.lies
+      .filter((l) => soul.questioned.includes(l.field))
+      .map((l) => [
+        l.field,
+        l.onQuestion === 'confess' && l.about === undefined ? { fact: l.fact, value: l.truth } : null,
+      ]),
+  );
+}
+
+/** The lies about companions the player has shown false: each claim, and the companion's field it was compared with. */
+export function crossFlagged(soul: SoulState): Map<string, string[]> {
+  return new Map(soul.flagged.filter((f) => parseMemberField(f.with) !== null).map((f) => [f.lie, [f.with]]));
 }
 
 /** Sun time used so far: real time since the start, minus pauses, plus penalties. */
@@ -291,13 +377,10 @@ export function ruledOut(state: ShiftState, ctx: DayCtx): string[] {
   if (!c) return [];
   const { soul } = state;
   const seen = soulFields(state, c).filter((f) => soul.seen.includes(f.id));
-  // What the soul gave up, questioned or pressed: a confession is the truth whatever else has been seen.
-  const retracted = new Map(
-    c.lies
-      .filter((l) => soul.questioned.includes(l.field))
-      .map((l) => [l.field, l.onQuestion === 'confess' ? { fact: l.fact, value: l.truth } : null]),
-  );
-  return solve(seen, soulCtx(ctx, c), { retracted, certainOnly: true })
+  // What the soul gave up, questioned or pressed: a confession is the truth whatever else has been seen. What it said
+  // of a companion, shown false, is a lie caught (docs/tech-spec.md §69).
+  const retracted = retractedOf(c, soul);
+  return solve(seen, soulCtx(ctx, c), { retracted, certainOnly: true, crossCaught: crossFlagged(soul) })
     .rules.filter((r) => r.result === 'F')
     .map((r) => r.rule);
 }
@@ -344,7 +427,12 @@ export const freeQuestion = (state: ShiftState): boolean =>
 
 /** The soul's evidence and what it has added, pressed on its claims (docs/tech-spec.md §66). */
 export function soulFields(state: ShiftState, c: CaseSpec): Field[] {
-  return [...c.evidence.fields, ...(state.soul.said ?? [])];
+  return soulFieldsOf(c, state.soul);
+}
+
+/** A soul's evidence and what it has added, pressed, with its state `soul`. */
+export function soulFieldsOf(c: CaseSpec, soul: SoulState): Field[] {
+  return [...c.evidence.fields, ...(soul.said ?? [])];
 }
 
 /**
@@ -416,8 +504,9 @@ function finish(state: ShiftState, endedBy: 'queue' | 'dusk', at: number): { sta
     lies: c.lies.length,
     atMs,
   }));
+  const { party: _, ...rest } = state;
   return {
-    state: { ...state, phase: 'done', endedBy, verdicts: [...state.verdicts, ...unjudged], soul: freshSoul() },
+    state: { ...rest, phase: 'done', endedBy, verdicts: [...state.verdicts, ...unjudged], soul: freshSoul() },
     events: [{ e: 'done', endedBy }],
   };
 }
@@ -441,6 +530,105 @@ function checkSun(state: ShiftState, at: number, ctx: DayCtx): { state: ShiftSta
   return { state: s, events };
 }
 
+/**
+ * The verdict on soul `c`, sent with the state `soul`: its stamp against its judgment, the proof it never looked at
+ * (on a companion too, as `@<member>:<field>`: docs/tech-spec.md §69), the procedures skipped, the lies caught.
+ * `party`: every member's state, the soul's own included.
+ */
+function verdictFor(
+  c: CaseSpec,
+  soul: SoulState,
+  index: number,
+  ctx: DayCtx,
+  atMs: number,
+  party: readonly SoulState[],
+): Verdict {
+  const stamped = soul.stamp as Destination;
+  const skipped = (c.expect.procedures ?? []).filter((id) => {
+    const p = ctx.procedures.find((x) => x.id === id);
+    return !p || !soul.tools.includes(p.tool);
+  });
+  const missedAcross = (c.meta.crossProof ?? [])
+    .filter((x) => !(party[x.soul]?.seen ?? []).includes(x.field))
+    .map((x) => memberField(x.soul, x.field));
+  return {
+    index,
+    stamped,
+    expected: c.expect.dest,
+    rule: c.expect.rule,
+    correct: stamped === c.expect.dest && skipped.length === 0,
+    missed: [...c.meta.proof.filter((id) => !soul.seen.includes(id)), ...missedAcross],
+    ...(skipped.length > 0 ? { skipped } : {}),
+    caught: caughtLies(soul),
+    lies: c.lies.length,
+    ...(soul.pressed?.length ? { pressed: soul.pressed.length } : {}),
+    ...(soul.gave?.length ? { gave: soul.gave.length } : {}),
+    ...(crossFlagged(soul).size > 0 ? { caughtAbout: crossFlagged(soul).size } : {}),
+    atMs,
+  };
+}
+
+/**
+ * A Compare across the party at the desk (docs/tech-spec.md §69): what one member said of another, against something
+ * of that other's own. Plain ids are the member turned to's. A lie is caught when what the companion shows (and can't
+ * be wrong about) says otherwise; it's marked on the member who told it.
+ */
+function compareAcross(s: ShiftState, day: DayCtx, a: string, b: string): { state: ShiftState; events: ShiftEvent[] } {
+  const party = s.party;
+  const here = turnedTo(s);
+  const at = (id: string) => parseMemberField(id) ?? { soul: here, field: id };
+  const x = at(a);
+  const y = at(b);
+  const size = party?.souls.length ?? 0;
+  if (!party || x.soul >= size || y.soul >= size) return reject(s, 'compare two things you have looked at');
+  const member = (k: number) => s.cases[party.start + k] as CaseSpec;
+  const seen = (p: { soul: number; field: string }) => (memberSoul(s, p.soul)?.seen ?? []).includes(p.field);
+  if ((x.soul === y.soul && x.field === y.field) || !seen(x) || !seen(y)) {
+    return reject(s, 'compare two things you have looked at');
+  }
+  if (x.soul === y.soul) return reject(s, 'turn to them to compare their own words');
+  const claimOf = (p: { soul: number; field: string }, other: number) => {
+    const f = member(p.soul).evidence.fields.find((g) => g.id === p.field);
+    return f?.about && f.about.soul === other ? f.about : null;
+  };
+  const found = (claim: { soul: number; field: string }, other: { soul: number; field: string }) => {
+    const about = claimOf(claim, other.soul);
+    if (!about) return false;
+    const mate = member(other.soul);
+    const mateSoul = memberSoul(s, other.soul) as SoulState;
+    const mateFields = soulFieldsOf(mate, mateSoul).filter((f) => mateSoul.seen.includes(f.id));
+    const cx = soulCtx(day, mate);
+    const shows = companionShows(mateFields, about.fact, about.value, cx, retractedOf(mate, mateSoul));
+    return shows !== null && (shows.includes(other.field) || shows.includes(`q:${other.field}`));
+  };
+  const claim = found(x, y) ? x : found(y, x) ? y : null;
+  if (!claim) {
+    const penaltyMs = sunCosts(day.content).badCompare;
+    return { state: penalize(s, penaltyMs), events: [{ e: 'noConflict', a, b, penaltyMs }] };
+  }
+  const other = claim === x ? y : x;
+  const teller = memberSoul(s, claim.soul) as SoulState;
+  if (teller.flagged.some((f) => f.lie === claim.field)) return { state: s, events: [] };
+  const fact = (claimOf(claim, other.soul) as { fact: string }).fact;
+  const with_ = memberField(other.soul, other.field);
+  const next = withMember(s, claim.soul, {
+    ...teller,
+    flagged: [...teller.flagged, { lie: claim.field, fact, with: with_ }],
+  });
+  return {
+    state: next,
+    events: [
+      {
+        e: 'contradiction',
+        lie: claim.field,
+        fact,
+        with: with_,
+        ...(claim.soul !== here ? { member: claim.soul } : {}),
+      },
+    ],
+  };
+}
+
 /** Advances a shift by one action. Invalid actions leave the state unchanged and emit `rejected`. */
 export function stepShift(
   state: ShiftState,
@@ -452,14 +640,14 @@ export function stepShift(
     const assists = cleanAssists(action.assists);
     const pct = assists.sunPct ?? 100;
     return {
-      state: {
+      state: arrive({
         ...state,
         phase: 'shift',
         ...(Object.keys(assists).length > 0 ? { config: { ...state.config, assists } } : {}),
         // A slower sun is the same shift with more of it: tool costs and penalties stay as they are.
         sunMs: pct === 100 ? state.sunMs : Math.floor((state.sunMs * 100) / pct),
         clock: { ...state.clock, startedAt: action.at },
-      },
+      }),
       events: [{ e: 'begun' }],
     };
   }
@@ -525,7 +713,17 @@ export function stepShift(
       });
     }
     case 'compare': {
-      const { a, b } = action;
+      let { a, b } = action;
+      // At a party (docs/tech-spec.md §69), a member's field can be named `@<member>:<field>`: two of the member
+      // turned to's own are compared as any soul's are; anything of another member's, across them.
+      if (s.party) {
+        const here = turnedTo(s);
+        const pa = parseMemberField(a);
+        const pb = parseMemberField(b);
+        if ((pa?.soul ?? here) !== here || (pb?.soul ?? here) !== here) return withSun(compareAcross(s, day, a, b));
+        a = pa?.field ?? a;
+        b = pb?.field ?? b;
+      }
       if (a === b || !s.soul.seen.includes(a) || !s.soul.seen.includes(b)) {
         return withSun(reject(s, 'compare two things you have looked at'));
       }
@@ -535,7 +733,10 @@ export function stepShift(
       );
       if (!found) {
         const penaltyMs = sunCosts(day.content).badCompare;
-        return withSun({ state: penalize(s, penaltyMs), events: [{ e: 'noConflict', a, b, penaltyMs }] });
+        return withSun({
+          state: penalize(s, penaltyMs),
+          events: [{ e: 'noConflict', a: action.a, b: action.b, penaltyMs }],
+        });
       }
       if (s.soul.flagged.some((f) => f.lie === found.lie)) return withSun({ state: s, events: [] });
       const other = found.lie === a ? b : a;
@@ -596,6 +797,14 @@ export function stepShift(
       const penaltyMs = sunCosts(day.content).hint;
       return withSun({ state: penalize(asked, penaltyMs), events: [{ e: 'hint', field, penaltyMs }] });
     }
+    case 'turn': {
+      const party = s.party;
+      if (!party) return withSun(reject(s, 'there is no one else at the desk'));
+      const to = action.to;
+      if (!Number.isInteger(to) || to < 0 || to >= party.souls.length) return withSun(reject(s, 'no such soul here'));
+      if (to === turnedTo(s)) return withSun({ state: s, events: [] });
+      return withSun({ state: turnTo(s, to), events: [{ e: 'turned', to }] });
+    }
     case 'stamp': {
       if (!ctx.destinations.has(action.dest)) return withSun(reject(s, `no ${action.dest} stamp today`));
       return withSun({
@@ -604,29 +813,33 @@ export function stepShift(
       });
     }
     case 'send': {
-      const stamped = s.soul.stamp;
-      if (!stamped) return withSun(reject(s, 'choose a stamp first'));
-      const skipped = (c.expect.procedures ?? []).filter((id) => {
-        const p = ctx.procedures.find((x) => x.id === id);
-        return !p || !s.soul.tools.includes(p.tool);
+      if (!s.soul.stamp) return withSun(reject(s, 'choose a stamp first'));
+      // A party goes together (docs/tech-spec.md §69), once every member is stamped: until then, sending one that is
+      // turns to the next that isn't.
+      const start = s.party?.start ?? s.cursor;
+      const members = atDesk(s);
+      const souls = members.map((_, k) => memberSoul(s, k) as SoulState);
+      const here = turnedTo(s);
+      const waiting = members.map((_, k) => (here + 1 + k) % members.length).find((k) => souls[k]?.stamp === null);
+      if (waiting !== undefined) {
+        return withSun({ state: turnTo(s, waiting), events: [{ e: 'turned', to: waiting, next: true }] });
+      }
+      const atMs = sunElapsed(s, action.at);
+      const verdicts = members.map((m, k) =>
+        verdictFor(m, souls[k] as SoulState, start + k, soulCtx(day, m), atMs, souls),
+      );
+      const events: ShiftEvent[] = [];
+      for (const verdict of verdicts) {
+        events.push({ e: 'judged', verdict });
+        if (!verdict.correct) events.push({ e: 'citation', verdict });
+      }
+      const { party: _, ...rest } = s;
+      const next: ShiftState = arrive({
+        ...rest,
+        cursor: start + members.length,
+        verdicts: [...s.verdicts, ...verdicts],
+        soul: freshSoul(),
       });
-      const verdict: Verdict = {
-        index: s.cursor,
-        stamped,
-        expected: c.expect.dest,
-        rule: c.expect.rule,
-        correct: stamped === c.expect.dest && skipped.length === 0,
-        missed: c.meta.proof.filter((id) => !s.soul.seen.includes(id)),
-        ...(skipped.length > 0 ? { skipped } : {}),
-        caught: caughtLies(s.soul),
-        lies: c.lies.length,
-        ...(s.soul.pressed?.length ? { pressed: s.soul.pressed.length } : {}),
-        ...(s.soul.gave?.length ? { gave: s.soul.gave.length } : {}),
-        atMs: sunElapsed(s, action.at),
-      };
-      const events: ShiftEvent[] = [{ e: 'judged', verdict }];
-      if (!verdict.correct) events.push({ e: 'citation', verdict });
-      const next: ShiftState = { ...s, cursor: s.cursor + 1, verdicts: [...s.verdicts, verdict], soul: freshSoul() };
       if (next.cursor >= next.cases.length) {
         const f = finish(next, 'queue', action.at);
         return withSun({ state: f.state, events: [...events, ...f.events] });

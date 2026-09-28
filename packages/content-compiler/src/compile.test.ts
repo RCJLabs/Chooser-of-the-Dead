@@ -354,6 +354,67 @@ describe('gameplay content lints', () => {
     expect(() => compile({ core: both, demo: run(ok) })).toThrow(/Only one pack may define boons\.yaml/);
   });
 
+  it('lints parties (docs/tech-spec.md §69)', () => {
+    const kind = (more = '') =>
+      `kinds:\n  - { id: party.fight, since: 1, title: p.title, words: { place: pool.places }, size: [2, 3], members: { cause: { is: battle } }, claims: [cause]${more} }\n`;
+    const partiesYaml = (more = '') => `lie: 40\nonQuestion: { confess: 1, excuse: 1 }\n${kind(more)}`;
+    const line = (id: string, value: string, extra = '') =>
+      `- { id: ${id}, asserts: { fact: cause, value: ${value} }, msg: p.line${extra} }\n`;
+    const lines = line('pl.battle', 'battle') + line('pl.sickness', 'sickness');
+    const questions =
+      "- { id: q.p.confess, on: { fact: '*', kind: confess, about: true }, msgs: [p.q] }\n" +
+      "- { id: q.p.excuse, on: { fact: '*', kind: excuse, about: true }, msgs: [p.q] }\n";
+    const strings = { 'p.title': 'Fell together at {place}', 'p.line': '{companion} said so.', 'p.q': 'Fine.' };
+    const withDay = (parties: boolean) => {
+      const d = day('arch.liar');
+      const spec = d.files['days/day-01.yaml'].replace(
+        '  mix:',
+        parties ? '  parties: { n: [1, 1] }\n  mix:' : '  mix:',
+      );
+      return { ...d, files: { ...d.files, 'days/day-01.yaml': spec } };
+    };
+    const run = (
+      files: Record<string, string>,
+      more: Record<string, string> = strings,
+      parties = true,
+    ): PackFixture => {
+      const d = withDay(parties);
+      return { ...d, strings: { ...d.strings, ...more }, files: { ...d.files, ...files } };
+    };
+    const ok = {
+      'parties.yaml': partiesYaml(),
+      'templates/party.yaml': lines,
+      'templates/questions.yaml': questions,
+      'pools.yaml': 'pool.places: [the ford]\n',
+    };
+    const base = core({ 'archetypes.yaml': archetype('') });
+    const build = (files: Record<string, string>, more?: Record<string, string>, parties?: boolean) => () =>
+      compile({ core: base, demo: run(files, more, parties) });
+    expect(build(ok)).not.toThrow();
+    expect(build(ok, { ...strings, 'p.title': undefined as unknown as string })).toThrow(
+      /party kind party\.fight uses missing string "p\.title"/,
+    );
+    expect(build({ ...ok, 'pools.yaml': 'pool.other: [x]\n' })).toThrow(
+      /shares words from unknown pool "pool\.places"/,
+    );
+    // A line any soul can say for every value a claim can take.
+    expect(build({ ...ok, 'templates/party.yaml': line('pl.battle', 'battle') })).toThrow(
+      /has no line any soul can say that a companion's cause is sickness/,
+    );
+    expect(build({ ...ok, 'parties.yaml': partiesYaml(', claims: [grip]').replace(', claims: [cause]', '') })).toThrow(
+      /speaks of unknown fact "grip"/,
+    );
+    // Answers for a soul caught lying about a companion.
+    expect(build({ ...ok, 'templates/questions.yaml': questions.split('\n')[0] ?? '' })).toThrow(
+      /No fallback question template for "excuse" answers about a companion/,
+    );
+    // A day that forms parties needs them; the lines need a parties.yaml to say them.
+    expect(build({ 'templates/party.yaml': lines, 'pools.yaml': ok['pools.yaml'] })).toThrow(
+      /Day 1 forms parties, and there's no parties\.yaml/,
+    );
+    expect(build({ 'templates/party.yaml': lines }, strings, false)).toThrow(/Party lines with no parties\.yaml/);
+  });
+
   it('lints achievements', () => {
     const base = core({ 'archetypes.yaml': archetype('') });
     const earn = (yaml: string, strings: Record<string, string> = { 'ach.a.title': 'A', 'ach.a.text': 'Do A.' }) => {

@@ -8,6 +8,7 @@ import {
   type CaseSpec,
   type Content,
   campaignOf,
+  companionShows,
   createDayContext,
   type DayCtx,
   type DayLedger,
@@ -21,7 +22,9 @@ import {
   type Faction,
   fight,
   heldFronts,
+  memberField,
   newRun,
+  partyAt,
   pleaOf,
   Rng,
   type RunAction,
@@ -253,6 +256,35 @@ export function catchLie(c: CaseSpec, ctx: DayCtx, at: number): ShiftAction[] {
   return [];
 }
 
+/**
+ * What a careful player does to catch a soul in a lie about a companion (docs/tech-spec.md §69): turn to the
+ * companion, look at what shows the claim false (turning the body over, using a tool, if that's where it is), turn
+ * back, hear the claim and compare the two. `members`: the party, `k` the soul's place in it. Nothing when it tells no
+ * such lie.
+ */
+export function catchCrossLie(members: readonly CaseSpec[], k: number, ctx: DayCtx, at: number): ShiftAction[] {
+  const c = members[k] as CaseSpec;
+  for (const lie of c.lies) {
+    const claim = c.evidence.fields.find((f) => f.id === lie.field)?.about;
+    const mate = claim ? members[claim.soul] : undefined;
+    if (!claim || !mate) continue;
+    const cx = soulCtx(ctx, mate);
+    const shows = companionShows(mate.evidence.fields, claim.fact, claim.value, cx);
+    const field = mate.evidence.fields.find((f) => f.id === shows?.[0]);
+    if (!field) continue;
+    return [
+      { t: 'turn', to: claim.soul, at },
+      ...(field.view === 'back' ? [{ t: 'flip' as const, at }] : []),
+      ...(field.tool && field.tool !== 'flip' ? [{ t: 'tool' as const, tool: field.tool, at }] : []),
+      { t: 'inspect', fields: [field.id], at },
+      { t: 'turn', to: k, at },
+      { t: 'inspect', fields: [lie.field], at },
+      { t: 'compare', a: lie.field, b: memberField(claim.soul, field.id), at },
+    ];
+  }
+  return [];
+}
+
 /** The sun a bot spends on each soul unless told otherwise: under every day's sun per soul, so none is left. */
 export const BOT_PACE_S = 25;
 
@@ -277,12 +309,20 @@ function shiftActions(
   const stamps = stampsFor(ctx);
   const actions: RunAction[] = [beginShift];
   let at = 0;
-  // A soul whose turn comes after dusk and its grace is never judged: the shift ends first, with it in line.
-  for (const c of cases) {
+  // A soul whose turn comes after dusk and its grace is never judged: the shift ends first, with it in line. A party
+  // (docs/tech-spec.md §69) is judged a member at a time, turning to each, and sent together.
+  let party: { start: number; size: number } | null = null;
+  for (const [i, c] of cases.entries()) {
+    party = partyAt(cases, i) ?? (party && i < party.start + party.size ? party : null);
+    const k = party ? i - party.start : 0;
+    if (party) actions.push({ t: 'shift', action: { t: 'turn', to: k, at } });
     at += paceS * 1000;
     const right = rng.chance(Math.round(judging.accuracy * 1000), 1000);
     if (right && c.lies.length > 0 && rng.chance(Math.round(judging.catches * 1000), 1000)) {
-      for (const action of catchLie(c, ctx, at)) actions.push({ t: 'shift', action });
+      const own = catchLie(c, ctx, at);
+      const caught =
+        own.length > 0 || !party ? own : catchCrossLie(cases.slice(party.start, party.start + party.size), k, ctx, at);
+      for (const action of caught) actions.push({ t: 'shift', action });
     }
     const wrongs = stamps.filter((d) => d !== c.expect.dest);
     // A soul the bot knows belongs where a favour asks for souls from goes where the favour asks instead.
@@ -312,7 +352,8 @@ function shiftActions(
         if (tool) actions.push({ t: 'shift', action: { t: 'tool', tool, at } });
       }
     }
-    actions.push({ t: 'shift', action: { t: 'stamp', dest, at } }, { t: 'shift', action: { t: 'send', at } });
+    actions.push({ t: 'shift', action: { t: 'stamp', dest, at } });
+    if (!party || k === party.size - 1) actions.push({ t: 'shift', action: { t: 'send', at } });
   }
   return actions;
 }
