@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test';
-import { BASE, FULL, PLAYTEST } from './urls';
+import { BASE, FULL, FULL_APP, PLAYTEST } from './urls';
 
-// Tests against the real builds (run `pnpm build:web-demo`, `pnpm build:dev-full` and `pnpm build:web-playtest` first).
+// Tests against the real builds (run `pnpm build:web-demo`, `pnpm build:dev-full`, `pnpm build:web-playtest` and
+// `pnpm build:web-full` first).
 export default defineConfig({
   testDir: '.',
   outputDir: './results',
@@ -23,6 +24,12 @@ export default defineConfig({
     {
       command: 'pnpm preview:web-playtest',
       url: PLAYTEST,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      command: 'pnpm preview:web-full',
+      url: FULL_APP,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },

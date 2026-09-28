@@ -4,7 +4,14 @@ import { fileURLToPath } from 'node:url';
 import preact from '@preact/preset-vite';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { isTargetId, PAGES_BASE, PAGES_FULL, TARGET_IDS, TARGETS } from '../../packages/content-schema/src/targets.ts';
+import {
+  isTargetId,
+  PAGES_BASE,
+  PAGES_FULL,
+  TARGET_IDS,
+  TARGETS,
+  type TargetDef,
+} from '../../packages/content-schema/src/targets.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const repoRoot = resolve(here, '../..');
@@ -36,8 +43,8 @@ function noPwaPlugin(): Plugin {
 }
 
 /**
- * The playtest build is for invited players, and on Pages it sits unlisted at /full/ (docs/tech-spec.md §48):
- * search engines are asked not to list it.
+ * The playtest builds are for invited players, and on Pages the whole game sits unlisted at /full/ (docs/tech-spec.md
+ * §48): search engines are asked not to list it.
  */
 function noIndexPlugin(): Plugin {
   return {
@@ -55,7 +62,8 @@ export default defineConfig(({ mode }) => {
   if (!isTargetId(mode)) {
     throw new Error(`Unknown build target "${mode}". Use --mode <${TARGET_IDS.join('|')}>.`);
   }
-  const target = TARGETS[mode];
+  const target: TargetDef = TARGETS[mode];
+  if (target.pwa && !target.app) throw new Error(`Target "${mode}" is a PWA, so it needs an app name (targets.ts).`);
   const base =
     target.base === 'pages' ? (process.env.COTS_BASE ?? PAGES_BASE) : target.base === 'relative' ? './' : '/';
 
@@ -73,10 +81,11 @@ export default defineConfig(({ mode }) => {
           // title screen offers the update (never mid-shift).
           registerType: 'prompt',
           injectRegister: false,
+          // Each installs as its own app: the demo, and the whole game at /full/ (docs/tech-spec.md §65).
           manifest: {
-            name: 'Chooser of the Slain (Demo)',
-            short_name: 'Chooser',
-            description: 'Judge the fallen before dusk. Free demo: the Daily Shift and the first three days.',
+            name: target.app?.name,
+            short_name: target.app?.shortName,
+            description: target.app?.description,
             theme_color: '#15110d',
             background_color: '#15110d',
             display: 'standalone',
@@ -89,9 +98,12 @@ export default defineConfig(({ mode }) => {
             ],
           },
           workbox: {
-            globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+            // The rune font too: offline, runes and inscriptions would otherwise fall back to boxes.
+            globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
             // The whole game sits beside the demo on Pages (docs/tech-spec.md §48): its pages aren't the demo's.
-            navigateFallbackDenylist: [new RegExp(`^${escapeRegExp(base)}${PAGES_FULL}`)],
+            ...(target.base === 'pages'
+              ? { navigateFallbackDenylist: [new RegExp(`^${escapeRegExp(base)}${PAGES_FULL}`)] }
+              : {}),
           },
         }),
     ],

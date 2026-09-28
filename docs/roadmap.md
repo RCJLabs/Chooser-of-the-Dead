@@ -1,6 +1,6 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–64.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–65.
 
 ## Done lately
 
@@ -8,6 +8,7 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 
 - **7. Crash safety.** A screen that breaks pauses the sun, says nothing saved is lost, and offers Reload and a problem report with the error attached. Other errors get a notice the player can dismiss.
 - **1. Playtest reports read by script.** `pnpm playtest:read` sums up the reports beside the bots' range: rings by night, how each day was judged and the sun left, mistakes by rule, pleas and kin. `pnpm playtest:keep` keeps a tester's saves as tests that every change must open.
+- **The whole game installs.** `/full/` on Pages is its own app now, beside the demo, and plays offline; testers keep their saves ([`tech-spec.md`](tech-spec.md) §65).
 - **The repository's new name.** The Pages site moved with the rename, and the demo went blank. It's now built for the path Pages reports, and each deploy checks that the live pages load ([`tech-spec.md`](tech-spec.md) §64).
 - **2. A tuning workbench.** The sun's costs and the minimum sun are content now, with their values unchanged. `pnpm sim compare` runs the same seeds on the content as built and on a variant, and prints what moved with 95% intervals.
 
