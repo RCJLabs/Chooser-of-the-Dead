@@ -15,7 +15,7 @@ In this order, as one pull request:
 2. **The shell's test gaps.**
    - Test backup export and restore inside Electron: the download, and the file input.
    - Have CI keep the packaged Windows and Linux folders as downloads, so the first real Steam test can run on your PC without a local build.
-3. **The body at its 160 px floor.** On a 360 px phone the crowded desk shrinks the body down to 160 px. Check that the subtler signs are still readable at that size (tech-spec §61, Known limits), with the readability capture (§17).
+3. **The body at its 160 px floor.** On a 360 px phone the crowded desk shrinks the body down to 160 px, and nobody has checked the subtler signs at that size (tech-spec §61, Known limits). Nothing checks on-screen sign sizes automatically: today it's done by eye, on the art sheet (`pnpm art:sheet`, §17).
 4. **Rich presence** (optional, after the first real Steam test): "Day 7 – judging the fallen".
    - It can only be tested here against a fake Steam.
    - It needs a localization file uploaded in Steamworks.
