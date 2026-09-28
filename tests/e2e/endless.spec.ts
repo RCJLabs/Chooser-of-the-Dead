@@ -77,7 +77,7 @@ test('today’s Endless: resumed after a reload, recorded once, shared without s
   await expect(page.getByTestId('endless-score')).toHaveText("5 souls judged rightly, as far as Day 2's rules.");
   await expect(page.getByTestId('endless-record')).toHaveText('A new best.');
   const text = `Chooser of the Slain · Endless #${N} (g${content.genVersion})\n5 souls judged rightly · round 2, Day 2's rules`;
-  await expect(page.getByTestId('share-text')).toHaveValue(`${text}\nhttp://localhost:4173/Vikings-R-Us/`);
+  await expect(page.getByTestId('share-text')).toHaveValue(`${text}\nhttp://localhost:4173/Chooser-of-the-Dead/`);
 
   // Today's is done: the title card keeps its result to share, and offers only a free run.
   await page.getByTestId('home').click();
@@ -87,7 +87,7 @@ test('today’s Endless: resumed after a reload, recorded once, shared without s
   await page.reload();
   await expect(page.getByTestId('endless-saved')).toHaveCount(0);
   await page.getByTestId('endless-today-share').click();
-  await expect(page.getByTestId('share-text')).toHaveValue(`${text}\nhttp://localhost:4173/Vikings-R-Us/`);
+  await expect(page.getByTestId('share-text')).toHaveValue(`${text}\nhttp://localhost:4173/Chooser-of-the-Dead/`);
 
   // A free run has a seed of its own, and is saved like any other.
   await page.getByTestId('endless-start').click();

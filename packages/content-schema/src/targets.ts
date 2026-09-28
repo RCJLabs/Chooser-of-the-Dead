@@ -122,8 +122,12 @@ export function isTargetId(value: string): value is TargetId {
   return Object.hasOwn(TARGETS, value);
 }
 
-/** Default GitHub Pages path for this repo; override with COTS_BASE (e.g. for a custom domain). */
-export const PAGES_BASE = '/Vikings-R-Us/';
+/**
+ * GitHub Pages path for this repo, for local builds and the tests: the repository's name (RCJLabs/Chooser-of-the-Dead),
+ * so a rename moves the site. The Pages workflow builds with the path Pages reports instead (COTS_BASE), so a rename or
+ * a custom domain can't leave the deployed demo loading its scripts from the old path (docs/tech-spec.md §64).
+ */
+export const PAGES_BASE = '/Chooser-of-the-Dead/';
 
 /**
  * Where the Pages site carries the whole game (the playtest build), unlisted, beside the demo (docs/tech-spec.md

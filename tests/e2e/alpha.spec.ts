@@ -15,7 +15,7 @@ test.use({ timezoneId: 'UTC' });
 const content = loadDailyContent();
 const { state, ctx } = startShift(content, { mode: 'daily', seed: dailySeed(N), day: 5, dailyNumber: N });
 const stamps = stampsFor(ctx);
-const ISSUES = 'https://github.com/RCJLabs/Vikings-R-Us/issues/new';
+const ISSUES = 'https://github.com/RCJLabs/Chooser-of-the-Dead/issues/new';
 
 const drawer = async (page: Page) => (await page.locator('.shift--drawer').count()) > 0;
 

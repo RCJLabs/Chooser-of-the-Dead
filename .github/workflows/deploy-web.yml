@@ -29,8 +29,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The path Pages serves the site from (today /Chooser-of-the-Dead). The demo's paths are absolute, so it's built
+      # with this one rather than PAGES_BASE: renaming the repository moves the site, and a demo built for the old path
+      # loads nothing (docs/tech-spec.md §64).
+      - id: pages
+        uses: actions/configure-pages@v5
       - run: pnpm build:web-demo
         env:
+          COTS_BASE: ${{ steps.pages.outputs.base_path }}/
           # Optional links (Settings -> Secrets and variables -> Actions -> Variables).
           VITE_TELEMETRY_URL: ${{ vars.TELEMETRY_URL }}
           VITE_COMMUNITY_URL: ${{ vars.COMMUNITY_URL }}
@@ -48,7 +54,6 @@ jobs:
           mkdir -p dist/pages
           cp -R dist/web-demo/. dist/pages/
           cp -R dist/web-playtest dist/pages/full
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/pages
@@ -62,3 +67,24 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      # What a visitor gets (docs/tech-spec.md §64): each page, fetched past the cache, and the first script it loads.
+      # A page whose scripts don't load is a white screen, so the deploy fails rather than leaving it to be found.
+      - name: Check the live pages load their scripts
+        env:
+          SITE: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          check() {
+            html=$(curl -fsSL "$1?deploy=$GITHUB_SHA") || return 1
+            src=$(printf '%s' "$html" | grep -o 'src="[^"]*\.js"' | head -1 | sed 's/^src="//; s/"$//')
+            [ -n "$src" ] || return 1
+            url=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urljoin(sys.argv[1], sys.argv[2]))' "$1" "$src")
+            curl -fsSL -o /dev/null "$url" && echo "ok: $1 loads $url"
+          }
+          for page in "$SITE" "${SITE}full/"; do
+            for try in 1 2 3 4 5 6; do
+              check "$page" && continue 2
+              sleep 10
+            done
+            echo "::error::$page doesn't load its scripts: visitors get a white screen"
+            exit 1
+          done

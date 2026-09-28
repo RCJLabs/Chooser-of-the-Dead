@@ -4,7 +4,7 @@ The public builds stop at Day 3, and the campaign's economy has only been tuned 
 
 ## On GitHub Pages, unlisted
 
-Since 25 September 2026, the Pages deploy carries the same build at `/full/`: **https://rcjlabs.github.io/Vikings-R-Us/full/**.
+Since 25 September 2026, the Pages deploy carries the same build at `/full/`: **https://rcjlabs.github.io/Chooser-of-the-Dead/full/**. It was at `/Vikings-R-Us/full/` until the repository was renamed; that address is gone ([tech-spec §64](tech-spec.md)).
 - **Nothing links to it.** The demo doesn't mention it, and the page asks search engines not to list it (`noindex`). It isn't private, though: anyone with the link can play the whole campaign.
 - **It follows `main`.** Every merge redeploys it with the demo, and its title screen names the commit.
 - **Its saves are its own,** as on itch: nothing it keeps touches the demo's.

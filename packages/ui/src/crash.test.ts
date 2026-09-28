@@ -25,7 +25,7 @@ const issueLength = (r: object) => `template=problem-report.yml&report=${encodeU
 /** An error thrown from the game's own script. */
 function ours(message: string): Error {
   const e = new Error(message);
-  e.stack = `Error: ${message}\n    at judge (${ORIGIN}/Vikings-R-Us/assets/store-abc.js:1:2345)\n    at x (${ORIGIN}/Vikings-R-Us/assets/index-def.js:1:99)`;
+  e.stack = `Error: ${message}\n    at judge (${ORIGIN}/Chooser-of-the-Dead/assets/store-abc.js:1:2345)\n    at x (${ORIGIN}/Chooser-of-the-Dead/assets/index-def.js:1:99)`;
   return e;
 }
 
@@ -81,7 +81,7 @@ describe('what a problem report says', () => {
   it('opens the problem form with the report filled in, shortening a report too long for a link', () => {
     const r = noteProblem('crash', ours('broken'), ctx);
     const url = new URL(problemUrl(r) ?? '');
-    expect(url.pathname).toBe('/RCJLabs/Vikings-R-Us/issues/new');
+    expect(url.pathname).toBe('/RCJLabs/Chooser-of-the-Dead/issues/new');
     expect(url.searchParams.get('template')).toBe('problem-report.yml');
     expect(url.searchParams.get('title')).toBe('Problem: Error: broken');
     expect(JSON.parse(url.searchParams.get('report') ?? '')).toEqual(r);
@@ -96,9 +96,9 @@ describe('what a problem report says', () => {
 
 describe('which errors are the game’s', () => {
   it('counts errors thrown from its own scripts', () => {
-    expect(isOursError({ message: 'Uncaught Error: x', filename: `${ORIGIN}/Vikings-R-Us/assets/a.js` }, ORIGIN)).toBe(
-      true,
-    );
+    expect(
+      isOursError({ message: 'Uncaught Error: x', filename: `${ORIGIN}/Chooser-of-the-Dead/assets/a.js` }, ORIGIN),
+    ).toBe(true);
     expect(isOursError({ message: 'Uncaught Error: x', error: ours('x') }, ORIGIN)).toBe(true);
   });
 

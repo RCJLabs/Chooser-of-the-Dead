@@ -101,7 +101,7 @@ test('a careful player judges the whole Daily and shares a spoiler-free result',
   const share = await page.getByTestId('share-text').inputValue();
   expect(share).toMatch(
     new RegExp(
-      `^Chooser of the Slain · Daily #${N} \\(g1\\)\\n(🟩){8} 8/8 · \\d:\\d\\d to spare\\nhttp://localhost:4173/Vikings-R-Us/$`,
+      `^Chooser of the Slain · Daily #${N} \\(g1\\)\\n(🟩){8} 8/8 · \\d:\\d\\d to spare\\nhttp://localhost:4173/Chooser-of-the-Dead/$`,
     ),
   );
   for (const d of stamps) expect(share.toUpperCase()).not.toContain(d);

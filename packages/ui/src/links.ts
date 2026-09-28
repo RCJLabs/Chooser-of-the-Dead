@@ -13,7 +13,7 @@ export interface Links {
   readonly privacy: string | undefined;
 }
 
-const REPO = 'https://github.com/RCJLabs/Vikings-R-Us';
+const REPO = 'https://github.com/RCJLabs/Chooser-of-the-Dead';
 const env = import.meta.env as Record<string, string | undefined>;
 const overrides = (globalThis as { cotsConfig?: Partial<Links> }).cotsConfig ?? {};
 const clean = (v: string | undefined): string | undefined => (v?.trim() ? v.trim() : undefined);
