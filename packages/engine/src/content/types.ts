@@ -662,6 +662,8 @@ export interface CampaignDef {
   readonly draupnir: { readonly nights: readonly number[]; readonly rings: number };
   /** Nights ending below this many rings count as nights in debt. */
   readonly debtFloor: number;
+  /** The least sun a campaign shift has in seconds, whatever a trip home at dawn takes (docs/tech-spec.md §50). */
+  readonly minSunS: number;
   /**
    * Family care: nights in a row without the hearth or food before someone
    * surely falls sick; the percent chance per unmet need of falling sick sooner
@@ -1016,8 +1018,21 @@ export interface FactionAlias {
   readonly untilDay: number;
 }
 
+/** What the sun costs besides the tools (`sun.yaml`, docs/tech-spec.md §4, §26, §63), in seconds. */
+export interface SunCosts {
+  /** A Compare that finds nothing. */
+  readonly badCompare: number;
+  /** A Question, before upgrades make it cheaper. */
+  readonly question: number;
+  /** Skögul's hint (§26). */
+  readonly hint: number;
+  /** How long the soul at the desk may still be judged after dusk. */
+  readonly duskGrace: number;
+}
+
 export interface Content {
   readonly genVersion: number;
+  readonly sun: SunCosts;
   readonly facts: readonly FactDef[];
   readonly observations: readonly ObservationDef[];
   readonly signLaws: readonly SignLaw[];

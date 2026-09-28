@@ -10,11 +10,9 @@ import { solve } from '../logic/solver';
 import { Rng } from '../rng/rng';
 import {
   assistNotes,
-  DUSK_GRACE_MS,
   freeQuestion,
   inspectable,
   nextHint,
-  PENALTY,
   ruledOut,
   type ShiftAction,
   type ShiftEvent,
@@ -23,6 +21,7 @@ import {
   shiftScore,
   startShift,
   stepShift,
+  sunCosts,
   sunElapsed,
   sunLeft,
 } from './shift';
@@ -30,6 +29,8 @@ import {
 const daily = loadDailyContent();
 const demo = loadContent('web-demo');
 const full = loadContent('dev-full');
+/** What the sun costs besides the tools: the core pack's sun.yaml, the same in every target. */
+const PENALTY = sunCosts(daily);
 
 const startDaily = (n = 1) =>
   startShift(daily, { mode: 'daily', seed: dailySeed(n), day: daily.daily?.day ?? 5, dailyNumber: n });
@@ -258,6 +259,19 @@ describe('compare and question', () => {
     expect(sunElapsed(r.state, 0)).toBe(sunElapsed(s, 0) + PENALTY.badCompare);
   });
 
+  it('the sun’s costs are content (docs/tech-spec.md §63): the core pack’s, and whatever a variant sets', () => {
+    expect(PENALTY).toEqual({ badCompare: 10_000, question: 20_000, hint: 15_000, duskGrace: 60_000 });
+    for (const c of [demo, full]) expect(sunCosts(c)).toEqual(PENALTY);
+    const { s, ctx, cmp } = liar();
+    const dear = { ...ctx, content: { ...ctx.content, sun: { ...ctx.content.sun, badCompare: 25, question: 5 } } };
+    const innocent = s.soul.seen.find((id) => id !== cmp.a && id !== cmp.b && id.startsWith('body.'));
+    if (!innocent) throw new Error('no second body field');
+    const bad = stepShift(s, { t: 'compare', a: cmp.b, b: innocent, at: 0 }, dear);
+    expect(bad.events[0]).toMatchObject({ e: 'noConflict', penaltyMs: 25_000 });
+    const asked = stepShift(stepShift(s, cmp, dear).state, { t: 'question', lie: cmp.a, at: 0 }, dear);
+    expect(asked.events[0]).toMatchObject({ e: 'answer', penaltyMs: 5_000 });
+  });
+
   it('only fields already looked at can be compared', () => {
     const { s, ctx, cmp } = liar();
     const fresh = { ...s, soul: { ...s.soul, seen: s.soul.seen.filter((id) => id !== cmp.b) } };
@@ -349,7 +363,7 @@ describe('the sun', () => {
   it('the shift ends by itself when the grace runs out', () => {
     const { state, ctx } = startDaily();
     const s = run(state, ctx, [{ t: 'begin', at: 0 }]).state;
-    const r = stepShift(s, { t: 'tick', at: 360_000 + DUSK_GRACE_MS }, ctx);
+    const r = stepShift(s, { t: 'tick', at: 360_000 + PENALTY.duskGrace }, ctx);
     expect(r.events).toEqual([{ e: 'dusk' }, { e: 'done', endedBy: 'dusk' }]);
     expect(r.state.verdicts).toHaveLength(8);
     expect(r.state.verdicts.every((v) => v.stamped === null && !v.correct)).toBe(true);
@@ -379,7 +393,7 @@ describe('share text', () => {
     const c = s.cases[1];
     const wrong = DESTINATIONS.find((d) => d !== c?.expect.dest && ctx.destinations.has(d)) as Destination;
     s = run(s, ctx, playSoul(s, ctx, 60_000, wrong)).state;
-    s = stepShift(s, { t: 'tick', at: 360_000 + DUSK_GRACE_MS }, ctx).state;
+    s = stepShift(s, { t: 'tick', at: 360_000 + PENALTY.duskGrace }, ctx).state;
     const text = shareText(s, daily, { title: 'Chooser of the Slain', decree: 'Whim', url: 'https://x.test/' });
     expect(text).toBe(
       ['Chooser of the Slain · Daily #97 (g1)', 'Whim', '🟩🟥⬛⬛⬛⬛⬛⬛ 1/8 · sun set', 'https://x.test/'].join('\n'),

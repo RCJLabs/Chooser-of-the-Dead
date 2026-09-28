@@ -73,6 +73,24 @@ I couldn't open itch.io from here, so check steps 1, 2 and 6 against the dashboa
   - To see the souls themselves, ask for a backup (Settings, on the title screen). Restored in `pnpm dev`, the tester's slots can be continued, or replayed from any day with the same seed. That gives the same souls, unless the generator has changed since their build.
 - **Choices are read back by replaying each scene with the choices made.** A scene rewritten since the tester played it shows "(the scene has changed since; options 1, 2)" instead of the words.
 - **The build line says which commit and content the tester had,** so a report can be matched to the code.
+- **Sum them up with `pnpm playtest:read`.** Save each issue's body as a file, then read the folder:
+  ```sh
+  mkdir -p reports && gh issue view 12 --json body -q .body > reports/12.md
+  pnpm playtest:read reports/ --out summary.md
+  ```
+  - It takes files, folders of `.md` and `.txt` files, or `-` for text pasted in. A file may hold several reports.
+  - The summary sets the runs side by side:
+    - the rings after each night, beside the bots' median and middle half (expert, competent and novice, 20 runs each; `--bots 0` skips them);
+    - where each run's last night sits among the bots;
+    - how each day was judged, and the sun left when its last soul was sent;
+    - the rules the souls sent wrong broke;
+    - the pleas and kin.
+  - A few runs give leads, not measurements. The summary says how many runs each number comes from.
+  - Reports from builds before the Sun left column read without it.
+- **Keep a tester's saves as tests** with `pnpm playtest:keep backup.json --name <tester>`, from a backup they send (Settings, on the title screen).
+  - Each campaign slot becomes `tests/fixtures/playtests/<tester>-slot<N>.json`, and `pnpm test` opens every one with the current build. A change that would break a tester's run fails before it ships.
+  - A save holds its seed, the actions taken, the souls' generated names and the choices made; nothing about the tester. The file is named after `--name`, and the repository is public, so use a handle they're happy with.
+- **To try a change against the bots before asking testers again,** use `pnpm sim compare` ([`tech-spec.md`](tech-spec.md) §63).
 
 ## Known limits
 
@@ -91,6 +109,7 @@ I couldn't open itch.io from here, so check steps 1, 2 and 6 against the dashboa
 - **Nothing carries over from the demo.** Settings, Daily streaks and achievements start fresh in the playtest build.
 - **Choices are only as readable as the scenes that are still in the game,** as above.
 - **The report says what happened, not why.** The form's questions ask for that: how the money felt, what seemed unfair, the story, bugs.
+- **The bots in the summary play a plain story,** pay every bill, and never question a soul or ask for a hint. They're a yardstick for the economy, not a model of a person.
 
 ## Sources
 

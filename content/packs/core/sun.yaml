@@ -1,0 +1,8 @@
+# What the sun costs besides the tools, in seconds (docs/tech-spec.md §4, §26, §63). The tools' own costs are in
+# tools.yaml, and upgrades can make a question cheaper (campaign.yaml's shop).
+# These apply to the Daily too, and its checksum guard doesn't cover them: a change here changes how today's Daily
+# plays for everyone on the new build, so make it between Dailies and say so.
+badCompare: 10 # a Compare that finds nothing
+question: 20 # a Question
+hint: 15 # Skögul's hint
+duskGrace: 60 # how long the soul at the desk may still be judged after dusk

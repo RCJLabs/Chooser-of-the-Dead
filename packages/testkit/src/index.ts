@@ -20,6 +20,20 @@ export {
   simulateRun,
   storyPolicy,
 } from './campaign-sim';
+export {
+  applyOverrides,
+  type Change,
+  type CompareOptions,
+  compareProfile,
+  comparisonText,
+  type Diff,
+  type Metric,
+  metrics,
+  type Override,
+  type ProfileComparison,
+  paired,
+  parseOverride,
+} from './compare';
 export { loadContent, loadDailyContent, loadScenes } from './content';
 export { type OracleResult, oracleSolve } from './oracle';
 export { oracleSolveReference } from './oracle-reference';

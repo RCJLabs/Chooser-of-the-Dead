@@ -19,6 +19,7 @@ import {
   RuleSchema,
   ScriptedCaseSchema,
   SpeechSlotSchema,
+  SunSchema,
   TallyTemplateSchema,
   TestimonyTemplateSchema,
   ToolSchema,
@@ -47,6 +48,7 @@ import type {
   ScriptedCaseDef,
   SignLaw,
   SpeechSlotDef,
+  SunCosts,
   TallyTemplate,
   TestimonyTemplate,
   ToolDef,
@@ -103,6 +105,8 @@ export interface PackContent {
   twists: EndlessTwist[];
   /** What can be earned (`achievements.yaml`). */
   achievements: AchievementDef[];
+  /** What the sun costs besides the tools (`sun.yaml`); the core pack has it. */
+  sun?: SunCosts;
 }
 
 type Parse = <T>(schema: z.ZodType<T, unknown>, value: unknown, file: string) => T;
@@ -118,6 +122,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
   const dailyFile = join(dir, 'daily.yaml');
   const primerFile = join(dir, 'primer.yaml');
   const campaignFile = join(dir, 'campaign.yaml');
+  const sunFile = join(dir, 'sun.yaml');
   const each = <T>(sub: string, schema: z.ZodType<T, unknown>): T[] => {
     const folder = join(dir, sub);
     return existsSync(folder)
@@ -153,6 +158,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     ...(existsSync(dailyFile) ? { daily: parse(DaySpecSchema, readYaml(dailyFile), dailyFile) } : {}),
     ...(existsSync(primerFile) ? { primer: parse(DaySpecSchema, readYaml(primerFile), primerFile) } : {}),
     ...(existsSync(campaignFile) ? { campaign: parse(CampaignPartSchema, readYaml(campaignFile), campaignFile) } : {}),
+    ...(existsSync(sunFile) ? { sun: parse(SunSchema, readYaml(sunFile), sunFile) } : {}),
   };
 }
 
@@ -172,7 +178,17 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
   };
   const all = <K extends 'standing' | 'shop' | 'endings' | 'aliases' | 'threads' | 'favours'>(k: K) =>
     parts.flatMap((p) => (p[k] ?? []) as NonNullable<CampaignPart[K]>[number][]);
-  const required = ['lastDay', 'finale', 'startRings', 'family', 'draupnir', 'debtFloor', 'care', 'worthy'] as const;
+  const required = [
+    'lastDay',
+    'finale',
+    'startRings',
+    'family',
+    'draupnir',
+    'debtFloor',
+    'minSunS',
+    'care',
+    'worthy',
+  ] as const;
   const missing = required.filter((k) => last(k) === undefined);
   if (missing.length > 0) throw new Error(`The campaign is missing ${missing.join(', ')} (campaign.yaml).`);
   return {
@@ -182,6 +198,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     family: last('family') as CampaignDef['family'],
     draupnir: last('draupnir') as CampaignDef['draupnir'],
     debtFloor: last('debtFloor') as number,
+    minSunS: last('minSunS') as number,
     care: last('care') as CampaignDef['care'],
     worthy: last('worthy') as string,
     ...(last('slice') ? { slice: last('slice') as NonNullable<CampaignDef['slice']> } : {}),
@@ -238,7 +255,7 @@ export function emptyPackContent(): PackContent {
 
 /** Merges packs in dependency order into one engine Content. */
 export function mergeContent(parts: readonly PackContent[], genVersion: number): Content {
-  const cat = <K extends Exclude<keyof PackContent, 'pools' | 'daily' | 'primer'>>(k: K): PackContent[K] =>
+  const cat = <K extends Exclude<keyof PackContent, 'pools' | 'daily' | 'primer' | 'sun'>>(k: K): PackContent[K] =>
     parts.flatMap((p) => p[k] as unknown[]) as PackContent[K];
   const one = (k: 'daily' | 'primer'): DaySpec | undefined => {
     const specs = parts.flatMap((p) => (p[k] ? [p[k]] : []));
@@ -247,6 +264,11 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
   };
   const daily = one('daily');
   const primer = one('primer');
+  // What the sun costs besides the tools: one pack says, the core one (docs/tech-spec.md §63).
+  const suns = parts.flatMap((p) => (p.sun ? [p.sun] : []));
+  if (suns.length > 1) throw new Error('Only one pack may define sun.yaml.');
+  const sun = suns[0];
+  if (!sun) throw new Error('No pack defines sun.yaml (the core pack should).');
   const campaign = mergeCampaign(parts.flatMap((p) => (p.campaign ? [p.campaign] : [])));
   const scripted = cat('scripted');
   const procedures = cat('procedures');
@@ -255,6 +277,7 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
   const achievements = cat('achievements');
   return {
     genVersion,
+    sun,
     facts: cat('facts'),
     observations: cat('observations'),
     signLaws: cat('signLaws'),

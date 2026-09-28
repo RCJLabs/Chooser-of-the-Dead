@@ -11,6 +11,8 @@ family:
   - { id: sister, name: family.sister, adult: false }
 draupnir: { nights: [9, 18], rings: 8 }
 debtFloor: -30
+# The least sun a campaign shift has, in seconds, whatever a trip home at dawn takes (docs/tech-spec.md §50).
+minSunS: 120
 # Upgrades sell back for half what they cost, and once a run, the night the debt would end it, Skögul pays the
 # quartermaster instead (docs/tech-spec.md §56): never under the oath.
 sellBack: 50

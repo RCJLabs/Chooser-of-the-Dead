@@ -11,7 +11,6 @@ import {
   kinRelation,
   type Lesson,
   nextHint,
-  PENALTY,
   pleaOf,
   questionCostMs,
   ruledOut,
@@ -19,6 +18,7 @@ import {
   soulCtx,
   stampsFor,
   storyOffer,
+  sunCosts,
   sunLeft,
   type Verdict,
 } from '@cots/engine';
@@ -286,7 +286,9 @@ function Evidence({ s, c, f, variant }: { s: Session; c: CaseSpec; f: Field; var
           onClick={() => act({ t: 'question', lie: f.id })}
         >
           {/* The day's first questions can be free: a god's favour (docs/tech-spec.md §43). */}
-          {freeQuestion(s.state) ? t('ui.questionFree') : t('ui.question', { s: questionCostMs(s.state) / 1000 })}
+          {freeQuestion(s.state)
+            ? t('ui.questionFree')
+            : t('ui.question', { s: questionCostMs(s.state, s.ctx) / 1000 })}
         </button>
       ) : null}
     </span>
@@ -487,6 +489,7 @@ function StampRack({ s }: { s: Session }) {
 function HintButton({ s }: { s: Session }) {
   if (!hintsAllowed(s)) return null;
   const none = nextHint(s.state) === null;
+  const cost = sunCosts(s.content).hint / 1000;
   return (
     <button
       type="button"
@@ -494,8 +497,8 @@ function HintButton({ s }: { s: Session }) {
       data-testid="hint"
       data-pad="LT"
       disabled={none}
-      title={none ? t('ui.hint.none') : t('ui.hint.label', { s: PENALTY.hint / 1000 })}
-      aria-label={t('ui.hint.label', { s: PENALTY.hint / 1000 })}
+      title={none ? t('ui.hint.none') : t('ui.hint.label', { s: cost })}
+      aria-label={t('ui.hint.label', { s: cost })}
       onClick={() => act({ t: 'hint' })}
     >
       {t('ui.hint')} <kbd>H</kbd>

@@ -47,6 +47,9 @@ export interface PlaytestInput {
 /** A change in rings, signed; plain ASCII, so the table can be read by a script as well as a person. */
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
+/** Seconds as minutes and seconds: 83 is 1:23. */
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
 const PHASES: Readonly<Record<RunState['phase'], string>> = {
   morning: 'morning',
   shift: 'at the gate',
@@ -126,6 +129,7 @@ const DAY_HEADS = [
   'Right',
   'Wrong',
   'Unjudged',
+  'Sun left',
   'Pay',
   'Bonus',
   'Nails',
@@ -157,6 +161,9 @@ function days(ledger: readonly DayLedger[], has: { arms: boolean; nails: boolean
       String(l.correct),
       String(l.wrong),
       String(l.unjudged),
+      // Sun left when the last soul was sent (docs/tech-spec.md §49), 0:00 when it set on the line; the grade keeps
+      // it, so a day without one (Story Mode, older saves) has the cell empty.
+      g ? clock(Math.round(g.spareMs / 1000)) : '',
       signed(l.pay),
       signed(l.bonus),
       ...(has.nails ? [signed(l.nails ?? 0)] : []),
@@ -328,7 +335,6 @@ function favours(p: PlaytestInput): string[] {
 
 /** Sun each day gave to home at dawn (docs/tech-spec.md §50), as the audit filed it. */
 function home(p: PlaytestInput): string[] {
-  const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const lines = p.run.ledger.flatMap((l) =>
     l.dawnS ? [`- Day ${l.day}: ${clock(Math.abs(l.dawnS))} ${l.dawnS < 0 ? 'less' : 'more'} sun, for home.`] : [],
   );

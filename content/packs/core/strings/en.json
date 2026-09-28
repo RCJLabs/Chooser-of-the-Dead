@@ -635,5 +635,15 @@
   "ui.achievements.note": "{n, plural, one {Achievement} other {Achievements}}",
   "ui.share.textLabel": "The result as text, to copy",
   "ui.report.textLabel": "The report as text, to copy",
+  "ui.crash.title": "Something went wrong",
+  "ui.crash.body": "Nothing you've saved is lost: the game saves after every move. Reload to carry on from there. A Daily, Endless or campaign shift picks up at the soul you were on, paused.",
+  "ui.crash.reload": "Reload",
+  "ui.crash.report": "Report the problem (GitHub)",
+  "ui.crash.holds": "The report holds the build, the error, where you were in the game, and your browser, screen size and language. Nothing else.",
+  "ui.crash.textLabel": "The problem report as text, to copy",
+  "ui.crash.copy": "Copy the report",
+  "ui.problem.note": "Something went wrong. If the game stops responding, reload: nothing you've saved is lost.",
+  "ui.problem.report": "Report it",
+  "ui.problem.dismiss": "Dismiss",
   "ui.sun.low": "A minute of sun left."
 }

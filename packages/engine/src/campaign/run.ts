@@ -235,9 +235,6 @@ export function factionKey(content: Content, faction: Faction, day: number): str
   return alias?.name ?? `faction.${faction}`;
 }
 
-/** The least sun a campaign shift has, whatever a trip home at dawn takes (docs/tech-spec.md §50). */
-export const MIN_SUN_S = 120;
-
 /** The upgrades' combined effect on today's shift, with the gods' favours and any trip home at dawn. */
 export function shiftMods(run: RunState, content: Content): ShiftMods {
   const owned = campaignOf(content).shop.filter((u) => run.upgrades.includes(u.id));
@@ -259,11 +256,11 @@ export function shiftMods(run: RunState, content: Content): ShiftMods {
     else if ('freeQuestions' in e) freeQuestions += e.freeQuestions;
     else if ('finePct' in e) finePct = Math.min(finePct ?? e.finePct, e.finePct);
   }
-  // A trip home at dawn (docs/tech-spec.md §50), chosen in a scene, but never the whole day: the gate keeps
-  // MIN_SUN_S of it at least.
+  // A trip home at dawn (docs/tech-spec.md §50), chosen in a scene, but never the whole day: the gate keeps the
+  // campaign's minSunS of it at least.
   sunS += run.dawnS ?? 0;
   const daySun = daySpecFor(content, run, run.day)?.sunS;
-  if (daySun !== undefined) sunS = Math.max(sunS, MIN_SUN_S - daySun);
+  if (daySun !== undefined) sunS = Math.max(sunS, campaignOf(content).minSunS - daySun);
   return {
     ...(Object.keys(toolCostS).length > 0 ? { toolCostS } : {}),
     ...(questionS !== undefined ? { questionS } : {}),

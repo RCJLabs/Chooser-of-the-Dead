@@ -9,7 +9,7 @@ import { revealsOf, validateCase } from '../gen/validate';
 import { createDayContext, type DayCtx, soulCtx } from '../logic/context';
 import { judge } from '../logic/judge';
 import { solve } from '../logic/solver';
-import { type Assists, DUSK_GRACE_MS, ruledOut, stepShift } from '../shift/shift';
+import { type Assists, ruledOut, stepShift, sunCosts } from '../shift/shift';
 import { battleDue } from './battle';
 import { eventDays, eventLineChange, eventOn, eventSoulsOn } from './events';
 import { beatsDay, dayGrade, GRADES } from './grade';
@@ -28,7 +28,6 @@ import {
   factionKey,
   favoursFor,
   hostMarks,
-  MIN_SUN_S,
   newRun,
   nightOutlook,
   type RunAction,
@@ -1271,7 +1270,7 @@ describe('the line at dusk', () => {
         { t: 'shift', action: { t: 'send', at } },
       );
     });
-    actions.push({ t: 'shift', action: { t: 'tick', at: (started.shift?.sunMs ?? 0) + DUSK_GRACE_MS + 1 } });
+    actions.push({ t: 'shift', action: { t: 'tick', at: (started.shift?.sunMs ?? 0) + sunCosts(demo).duskGrace + 1 } });
     const shift = drive(content, run, actions);
     const end = drive(content, shift.run, [{ t: 'endAudit' }, { t: 'endNight' }]);
     return { afterShift: shift.run, run: end.run, cases };
@@ -1815,7 +1814,7 @@ describe('a noon decree (docs/tech-spec.md §45)', () => {
       );
     });
     const begun = stepRun(run, { t: 'beginShift', at: 0 }, { content: full, ctx }).state;
-    actions.push({ t: 'shift', action: { t: 'tick', at: (begun.shift?.sunMs ?? 0) + DUSK_GRACE_MS + 1 } });
+    actions.push({ t: 'shift', action: { t: 'tick', at: (begun.shift?.sunMs ?? 0) + sunCosts(demo).duskGrace + 1 } });
     const shift = drive(full, run, actions);
     const next = drive(full, shift.run, [{ t: 'endAudit' }, { t: 'endNight' }]).run;
     const waiting = next.waiting ?? [];
@@ -2362,9 +2361,12 @@ describe('a trip home at dawn (docs/tech-spec.md §50)', () => {
     expect(sunMs(begun(demo, d3)) - sunMs(begun(demo, morning))).toBe(60_000);
   });
 
-  it('never takes the whole day: the gate keeps MIN_SUN_S', () => {
+  it('never takes the whole day: the gate keeps the campaign’s minSunS, which is content', () => {
     const run = { ...newRun(demo, 'dawn-floor'), dawnS: -600 };
-    expect(sunMs(begun(demo, run))).toBe(MIN_SUN_S * 1000);
+    expect(campaignOf(demo).minSunS).toBe(120);
+    expect(sunMs(begun(demo, run))).toBe(120_000);
+    const lenient = { ...demo, campaign: { ...campaignOf(demo), minSunS: 200 } };
+    expect(sunMs(begun(lenient, run))).toBe(200_000);
   });
 
   it('can lose someone at home: an adult dies, a child goes to relatives', () => {
