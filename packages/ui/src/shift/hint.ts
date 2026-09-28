@@ -1,5 +1,5 @@
 import { type HotspotId, REGION_KEYS } from '@cots/art';
-import type { Field, ShiftState } from '@cots/engine';
+import { type Field, runRules, type ShiftState } from '@cots/engine';
 import type { Session } from '../store';
 
 /*
@@ -8,11 +8,15 @@ import type { Session } from '../store';
  */
 
 /**
- * Hints are for shifts with a sun or a story: not Endless (a score), the primer (the coach guides it), or a
- * campaign run under the oath (docs/tech-spec.md §49).
+ * Hints are for shifts with a sun or a story: not the primer (the coach guides it), a campaign run under the oath
+ * (docs/tech-spec.md §49), or Endless (a score), unless the run took Skögul's hints as a boon (§68).
  */
-export const hintsAllowed = (s: Session): boolean =>
-  s.mode.kind !== 'endless' && s.mode.kind !== 'primer' && s.state.config.oath !== true;
+export const hintsAllowed = (s: Session): boolean => {
+  if (s.mode.kind === 'endless') {
+    return s.state.config.mods?.hints !== undefined && runRules(s.content, s.mode.picks ?? []).hints > 0;
+  }
+  return s.mode.kind !== 'primer' && s.state.config.oath !== true;
+};
 
 /** Where Skögul points for a piece of evidence: her line's string key, and what to highlight. */
 export function hintTarget(f: Field, state: ShiftState): { readonly text: string; readonly focus: string } {

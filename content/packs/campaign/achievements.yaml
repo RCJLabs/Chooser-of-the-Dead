@@ -38,3 +38,8 @@
   title: ach.everyFront.title
   text: ach.everyFront.text
   when: { at: run, test: { state: fronts, gte: 4 } }
+# Endless as a run (docs/tech-spec.md §68): a big score under three curses.
+- id: ach.thrice
+  title: ach.thrice.title
+  text: ach.thrice.text
+  when: { at: endless, test: { all: [{ state: curses, gte: 3 }, { state: points, gte: 100 }] } }

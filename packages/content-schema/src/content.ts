@@ -6,6 +6,7 @@ import type {
   Economy,
   Effect,
   EndingDef,
+  EndlessBoon,
   EndlessTwist,
   FactDef,
   FactLaw,
@@ -378,6 +379,36 @@ export const EndlessTwistSchema: z.ZodType<EndlessTwist> = z.strictObject({
   decree: Key,
   knobs: KnobsSchema.partial().optional(),
   mix: z.partialRecord(DestinationSchema, z.tuple([Percent, Percent])).optional(),
+});
+
+/**
+ * Endless's boons and curses (boons.yaml, docs/tech-spec.md §68). Their effects are a closed list: strikes, score,
+ * hints, presses and the sun, so nothing a pack can write changes what a soul is or what can be known about it.
+ */
+export const EndlessBoonSchema: z.ZodType<EndlessBoon> = z.strictObject({
+  id: Id,
+  kind: z.enum(['boon', 'curse']),
+  name: Key,
+  text: Key,
+  since: Day,
+  max: Int.min(1).optional(),
+  needs: z.enum(['sun', 'strike']).optional(),
+  effect: z.union([
+    z.strictObject({
+      strikes: Int.min(-2)
+        .max(2)
+        .refine((n) => n !== 0, 'a strikes effect changes them'),
+    }),
+    z.strictObject({ hints: Int.min(1).max(10) }),
+    z.strictObject({ bounty: Int.min(1).max(5) }),
+    z.strictObject({ patience: Int.min(1).max(3) }),
+    z.strictObject({ sunS: Int.min(1).max(300) }),
+    z.strictObject({ toolPct: Int.min(0).max(300) }),
+    z.strictObject({ freeQuestions: Int.min(1).max(10) }),
+    z.strictObject({ sun: z.literal(true) }),
+    z.strictObject({ sunCut: Int.min(1).max(50) }),
+    z.strictObject({ oath: z.literal(true) }),
+  ]),
 });
 
 export const DaySpecSchema: z.ZodType<DaySpec> = z.strictObject({

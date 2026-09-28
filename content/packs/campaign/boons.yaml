@@ -1,0 +1,20 @@
+# Endless's boons and curses (docs/tech-spec.md §68): before each round after the first, one of three boons, or the
+# curse on offer, which makes every soul judged rightly after it worth one more. Only the full game has them; the demo's
+# Endless plays as before.
+# None touches a soul: they change the strikes a run can take, its score, its help (hints, presses) and its sun. The
+# schema allows nothing else. `since` is the first day whose rules a round must bring; `max` how often one run may take
+# it (no limit when absent); `needs: sun` only once a curse has brought the sun, `needs: strike` only after a strike.
+# The numbers are guesses until players have run it. DRAFT text.
+- { id: boon.shield, kind: boon, name: boon.shield.name, text: boon.shield.text, since: 1, max: 1, effect: { strikes: 1 } }
+- { id: boon.mending, kind: boon, name: boon.mending.name, text: boon.mending.text, since: 1, max: 2, needs: strike, effect: { strikes: 1 } }
+- { id: boon.eye, kind: boon, name: boon.eye.name, text: boon.eye.text, since: 1, effect: { hints: 3 } }
+- { id: boon.bounty, kind: boon, name: boon.bounty.name, text: boon.bounty.text, since: 1, max: 2, effect: { bounty: 1 } }
+- { id: boon.tongues, kind: boon, name: boon.tongues.name, text: boon.tongues.text, since: 3, max: 2, effect: { patience: 1 } }
+- { id: boon.linger, kind: boon, name: boon.linger.name, text: boon.linger.text, since: 1, max: 2, needs: sun, effect: { sunS: 60 } }
+- { id: boon.hands, kind: boon, name: boon.hands.name, text: boon.hands.text, since: 2, max: 1, needs: sun, effect: { toolPct: 50 } }
+- { id: boon.bragi, kind: boon, name: boon.bragi.name, text: boon.bragi.text, since: 1, max: 1, needs: sun, effect: { freeQuestions: 2 } }
+- { id: curse.sun, kind: curse, name: curse.sun.name, text: curse.sun.text, since: 1, max: 1, effect: { sun: true } }
+- { id: curse.hel, kind: curse, name: curse.hel.name, text: curse.hel.text, since: 1, max: 1, effect: { strikes: -1 } }
+- { id: curse.tyr, kind: curse, name: curse.tyr.name, text: curse.tyr.text, since: 1, max: 1, effect: { oath: true } }
+- { id: curse.hurry, kind: curse, name: curse.hurry.name, text: curse.hurry.text, since: 1, max: 1, needs: sun, effect: { sunCut: 25 } }
+- { id: curse.heavy, kind: curse, name: curse.heavy.name, text: curse.heavy.text, since: 2, max: 1, needs: sun, effect: { toolPct: 200 } }

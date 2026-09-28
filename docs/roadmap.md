@@ -1,8 +1,14 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–67.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–68.
+
+From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 4 (below), in the full game only:
+
+- **4. Endless as a run** ([`tech-spec.md`](tech-spec.md) §68). Before each round after the first, pick one of three boons, or take the curse on offer: every soul judged rightly after it scores one more. Boons add strikes to spare, Skögul's hints, a bounty for liars caught, more presses, and, once there's a sun, more of it or cheaper tools and questions. Curses bring the sun, take a strike, make a wrong Compare a strike, shorten the sun or double the tools' cost. None changes a soul: a day's run has the same souls for everyone. The numbers are guesses until players have run it.
 
 Game phases 1 and 2 (below), in one pull request:
 
@@ -20,8 +26,8 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1 and 2 (above).
-- **Next:** 4, then 3.
+- **Done:** 1, 2 and 4 (above).
+- **Next:** 3.
 - **Held:** 5–8. They're heavy on writing, so they wait for your story sign-off and go into the rewrite rather than being redone after it.
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
@@ -30,7 +36,7 @@ From the gameplay brainstorm, in the order agreed.
    - Souls from one battle or shipwreck arrive in the same shift, and their stories must agree ("I died beside my brother Ketil", while Ketil says he fell alone).
    - A jarl's retinue is judged as a group.
    - It's the cross-checking between souls the desk doesn't have yet, and the biggest engine job here.
-4. **Endless as a run.** Between rounds, pick one of three boons, or take a curse for a higher score.
+4. **Endless as a run** (done, [`tech-spec.md`](tech-spec.md) §68). Between rounds, pick one of three boons, or take a curse for a higher score. Its numbers are guesses until players have run it.
 5. **The forger's trail.** The Day 11 forger, Loki's disguised agents and Muninn's gaps leave marks at the desk. Pin them to a board across days, and accuse on set nights.
 6. **Valkyrie origins.** Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, a different household and a few scenes of its own.
 7. **Mercy has memory.** Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.

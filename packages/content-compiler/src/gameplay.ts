@@ -7,6 +7,7 @@ import {
   CampaignPartSchema,
   CueSchema,
   DaySpecSchema,
+  EndlessBoonSchema,
   EndlessTwistSchema,
   FactSchema,
   LawSchema,
@@ -37,6 +38,7 @@ import type {
   CueDef,
   DaySpec,
   Destination,
+  EndlessBoon,
   EndlessTwist,
   FactDef,
   FactLaw,
@@ -60,9 +62,11 @@ import type {
   WorldConstraint,
 } from '@cots/engine';
 import {
+  BOONS_OFFERED,
   COACH_FOCUS,
   createDayContext,
   type Effect,
+  endlessOffer,
   eventDays,
   eventSoulsOn,
   factPathOk,
@@ -108,6 +112,8 @@ export interface PackContent {
   tallies: TallyTemplate[];
   /** Endless's twists (`endless.yaml`). */
   twists: EndlessTwist[];
+  /** Endless's boons and curses (`boons.yaml`, docs/tech-spec.md §68); the campaign pack has them. */
+  boons: EndlessBoon[];
   /** What can be earned (`achievements.yaml`). */
   achievements: AchievementDef[];
   /** What the sun costs besides the tools (`sun.yaml`); the core pack has it. */
@@ -165,6 +171,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     procedures: list('procedures.yaml', ProcedureSchema),
     tallies: list('templates/tallies.yaml', TallyTemplateSchema),
     twists: list('endless.yaml', EndlessTwistSchema),
+    boons: list('boons.yaml', EndlessBoonSchema),
     achievements: list('achievements.yaml', AchievementSchema),
     ...(existsSync(dailyFile) ? { daily: parse(DaySpecSchema, readYaml(dailyFile), dailyFile) } : {}),
     ...(existsSync(primerFile) ? { primer: parse(DaySpecSchema, readYaml(primerFile), primerFile) } : {}),
@@ -262,6 +269,7 @@ export function emptyPackContent(): PackContent {
     procedures: [],
     tallies: [],
     twists: [],
+    boons: [],
     achievements: [],
   };
 }
@@ -293,6 +301,9 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
   const procedures = cat('procedures');
   const tallies = cat('tallies');
   const twists = cat('twists');
+  // Endless's boons and curses (docs/tech-spec.md §68): one pack says, the campaign one.
+  if (parts.filter((p) => p.boons.length > 0).length > 1) throw new Error('Only one pack may define boons.yaml.');
+  const boons = cat('boons');
   const achievements = cat('achievements');
   return {
     genVersion,
@@ -320,6 +331,7 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
     ...(procedures.length > 0 ? { procedures } : {}),
     ...(tallies.length > 0 ? { tallies } : {}),
     ...(twists.length > 0 ? { twists } : {}),
+    ...(boons.length > 0 ? { boons } : {}),
     ...(achievements.length > 0 ? { achievements } : {}),
     ...(press ? { press } : {}),
     ...(pressLines.length > 0 ? { pressLines } : {}),
@@ -341,6 +353,7 @@ export function idsOf(c: PackContent): string[] {
     ...c.questions.map((x) => x.id),
     ...c.pressLines.map((x) => x.id),
     ...c.twists.map((x) => x.id),
+    ...c.boons.map((x) => x.id),
     ...Object.keys(c.pools),
     ...Object.values(c.daily?.params ?? {}).flatMap((p) => p.pool.map((x) => x.id)),
     ...Object.values(c.primer?.params ?? {}).flatMap((p) => p.pool.map((x) => x.id)),
@@ -584,6 +597,7 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
   problems.push(...lintScripted(content, strings));
   problems.push(...lintLessons(content, strings));
   problems.push(...lintTwists(content, strings));
+  problems.push(...lintBoons(content, strings));
   problems.push(...lintAchievements(content, strings));
   problems.push(...lintPress(content, strings));
 
@@ -666,6 +680,54 @@ function lintTwists(content: Content, strings: Readonly<Record<string, string>>)
       if (range && range[0] > range[1]) problems.push(`${where} has an empty share for ${dest}.`);
     }
   }
+  return problems;
+}
+
+/** Whether an effect helps (a boon's) or hinders (a curse's). */
+function helps(e: EndlessBoon['effect']): boolean {
+  if ('strikes' in e) return e.strikes > 0;
+  if ('toolPct' in e) return e.toolPct < 100;
+  return !('sun' in e || 'sunCut' in e || 'oath' in e);
+}
+
+/** Effects that mean nothing without a sun: a boon or curse with one comes only once the run has taken the sun. */
+const sunOnly = (e: EndlessBoon['effect']): boolean =>
+  'sunS' in e || 'toolPct' in e || 'freeQuestions' in e || 'sunCut' in e;
+
+/**
+ * Endless's boons and curses (docs/tech-spec.md §68): their strings, a day they can come on, boons that help and
+ * curses that hinder, sun effects only once there's a sun, presses and tools only from the day they're taught, and a
+ * first break with three boons and a curse to choose from.
+ */
+function lintBoons(content: Content, strings: Readonly<Record<string, string>>): string[] {
+  const problems: string[] = [];
+  const boons = content.boons ?? [];
+  if (boons.length === 0) return problems;
+  const ids = new Set<string>();
+  const lastDay = Math.max(0, ...content.days.map((d) => d.day));
+  const sunCurse = boons.some((b) => b.kind === 'curse' && 'sun' in b.effect);
+  const firstTool = Math.min(...content.tools.map((t) => t.since));
+  for (const b of boons) {
+    const where = `Endless ${b.kind} ${b.id}`;
+    if (ids.has(b.id)) problems.push(`Duplicate Endless boon or curse "${b.id}".`);
+    ids.add(b.id);
+    for (const k of [b.name, b.text]) if (!(k in strings)) problems.push(`${where} uses missing string "${k}".`);
+    if (b.since > lastDay) problems.push(`${where} starts on day ${b.since}, after the build's last day.`);
+    const e = b.effect;
+    if (helps(e) !== (b.kind === 'boon')) {
+      problems.push(`${where} ${b.kind === 'boon' ? 'hinders' : 'helps'}: a boon must help and a curse hinder.`);
+    }
+    if (sunOnly(e) && b.needs !== 'sun') problems.push(`${where} changes the sun, so it needs the sun.`);
+    if (b.needs === 'sun' && !sunCurse) problems.push(`${where} needs the sun, and no curse brings it.`);
+    if ('patience' in e && (!content.press || b.since < content.press.since)) {
+      problems.push(`${where} adds presses before souls are pressed.`);
+    }
+    if ('toolPct' in e && b.since < firstTool) problems.push(`${where} changes the tools' costs before any tool.`);
+  }
+  const first = endlessOffer(content, 'lint', 1, [], 0);
+  if ((first?.boons.length ?? 0) < BOONS_OFFERED)
+    problems.push(`The first break offers fewer than ${BOONS_OFFERED} boons.`);
+  if (!first?.curse) problems.push('The first break offers no curse.');
   return problems;
 }
 

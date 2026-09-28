@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { type Destination, dailySeed, solve, startShift } from '@cots/engine';
-import { loadDailyContent } from '@cots/testkit';
+import { type Destination, dailySeed, endlessRound, endlessSeed, solve, startShift } from '@cots/engine';
+import { loadContent, loadDailyContent } from '@cots/testkit';
 import { expect, type Page, test } from '@playwright/test';
 import { FULL } from './urls';
 
@@ -205,6 +205,35 @@ async function walkModes(page: Page, checks: Checks) {
   await check(page, 'the end of an Endless run', checks);
 }
 
+/**
+ * Endless as a run, in the full game (docs/tech-spec.md §68): the choice between rounds, a round under a curse (a sun,
+ * a score), and the end. Endless #91's first break offers the sun.
+ */
+async function walkEndlessRun(page: Page, checks: Checks) {
+  const seed = endlessSeed(91);
+  const full = loadContent('dev-full');
+  await page.clock.setFixedTime(new Date('2027-03-01T12:00:00Z'));
+  await page.goto('./');
+  await page.getByTestId('endless-today').click();
+  await page.getByTestId('begin').click();
+  for (const c of endlessRound(full, seed, 0).cases) await stampAndSend(page, c.expect.dest);
+  await expect(page.getByTestId('endless-offer')).toBeVisible();
+  await check(page, 'the choice between Endless rounds', checks);
+  await page.getByTestId('curse').click();
+  await expect(page.getByTestId('endless-picks')).toBeVisible();
+  await check(page, 'an Endless briefing under a curse', checks);
+  await page.getByTestId('begin').click();
+  if (await page.getByTestId('coach-skip').count()) await page.getByTestId('coach-skip').click();
+  await lookAtEverything(page);
+  await check(page, 'the desk in a round under the sun, with a score', checks);
+  for (const c of endlessRound(full, seed, 1).cases.slice(0, 3)) {
+    await stampAndSend(page, c.expect.dest === 'HEL' ? 'VALHALLA' : 'HEL');
+    if (await page.getByTestId('citation-close').count()) await page.getByTestId('citation-close').click();
+  }
+  await expect(page.getByTestId('endless-over')).toBeVisible();
+  await check(page, 'the end of an Endless run with a score', checks);
+}
+
 /** A campaign day: the slots, the morning and its scene, the journal, the audit, the night and its scene. */
 async function walkCampaign(page: Page, checks: Checks) {
   await page.goto('./');
@@ -267,6 +296,7 @@ test.describe('every screen, as the phone and the desktop show it', () => {
   test.describe('the full game', () => {
     test.use({ baseURL: FULL });
     test('an ending', async ({ page }, info) => walkEnding(page, checks(info.project.name)));
+    test('Endless as a run', async ({ page }, info) => walkEndlessRun(page, checks(info.project.name)));
   });
 });
 
@@ -286,6 +316,7 @@ for (const scale of [1, 1.75]) {
     test.describe('the full game', () => {
       test.use({ baseURL: FULL });
       test('an ending', async ({ page }) => walkEnding(page, checks));
+      test('Endless as a run', async ({ page }) => walkEndlessRun(page, checks));
     });
   });
 }

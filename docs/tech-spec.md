@@ -4138,6 +4138,129 @@ The brainstorm's version, and what changed:
 - **Endless moves on to its next round at once,** so a soul from an earlier round can be looked at again only from its citation.
 - **Trying again changes nothing on the record.** A Daily's result, a day's grade and the day's best stay as they were, by design.
 
+## 68. Endless as a run (game phase 4)
+
+**Why.** Game phase 4 in [`roadmap.md`](roadmap.md). Endless had one pressure, three wrong stamps, and nothing to decide between rounds. Now each break offers a choice, and a curse trades safety for score.
+
+**Only in the full game.** The boons and curses are content in the campaign pack (`content/packs/campaign/boons.yaml`), so only the full builds have them. The demo's Endless plays and shares exactly as before: no offer, its score is the souls judged rightly, and it ends at "Three strikes".
+
+**Between rounds** (before every round but the first):
+- Three boons, and the curse on offer. The player takes one, and Begin waits until they do.
+  - The choice sits on the round's briefing, above the round's decree, twist and rules, so the player knows what's coming.
+  - Boons are shown in the pack's order, so each sits in the same place whenever it comes.
+- **The offer is drawn from the run's seed and the round** (`endlessOffer` in `packages/engine/src/shift/boons.ts`), from what the run could take:
+  - the round's day has come for it (`since`);
+  - the run hasn't taken it as often as it may (`max`);
+  - the run has what it needs (`needs: sun`, `needs: strike`);
+  - it wouldn't end the run on the spot, or do nothing.
+- So Endless of the day offers everyone the same, as long as they have chosen the same.
+- A reload keeps the choice: it's saved with the run as its round began.
+
+**The score.**
+- Each soul judged rightly scores its **worth**: 1, plus 1 for each curse taken.
+- The best is now the best score. The souls judged rightly are still counted and shown beside it.
+- Achievements that count souls still count souls.
+
+**The boons**
+
+| Boon | What it does | Limit | Offered |
+|---|---|---|---|
+| Skögul's shield | One more wrong stamp before the run ends | once | any round |
+| Eir's mending | The same | twice | after a strike |
+| Skögul's eye | Three of Skögul's hints, for any round (Endless has none otherwise) | none | any round |
+| Odin's bounty | A soul whose lie was caught before the stamp scores 1 more | twice | any round |
+| Loose tongues | Each soul can be pressed once more | twice | from Day 3's rules |
+| Sól lingers | A minute more sun each round | twice | under the sun |
+| Quick hands | Turning a body over, and the tools, cost half the sun | once | under the sun, from Day 2's rules |
+| Bragi's ear | The first two questions each round cost no sun | once | under the sun |
+
+**The curses** (each can be taken once)
+
+| Curse | What it does | Offered |
+|---|---|---|
+| The sun rises | Every round has a sun from now on, at its day's own pace for five souls: the day's sun over its average line, 4:10 to 5:25. Souls still in line at dusk score nothing. | any round |
+| Hel's impatience | One wrong stamp fewer before the run ends | only when it can't end the run |
+| Týr's oath | A Compare that finds nothing is a strike | any round |
+| Sköll at her heels | A quarter of each round's sun is gone | under the sun |
+| Heavy hands | Turning a body over, and the tools, cost double the sun | under the sun, from Day 2's rules |
+
+**Fairness**
+- **No boon or curse touches a soul.**
+  - A round's souls come from the run's seed and the round alone (`endlessRound`, as before), whatever was chosen.
+  - So a day's run has the same souls for everyone.
+- **What they can change is a closed list in the schema** (`EndlessBoonSchema`): strikes, score, hints, presses, the sun, what things cost in it, and the oath.
+  - Nothing a pack can write hides evidence or changes a rule.
+  - So every soul stays as solvable as the validator made it (F1–F8 unchanged).
+- **Hints and presses only point at, or add, evidence the solver checks** (§26, §66).
+- **Týr's oath hides nothing.** Every lie that matters shows up in a contradiction the player can find (F4), and a Compare that finds one costs nothing.
+- **The compiler lints each boon and curse:**
+  - its strings;
+  - a day it can come on;
+  - a boon helps and a curse hinders;
+  - sun effects need the sun, and a curse that brings it;
+  - presses and tools only from the day they're taught;
+  - a first break with three boons and a curse.
+
+**In the engine**
+- `runRules(content, picks)`: what the picks add up to (strikes, worth, bounty, sun, costs, hints, presses).
+- `endlessConfig(ctx, seed, round, rules, hintsLeft)`: the shift a round plays.
+  - Untimed, unless the run has the sun. Then it gets `config.sunS`, new: a shift's own sun instead of its day's.
+  - Its `mods`: `sunS`, `toolCostS`, `freeQuestions`, and two new ones, `patience` (presses more per soul) and `hints` (the most Skögul gives; the shift counts them in `hintsAsked`, and `hintsLeft(state)` reads them).
+  - A build without boons gets exactly the config it had.
+  - None of these is set outside a run, so the Daily and the campaign play as before: their golden checksums are unchanged.
+- `tallyEvent(rules, event)`: what one event does to the run (a soul judged, a strike under the oath, a hint used). The UI scores with it as the run is played, and again when a saved round is replayed.
+
+**In the UI** (`packages/ui/src/store.ts`, `screens.tsx`)
+- **The briefing** shows the offer.
+  - Begin is disabled until a pick (`chooseEndless`); then it takes the focus from the offer.
+  - "On this run" lists what's been taken, and what a soul scores now.
+- **The desk** shows:
+  - the score beside the strikes;
+  - the hints left, on the Hint button;
+  - under the oath, the oath in the compare bar in place of its hint.
+- **A round ended by dusk** says how many souls the sun set on.
+- **The end screen** reads "Out of strikes", with the score, how far the run got, and what it took.
+- **The share text** reads, for example, `Score 41 · 23 souls judged rightly · round 9, Day 9's rules · 2 curses`.
+  - It names a sun speed if a round under the sun was played at one ("sun ×0.5"), and the rule tracker as before.
+  - It never says which boons, or where anyone went.
+- **Saves.**
+  - A run keeps its picks, score and hints used.
+  - Its save is the run as its round began (`roundStart`), plus the round's actions.
+  - A run saved before this reads as having taken nothing, with a score equal to its souls.
+  - Backups check the new fields.
+- **A run that ends mid-round under the sun stops its sun,** so no dusk comes to the screen that says it's over.
+- **An achievement,** Thrice cursed: 100 points in one run with three curses on it. Endless's tests can read `points` and `curses` now.
+
+**Also fixed.** A dialog taller than the screen couldn't be scrolled, so its buttons were out of reach by touch. One example: a long citation at 175% text on a 360 px phone, which §67's Look again made longer. Overlays scroll now.
+
+**Tests**
+- **Engine** (`boons.test.ts`):
+  - the rules the picks add up to;
+  - the first offer, drawn the same from the same seed and picks, in the pack's order;
+  - what each boon needs before it's offered, and limits kept;
+  - never a curse that ends the run;
+  - boons still offered once every curse is taken;
+  - a 12-run, 40-round walk: every pick legal, the run never ended by one, the offer never empty;
+  - each round's sun, costs, hints and presses, and never less than two minutes of sun;
+  - the souls the same whatever was taken;
+  - the score, the oath's strikes, and the share text.
+- **Compiler:** each boon lint.
+- **Saves:** a backup's run keeps its picks, score and hints; malformed picks are refused.
+- **e2e** (`endless-run.spec.ts`, full game, phone and desktop):
+  - Endless #91's first break: the three boons and the sun, as the engine draws them, with Begin waiting.
+  - The sun taken: a round with 4:40 of sun, and a soul worth 2. It survives a reload, and shows on the end screen, in the share text and on the title card.
+  - Endless #96: Skögul's eye (three hints, one used, the rest carried to the next round), then Týr's oath (two true claims compared: a strike).
+  - A run that ends under the sun says nothing about the sun afterwards.
+  - The demo's Endless shows no offer (`endless.spec.ts`).
+  - The accessibility walk covers the offer, a round under the sun and the end, on both layouts and at 175% on a 360 px phone.
+
+**Known limits**
+- **The numbers are guesses:** a soul's worth, the round's sun, the boons' limits and the size of the offer. Nothing measures them yet: Endless sends no telemetry and isn't in the playtest report.
+- **The best score changed meaning in the full game.** A best set before this counted souls judged rightly. Points grow at least as fast, so an old best is easy to beat.
+- **A day's run offers everyone the same only while they choose the same.** Their souls stay the same regardless.
+- **The desk's compare bar can cover signs.** On a 1920×1080 desk, the floating bar sits over part of the row of body signs under the body. That was so before; the oath's note is kept to the bar's old width.
+- **The rulebook's costs line still speaks of sun in rounds without one,** as it does in untimed practice.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

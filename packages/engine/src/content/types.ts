@@ -365,6 +365,48 @@ export interface EndlessTwist {
 }
 
 /**
+ * A boon or a curse (docs/tech-spec.md §68), chosen between Endless rounds: one of three boons, or the curse on offer,
+ * which makes every soul after it worth one more. Neither touches a soul: they change the strikes a run can take, its
+ * score, the help it has (hints, presses) and its sun, never what the souls are or what can be known about them.
+ */
+export interface EndlessBoon {
+  readonly id: string;
+  readonly kind: 'boon' | 'curse';
+  /** Its name and what it does (string keys). */
+  readonly name: string;
+  readonly text: string;
+  /** The first day whose rules a round must bring for it to be offered (pressing, say, from the day souls are pressed). */
+  readonly since: number;
+  /** How many times one run can take it; no limit when absent. */
+  readonly max?: number;
+  /** Offered only when the run has the sun (a curse brings it), or has taken a strike. */
+  readonly needs?: 'sun' | 'strike';
+  readonly effect: BoonEffect;
+}
+
+export type BoonEffect =
+  /** Wrong stamps the run can take before it ends: more (a boon) or fewer (a curse). */
+  | { readonly strikes: number }
+  /** Skögul's hints for the rest of the run: Endless has none otherwise. */
+  | { readonly hints: number }
+  /** What a soul judged rightly scores besides its worth, when its lie was caught before the stamp. */
+  | { readonly bounty: number }
+  /** Presses more each soul will take. */
+  | { readonly patience: number }
+  /** Seconds more sun each round. */
+  | { readonly sunS: number }
+  /** Percent of each tool's sun cost: less is a boon, more a curse. */
+  | { readonly toolPct: number }
+  /** Questions each round that cost no sun: the first ones asked. */
+  | { readonly freeQuestions: number }
+  /** Rounds have a sun from now on: the day's own pace for their souls. */
+  | { readonly sun: true }
+  /** Percent of each round's sun taken away. */
+  | { readonly sunCut: number }
+  /** Týr's oath: a Compare that finds nothing is a strike. */
+  | { readonly oath: true };
+
+/**
  * A day event (docs/tech-spec.md §52): something that happens in the world on a day of a run, drawn from the run's
  * seed as it begins. It changes the day's line (some of its own souls don't come, others do), its sun, and that
  * night's bills and sickness; never the day's rules, and never how the day's own souls are made.
@@ -1101,6 +1143,8 @@ export interface Content {
   readonly tallies?: readonly TallyTemplate[];
   /** Endless's twists for rounds that bring nothing new. */
   readonly twists?: readonly EndlessTwist[];
+  /** Endless's boons and curses, chosen between rounds (docs/tech-spec.md §68); none in the demo. */
+  readonly boons?: readonly EndlessBoon[];
   /** What can be earned in this build: each pack brings its own. */
   readonly achievements?: readonly AchievementDef[];
   /** Pressing a soul on what it said (docs/tech-spec.md §66); none in a build without it. */

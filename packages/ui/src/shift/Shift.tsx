@@ -3,11 +3,12 @@ import {
   type CaseSpec,
   currentCase,
   type Destination,
-  ENDLESS_STRIKES,
   type Field,
   factionKey,
   freeQuestion,
   genderOfName,
+  hasBoons,
+  hintsLeft,
   kinRelation,
   type Lesson,
   nextHint,
@@ -54,6 +55,7 @@ import {
   departed,
   drawerTab,
   effectiveLayout,
+  endlessRules,
   lookAgain,
   noteCoached,
   noteTip,
@@ -144,9 +146,14 @@ function SunBar({ s }: { s: Session }) {
       <span class="sunbar__count" data-testid="soul-count">
         {t('ui.soul.count', { n: Math.min(st.cursor + 1, st.cases.length), total: st.cases.length })}
       </span>
+      {s.mode.kind === 'endless' && hasBoons(s.content) ? (
+        <span class="sunbar__count" data-testid="endless-points">
+          {t('ui.endless.scoreLive', { n: s.mode.score ?? s.mode.judged })}
+        </span>
+      ) : null}
       {s.mode.kind === 'endless' ? (
         <span class="sunbar__count" data-testid="strikes">
-          {t('ui.endless.strikes', { n: s.mode.strikes, max: ENDLESS_STRIKES })}
+          {t('ui.endless.strikes', { n: s.mode.strikes, max: endlessRules(s).strikes })}
         </span>
       ) : null}
       <button
@@ -464,9 +471,19 @@ function Registry({ s, c }: { s: Session; c: CaseSpec }) {
 
 function CompareBar() {
   if (!comparing.value) return null;
+  const s = session.value;
+  // Under Týr's oath (an Endless curse, docs/tech-spec.md §68) a Compare that finds nothing is a strike: the bar says
+  // so in place of its hint, so it's no bigger over the desk.
+  const oath = s?.mode.kind === 'endless' && endlessRules(s).oath;
   return (
     <div class="comparebar" role="status">
-      <span>{t('ui.compare.hint')}</span>
+      {oath ? (
+        <strong class="comparebar__oath" data-testid="oath-note">
+          {t('ui.endless.oath')}
+        </strong>
+      ) : (
+        <span>{t('ui.compare.hint')}</span>
+      )}
       <button type="button" class="btn btn--small" data-back onClick={toggleCompare}>
         {t('ui.compare.cancel')}
       </button>
@@ -546,6 +563,8 @@ function StampRack({ s }: { s: Session }) {
 function HintButton({ s }: { s: Session }) {
   if (!hintsAllowed(s)) return null;
   const none = nextHint(s.state) === null;
+  // An Endless run's hints are the ones it took (docs/tech-spec.md §68): the button says how many are left.
+  const left = hintsLeft(s.state);
   const cost = sunCosts(s.content).hint / 1000;
   return (
     <button
@@ -553,12 +572,14 @@ function HintButton({ s }: { s: Session }) {
       class="btn"
       data-testid="hint"
       data-pad="LT"
-      disabled={none}
-      title={none ? t('ui.hint.none') : t('ui.hint.label', { s: cost })}
+      disabled={none || left === 0}
+      title={left === 0 ? t('ui.hint.noneLeft') : none ? t('ui.hint.none') : t('ui.hint.label', { s: cost })}
       aria-label={t('ui.hint.label', { s: cost })}
       onClick={() => act({ t: 'hint' })}
     >
-      {t('ui.hint')} <kbd>H</kbd>
+      {t('ui.hint')}
+      {left !== undefined ? <span data-testid="hints-left"> ({t('ui.hint.left', { n: left })})</span> : null}{' '}
+      <kbd>H</kbd>
     </button>
   );
 }

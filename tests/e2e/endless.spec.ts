@@ -49,9 +49,10 @@ test('today’s Endless: resumed after a reload, recorded once, shared without s
   await expect(page.getByTestId('endless-twist')).toHaveCount(0);
   await playRound(page, 0);
 
-  // Straight on to Day 2's rules, with the score so far.
+  // Straight on to Day 2's rules, with the score so far. The demo has no boons or curses to choose between rounds.
   await expect(page.getByTestId('briefing-title')).toHaveText("Endless, round 2: Day 2's rules");
   await expect(page.getByTestId('endless-status')).toHaveText('5 souls judged rightly · strikes 0 of 3');
+  await expect(page.getByTestId('endless-offer')).toHaveCount(0);
   await page.getByTestId('begin').click();
   const round = endlessRound(content, SEED, 1).cases;
   await stampAndSend(page, wrong(round[0] as CaseSpec));

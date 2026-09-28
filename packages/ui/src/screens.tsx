@@ -1,9 +1,19 @@
 import { dailyContent, gameContent, manifest } from 'virtual:content';
 import { placeholderSigil } from '@cots/art';
-import { dailyDate, ENDLESS_SOULS, ENDLESS_STRIKES, endlessTwist, shiftScore } from '@cots/engine';
+import {
+  dailyDate,
+  ENDLESS_SOULS,
+  ENDLESS_STRIKES,
+  type EndlessBoon,
+  type EndlessOffer,
+  endlessTwist,
+  findBoon,
+  hasBoons,
+  shiftScore,
+} from '@cots/engine';
 import type { ShareResult } from '@cots/platform';
 import type { ComponentType } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { AchievementsCard } from './achievements-ui';
 import { artStyle } from './art';
 import { AssistSettings, assistText, atSunSpeed } from './assists';
@@ -20,19 +30,25 @@ import { hasBeds } from './sound/driver';
 import {
   applyUpdate,
   begin,
+  chooseEndless,
   currentAssists,
   type DatedRun,
   dailyProgress,
   dailyRecord,
+  type EndlessMode,
   type EndlessResult,
   effectiveLayout,
+  endlessOfferFor,
   endlessProgress,
   endlessResultBody,
+  endlessRules,
   epochText,
   isoDate,
   lookAgain,
   resumeEndless,
+  type Session,
   type Settings,
+  savedStrikes,
   session,
   settings,
   shareBody,
@@ -457,15 +473,16 @@ function EndlessCard() {
   const playedToday = played?.n === n ? played : null;
   const todayOpen = saved?.mode.dated?.n === n;
   const best = settings.value.endlessBest;
+  const run = hasBoons(gameContent);
   return (
     <section class="card" data-testid="endless-card">
       <h2>{t('ui.endless')}</h2>
       <p class="muted">{t('ui.endless.hint', { n: ENDLESS_SOULS, strikes: ENDLESS_STRIKES })}</p>
+      {run ? <p class="muted">{t('ui.endless.runHint')}</p> : null}
       {playedToday ? <EndlessToday result={playedToday} /> : null}
       {saved ? (
         <p data-testid="endless-saved">
-          {runName(saved.mode.dated)} ·{' '}
-          {t('ui.endless.status', { n: saved.judged, strikes: saved.strikes, max: ENDLESS_STRIKES })}
+          {runName(saved.mode.dated)} · {endlessStatus(saved, savedStrikes(saved))}
         </p>
       ) : null}
       <div class="row">
@@ -504,7 +521,7 @@ function EndlessCard() {
         ) : null}
         {best > 0 ? (
           <span class="muted" data-testid="endless-best">
-            {t('ui.endless.best', { n: best })}
+            {t(run ? 'ui.endless.bestScore' : 'ui.endless.best', { n: best })}
           </span>
         ) : null}
       </div>
@@ -520,7 +537,9 @@ function EndlessToday({ result }: { result: EndlessResult }) {
   return (
     <div class="endless__today">
       <p class="card__result" data-testid="endless-today-result">
-        {t('ui.endless.todayResult', { n: result.judged, round: result.round + 1 })}{' '}
+        {result.score !== undefined
+          ? t('ui.endless.todayScore', { score: result.score, round: result.round + 1 })
+          : t('ui.endless.todayResult', { n: result.judged, round: result.round + 1 })}{' '}
         <button
           type="button"
           class="btn btn--quiet btn--small"
@@ -535,9 +554,99 @@ function EndlessToday({ result }: { result: EndlessResult }) {
   );
 }
 
+/**
+ * How an Endless run stands: souls judged rightly and strikes, and its score where Endless is a run
+ * (docs/tech-spec.md §68).
+ */
+function endlessStatus(m: { judged: number; strikes: number; score?: number | undefined }, max: number): string {
+  return hasBoons(gameContent)
+    ? t('ui.endless.statusScore', { score: m.score ?? m.judged, n: m.judged, strikes: m.strikes, max })
+    : t('ui.endless.status', { n: m.judged, strikes: m.strikes, max });
+}
+
+/** A boon or a curse on offer: its name and what it does, the whole card a button. */
+function BoonCard({ b, first }: { b: EndlessBoon; first?: boolean }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  // The choice comes before Begin: the keyboard and a controller start on the first boon.
+  useLayoutEffect(() => {
+    if (first) ref.current?.focus({ preventScroll: true });
+  }, [first]);
+  return (
+    <button
+      type="button"
+      class={`boon boon--${b.kind}`}
+      data-testid={b.kind}
+      data-boon={b.id}
+      ref={ref}
+      onClick={() => chooseEndless(b.id)}
+    >
+      <strong class="boon__name">{t(b.name)}</strong>
+      <span class="boon__text">{t(b.text)}</span>
+    </button>
+  );
+}
+
+/** Endless's choice between rounds (docs/tech-spec.md §68): one of three boons, or the curse on offer. */
+function EndlessOfferBox({ s, offer }: { s: Session; offer: EndlessOffer }) {
+  const { worth } = endlessRules(s);
+  return (
+    <section class="card endless-offer" data-testid="endless-offer" aria-labelledby="endless-offer-title">
+      <h2 id="endless-offer-title">{t('ui.endless.offer', { n: offer.round + 1 })}</h2>
+      <div class="boons">
+        {offer.boons.map((b, i) => (
+          <BoonCard key={b.id} b={b} first={i === 0} />
+        ))}
+      </div>
+      {offer.curse ? (
+        <>
+          <p class="endless-offer__curse">{t('ui.endless.offerCurse', { worth: worth + 1, now: worth })}</p>
+          <div class="boons">
+            <BoonCard b={offer.curse} first={offer.boons.length === 0} />
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+/** What an Endless run has taken, and what a soul judged rightly scores now. Nothing before its first pick. */
+function EndlessPicks({ s, m }: { s: Session; m: EndlessMode }) {
+  const picks = m.picks ?? [];
+  if (!hasBoons(s.content) || picks.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const p of picks) counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
+  return (
+    <section class="card" data-testid="endless-picks">
+      <h2>{t('ui.endless.picks')}</h2>
+      <ul class="picks">
+        {[...counts].map(([id, n]) => {
+          const b = findBoon(s.content, id);
+          if (!b) return null;
+          const name = t(b.name);
+          return (
+            <li key={id} class={`pick pick--${b.kind}`} data-boon={id}>
+              <strong>{n > 1 ? t('ui.endless.pickCount', { name, n }) : name}</strong> {t(b.text)}
+            </li>
+          );
+        })}
+      </ul>
+      <p class="muted" data-testid="endless-worth">
+        {t('ui.endless.worth', { n: endlessRules(s).worth })}
+      </p>
+    </section>
+  );
+}
+
 export function Briefing() {
   const focus = useAutoFocus<HTMLButtonElement>();
   const s = session.value;
+  const offer = s ? endlessOfferFor(s) : null;
+  // Once the choice is made, Begin takes the focus the offer had.
+  const chosen = useRef(offer !== null);
+  useLayoutEffect(() => {
+    if (chosen.current && !offer) focus.current?.focus({ preventScroll: true });
+    chosen.current = offer !== null;
+  }, [offer === null]);
   if (!s) return null;
   const st = s.state;
   // The shift takes up the assists as it begins; until then, show the sun they'll give it.
@@ -556,9 +665,11 @@ export function Briefing() {
       ) : null}
       {s.mode.kind === 'endless' ? (
         <p class="briefing__queue" data-testid="endless-status">
-          {t('ui.endless.status', { n: s.mode.judged, strikes: s.mode.strikes, max: ENDLESS_STRIKES })}
+          {endlessStatus(s.mode, endlessRules(s).strikes)}
         </p>
       ) : null}
+      {offer ? <EndlessOfferBox s={s} offer={offer} /> : null}
+      {s.mode.kind === 'endless' ? <EndlessPicks s={s} m={s.mode} /> : null}
       {s.mode.kind === 'endless' && endlessTwist(s.content, s.mode.seed, s.mode.round) ? (
         <p class="briefing__twist" data-testid="endless-twist">
           {t('ui.endless.twist', { day: s.mode.day })}
@@ -576,7 +687,14 @@ export function Briefing() {
         </p>
       ) : null}
       <div class="row">
-        <button type="button" class="btn btn--primary btn--big" data-testid="begin" ref={focus} onClick={begin}>
+        <button
+          type="button"
+          class="btn btn--primary btn--big"
+          data-testid="begin"
+          ref={focus}
+          disabled={offer !== null}
+          onClick={begin}
+        >
           {t('ui.begin')}
         </button>
         <button type="button" class="btn" data-back onClick={toTitle}>
@@ -599,18 +717,26 @@ export function EndlessOver() {
   if (s?.mode.kind !== 'endless') return null;
   const m = s.mode;
   const { text, url } = shareBody(s);
+  // Where Endless is a run (docs/tech-spec.md §68), it ends when the strikes it can take are gone, and it has a score.
+  const run = hasBoons(s.content);
+  const score = m.score ?? m.judged;
   return (
     <main class="screen screen--summary">
-      <h1 data-testid="endless-over">{t('ui.endless.over')}</h1>
+      <h1 data-testid="endless-over">{t(run ? 'ui.endless.outOf' : 'ui.endless.over')}</h1>
       <p class="muted" data-testid="endless-run">
         {runName(m.dated)}
       </p>
       <p class="summary__score" data-testid="endless-score">
-        {t('ui.endless.score', { n: m.judged, day: m.day })}
+        {run
+          ? t('ui.endless.scoreOver', { score, n: m.judged, day: m.day })
+          : t('ui.endless.score', { n: m.judged, day: m.day })}
       </p>
       <p data-testid="endless-record">
-        {m.judged > m.bestBefore ? t('ui.endless.newBest') : t('ui.endless.best', { n: settings.value.endlessBest })}
+        {score > m.bestBefore
+          ? t('ui.endless.newBest')
+          : t(run ? 'ui.endless.bestScore' : 'ui.endless.best', { n: settings.value.endlessBest })}
       </p>
+      <EndlessPicks s={s} m={m} />
       <section class="card">
         <ShareBox text={text} url={url} share={() => shareResult(s)} />
       </section>
