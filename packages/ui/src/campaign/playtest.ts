@@ -240,14 +240,17 @@ function parties(p: PlaytestInput): string[] {
   const days = p.run.ledger.flatMap((l) => (l.parties ? [{ day: l.day, ...l.parties }] : []));
   if (days.length === 0) return [];
   const total = (k: 'n' | 'souls' | 'lies' | 'caught') => days.reduce((n, d) => n + d[k], 0);
+  // Hearth-men whose hall was their jarl's (docs/tech-spec.md §70).
+  const men = days.reduce((n, d) => n + (d.retinue?.men ?? 0), 0);
+  const right = days.reduce((n, d) => n + (d.retinue?.right ?? 0), 0);
   const lines = days.map(
     (d) =>
-      `- Day ${d.day}: ${d.n} ${d.n === 1 ? 'party' : 'parties'} of ${d.souls} souls; lies about a companion caught: ${d.caught} of ${d.lies}.`,
+      `- Day ${d.day}: ${d.n} ${d.n === 1 ? 'party' : 'parties'} of ${d.souls} souls; lies about a companion caught: ${d.caught} of ${d.lies}.${d.retinue ? ` Hearth-men who went where their jarl went: ${d.retinue.right} of ${d.retinue.men} judged rightly.` : ''}`,
   );
   return [
     '### Parties',
     '',
-    `Parties: ${total('n')}, of ${total('souls')} souls. Lies about a companion: ${total('lies')}, caught before the stamp: ${total('caught')}.`,
+    `Parties: ${total('n')}, of ${total('souls')} souls. Lies about a companion: ${total('lies')}, caught before the stamp: ${total('caught')}.${men > 0 ? ` Hearth-men who went where their jarl went: ${men}, judged rightly: ${right}.` : ''}`,
     '',
     ...lines,
   ];

@@ -1642,6 +1642,14 @@ select {
   border-radius: 4px;
 }
 
+.party__lord {
+  padding: 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+}
+
 .party__keys {
   color: var(--muted);
   font-size: 0.85rem;

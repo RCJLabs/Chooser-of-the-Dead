@@ -965,10 +965,17 @@ function missedText(cases: readonly CaseSpec[], c: CaseSpec, index: number, ids:
   });
 }
 
-/** The one-time tip for a party at the desk (docs/tech-spec.md §69). */
-function partyTip(s: Session): boolean {
+/**
+ * The one-time tip for a party at the desk (docs/tech-spec.md §69), and then, the first time one comes, for a jarl's
+ * retinue (§70): which to show, if either.
+ */
+function partyTip(s: Session): 'party' | 'retinue' | null {
   const c = coachState();
-  return c.on && !(c.tips ?? []).includes('party') && s.state.party !== undefined && !activeLesson(s, c);
+  if (!c.on || s.state.party === undefined || activeLesson(s, c)) return null;
+  const tips = c.tips ?? [];
+  if (!tips.includes('party')) return 'party';
+  const retinue = s.state.cases[s.state.party.start]?.party?.lord !== undefined;
+  return retinue && !tips.includes('retinue') ? 'retinue' : null;
 }
 
 /**
@@ -980,7 +987,10 @@ function PartyStrip({ s }: { s: Session }) {
   if (!party) return null;
   const members = s.state.cases.slice(party.start, party.start + party.souls.length);
   const title = members[0]?.party?.title;
+  // A retinue's jarl (docs/tech-spec.md §70), marked as such.
+  const lordAt = members[0]?.party?.lord?.at;
   const here = turnedTo(s.state);
+  const tip = partyTip(s);
   return (
     <section class="party" data-testid="party" aria-label={t('ui.party.label', { n: members.length })}>
       {title ? (
@@ -1002,6 +1012,11 @@ function PartyStrip({ s }: { s: Session }) {
               onClick={() => act({ t: 'turn', to: k })}
             >
               {m.evidence.look.name}
+              {k === lordAt ? (
+                <span class="party__lord" data-testid="party-lord">
+                  {t('ui.party.lord')}
+                </span>
+              ) : null}
               {stamped ? (
                 <span class="party__stamp" data-testid="party-stamp">
                   {t(`dest.${stamped}`)}
@@ -1014,10 +1029,10 @@ function PartyStrip({ s }: { s: Session }) {
           <kbd>[</kbd> <kbd>]</kbd>
         </span>
       </div>
-      {partyTip(s) ? (
-        <div class="party__tip" data-testid="party-tip" role="note">
-          <p>{t('coach.party')}</p>
-          <button type="button" class="btn btn--small" data-testid="party-tip-ok" onClick={() => noteTip('party')}>
+      {tip ? (
+        <div class="party__tip" data-testid={`${tip}-tip`} role="note">
+          <p>{t(`coach.${tip}`)}</p>
+          <button type="button" class="btn btn--small" data-testid={`${tip}-tip-ok`} onClick={() => noteTip(tip)}>
             {t('ui.coach.gotIt')}
           </button>
         </div>

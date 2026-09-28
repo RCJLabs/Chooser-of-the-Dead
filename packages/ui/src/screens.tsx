@@ -9,6 +9,7 @@ import {
   endlessTwist,
   findBoon,
   hasBoons,
+  ruleDests,
   shiftScore,
 } from '@cots/engine';
 import type { ShareResult } from '@cots/platform';
@@ -401,7 +402,7 @@ export function Title() {
         <span class="title__keys">
           <br />
           {t('ui.keys', {
-            n: new Set(gameContent.rules.map((r) => r.then)).size,
+            n: new Set(gameContent.rules.flatMap((r) => ruleDests(r, gameContent.facts))).size,
             registry: gameContent.tools.some((tool) => tool.id === 'registry') ? 'yes' : 'no',
           })}
         </span>

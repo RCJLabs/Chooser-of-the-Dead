@@ -4263,7 +4263,7 @@ The brainstorm's version, and what changed:
 
 ## 69. Linked souls (game phase 3)
 
-**Why.** Game phase 3 in [`roadmap.md`](roadmap.md). Until now each soul at the desk was judged on its own evidence alone. Now souls from one fight or one ship's crew come to the desk together and speak of each other, and what one says of another is checked against the other's body. The phase's second half, a jarl's retinue judged as a group, isn't built yet (Known limits).
+**Why.** Game phase 3 in [`roadmap.md`](roadmap.md). Until now each soul at the desk was judged on its own evidence alone. Now souls from one fight or one ship's crew come to the desk together and speak of each other, and what one says of another is checked against the other's body. The phase's second half, a jarl's retinue judged as a group, is §70.
 
 **Only in the full game, from Day 9.**
 - Parties are content in the campaign pack: `parties.yaml`, `templates/party.yaml`, question lines for lies about a companion, and `queue.parties` on Days 9–20.
@@ -4351,11 +4351,77 @@ The brainstorm's version, and what changed:
 - **Older e2e specs** that walk a Day 9 or Day 14 line (`favours.spec.ts`, `return.spec.ts`) now wait for a party's citations until its last member is sent.
 
 **Known limits**
-- **The retinue isn't built.** A jarl's hearth-men sharing their jarl's fate is a rule across souls, and the second step of this phase.
+- **The retinue came later,** as the phase's second step (§70).
 - **Parties come only from souls already next to each other,** so a day with few souls of a kind may have none.
 - **A party's shared words are written into its members' lines after they're made.** A member's own lines and its party's agree, but a party can't give a member a line it never had.
 - **The numbers are guesses:** the lie rate (40%), 1–2 parties a day, sizes 2–3. The playtest report counts them now.
 - **Time at the desk is booked to a party's first member** in traces and reports, since they're sent together.
+
+## 70. A jarl's retinue (game phase 3, second step)
+
+**Why.** The second half of game phase 3 in [`roadmap.md`](roadmap.md): a jarl's retinue judged as a group. §69 let souls speak of each other, but each was still judged on its own evidence. Now a rule reads across souls: a hearth-man's hall is his jarl's.
+
+**The rule, from Day 9** (`rule.retinue`, campaign pack): *A hearth-man who stood by his jarl to the end, and never fled, goes where his jarl goes.*
+- **Where it sits in the Order of Judgment:** order 400. That's after the living, Loki, the registry and the clerk, so an outlawed or baptized hearth-man is still theirs. It comes before everything else, so the man's own grip, blade, whim or lies no longer decide him.
+- **A man who fled broke his oath.** A wound in the back, as for Valhalla's rule, and he's judged on his own.
+- **The jarl's hall is his true one,** decided by his own evidence. Judge the jarl wrongly and you'll likely stamp his men wrongly too. That's the stake of "judged as a group".
+- **Day 9 announces it.** Its decree slot was empty ("No new decree"), and the day's first party is a retinue wherever its souls allow (`parties.lead`).
+
+**How the engine reads a hall across souls**
+- **A rule's hall can be named by a fact** (`RuleDef.then: { fact }`). The judge and solver send the soul where the fact says, once it's known.
+- **`lordHall` is that fact, and only a party sets it** (`FactDef.fromParty`).
+  - Never sampled, so no soul's draw changes for it. The campaign snapshots moved only in difficulty, which counts how deep the applying rule sits (+5 below the new rule).
+  - Every other soul is certainly sworn to no one: the solver pins it to `none` at trust 4.
+- **The retinue settles it for each man** (`Given`, the solver's `given`). It's the hall his jarl's own evidence decides, with what was caught against the jarl and what he owned up to.
+  - Until the jarl is decided, the man is sworn to a hall not yet known, and his judgment waits on it.
+  - At the desk it's worked out from what the player has seen of the jarl (`givenAtDesk`); in the validator, from all of it (`givenAt`).
+- **The validator takes it too.** A man's proof includes his jarl's proof (`meta.crossProof`), so a citation and Look again name the jarl's evidence. `lordHall` is never a decisive fact of the man's own.
+- **The oracles hold `fromParty` facts at their inert value**, as for a soul judged on its own.
+
+**A retinue** (`party.retinue` in `parties.yaml`, formed by `linkParties` like any party, §69)
+- **2–3 souls who fell in one fight, standing together:** the first is the jarl, bound for Valhalla, Fólkvangr or Hel; the others are his sworn men. Tagged with the jarl's place and the fact (`PartyTag.lord`), so saves keep it whatever content says later.
+- **Formed in order:**
+  1. The men are sworn to the jarl's hall and checked (F1–F8, with companions and what the retinue settles).
+  2. The jarl says something of his first man (whether he stood fast decides the man's hall).
+  3. If that changed the jarl's own hall, the men are sworn again. From Day 16 a lie caught makes him a liar, and Hel's.
+  4. Each man says something of his jarl.
+- **Lines** (`templates/party.yaml`): `of: lord` for what the men say of their jarl, `of: sworn` for what he says of them.
+- **Never moves a man out of a hall the morning's requests count on,** as with any lie (§69). Where the drawn window can't be sworn, the next window in the line is tried.
+- **Sweep, 20 seeds × Days 9–20:**
+  - 364 parties, 126 of them retinues, with 185 sworn men.
+  - 122 men went where their jarl went; 90 of them to a hall their own evidence wouldn't have sent them to.
+  - A careful bot at the desk, working only from what it has seen of each jarl, judged all 3,483 souls rightly and caught all 342 lies about companions.
+
+**At the desk**
+- **The strip names the retinue** ("Jarl Hallgerd and her hearth-men") and marks the jarl.
+- **A one-time tip** the first time a retinue comes, after the party tip: judge the jarl, then turn each man over.
+- **Everything else is a party's (§69):** turn between them, Compare across them, and send them together. A man stamped wrong is cited with this rule, and with the jarl's evidence he never looked at.
+
+**Around it**
+- **Ragnarök:** a hearth-man rightly sent after his jarl to Valhalla stands with the worthy. He stood by him to the end.
+- **Waiting overnight:** a man who waits for tomorrow comes alone, sworn to no one, and is judged on his own.
+- **The playtest report** counts, each day, the hearth-men who went where their jarl went, and how many were judged rightly.
+- **Endless rounds** on Day 9's rules or later get retinues too. The Daily, the primer and the demo never do.
+
+**Tests**
+- **Engine** (`party.test.ts`):
+  - retinues on Day 9, the jarl first and his men sworn to his hall;
+  - every other soul sworn to no one;
+  - at the desk, a man undecided until his jarl is, then going where he goes, and cited with this rule when stamped otherwise;
+  - a man who waits comes alone;
+  - from Day 16, a jarl caught lying about one of his men goes to Hel, and his men with him.
+- **Existing tests** that solve party members now pass what the retinue settles: the rule tracker, the noon and weave campaign tests, and the fairness checks.
+- **Compiler** (`compile.test.ts`): the retinue lints. A rule's hall named by a fact only a party sets, with hall values; a kind's `lord` that such a fact names and a rule reads; a day's `lead` kind; lines said of a jarl or his men only in a kind that has them.
+- **Testkit:** the party sweep checks every member with what its retinue settles, and fails a build with no retinues.
+- **e2e** (`retinue.spec.ts`, full game, phone and desktop): Day 9's new rule in the morning; the jarl marked; both tips; an accessibility scan; the man stamped where his own evidence would send him, and cited with the rule. `party.spec.ts` moved to Day 11, since Day 9 now leads with a retinue.
+
+**Known limits**
+- **It's harsh on purpose,** and not yet played by people. One mistake on a jarl can cost two or three citations, and from Day 16 his lie about one man turns the whole retinue.
+- **Day 9 now brings two new things,** parties and this rule. Moving the rule is its `since`, the kind's `since` and the day's `lead`.
+- **Nothing on the body says a man is sworn;** the retinue at the desk does. No new art was needed, and none shows an oath-ring.
+- **Jarls are ordinary souls** chosen from the line, with no look of their own.
+- **Skögul's hints point only at the soul turned to.** Turned to a man, she won't point at his jarl's evidence.
+- **The numbers are guesses:** how often retinues come (a weight of 2 beside the fight's 3 and the crew's 2), their size, and the day they start.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

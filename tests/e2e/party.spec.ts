@@ -5,16 +5,16 @@ import { expect, type Page, test } from '@playwright/test';
 import { FULL } from './urls';
 
 /*
- * Linked souls (docs/tech-spec.md §69) in the full game: a save on the morning of Day 9, made in Node, whose line has
- * two souls who fell in one fight right behind the jarl who jumps the queue. They stand at the desk together: the
- * player turns between them, catches what one says of the other against the other's own hands, questions it, and
- * sends them on together.
+ * Linked souls (docs/tech-spec.md §69) in the full game: a save on the morning of Day 11, made in Node, whose line has
+ * two souls who fell in one fight right behind the day's first soul. They stand at the desk together: the player turns
+ * between them, catches what one says of the other against the other's own hands, questions it, and sends them on
+ * together.
  */
 
 test.use({ baseURL: FULL });
 
 const content = loadContent('dev-full');
-const save = scenarioSave(content, 'e2e-party-9', 9, ENGINE_MAJOR);
+const save = scenarioSave(content, 'e2e-party-95', 11, ENGINE_MAJOR);
 
 const isDrawer = async (page: Page) => (await page.locator('.shift--drawer').count()) > 0;
 
@@ -41,14 +41,14 @@ test('a party at the desk: turned between, one’s lie about the other caught an
   await page.goto('./');
   await page.getByTestId('play-campaign').click();
   await page.getByTestId('continue-0').click();
-  await expect(page.getByTestId('morning-title')).toHaveText('Day 9');
+  await expect(page.getByTestId('morning-title')).toHaveText('Day 11');
   while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
   await page.getByTestId('scene-done').click();
   await page.getByTestId('to-gate').click();
   const queue = await page.evaluate<CaseSpec[]>(
     `JSON.parse(localStorage.getItem('cots.campaign.0') ?? 'null')?.save.queue ?? []`,
   );
-  // The jarl first, then the two who fell together.
+  // The day's first soul, then the two who fell together.
   const span = partyAt(queue, 1);
   expect(span).toEqual({ start: 1, size: 2 });
   const [first, second] = queue.slice(1, 3) as [CaseSpec, CaseSpec];
@@ -56,8 +56,8 @@ test('a party at the desk: turned between, one’s lie about the other caught an
   if (!lie) throw new Error('no lie about a companion in this line');
   expect(lie.fact).toBe('grip');
 
-  const jarl = queue[0] as CaseSpec;
-  await stamp(page, jarl.expect.dest);
+  const head = queue[0] as CaseSpec;
+  await stamp(page, head.expect.dest);
   await page.getByTestId('send').click();
 
   // Together at the desk: what brought them, and each of them to turn to.
