@@ -1,9 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import {
+  type CaseSpec,
   campaignQueue,
   type Destination,
   ENGINE_MAJOR,
   type NamedSoul,
+  partyOf,
   type RunSave,
   type RunState,
   runContext,
@@ -22,15 +24,6 @@ import { FULL } from './urls';
 test.use({ baseURL: FULL });
 
 const content = loadContent('dev-full');
-
-interface SavedSoul {
-  readonly script?: string;
-  readonly kin?: { readonly name: string };
-  readonly expect: { readonly dest: Destination; readonly procedures?: readonly string[] };
-  readonly evidence: {
-    readonly look: { readonly name: string; readonly patronym: string; readonly gender: 'm' | 'f' };
-  };
-}
 
 async function expectAccessible(page: Page) {
   const axe = await new AxeBuilder({ page })
@@ -56,7 +49,7 @@ function withMorning(save: RunSave, change: Partial<RunState>): RunSave {
 }
 
 /** Opens the first slot's save at its morning, plays the morning's scene, and goes to the gate; the day's queue. */
-async function toGate(page: Page, save: RunSave, day: number): Promise<SavedSoul[]> {
+async function toGate(page: Page, save: RunSave, day: number): Promise<CaseSpec[]> {
   await page.addInitScript(
     (record) => localStorage.setItem('cots.campaign.0', record),
     JSON.stringify({ v: 1, rev: 1, savedAt: 0, save }),
@@ -68,7 +61,13 @@ async function toGate(page: Page, save: RunSave, day: number): Promise<SavedSoul
   while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
   await page.getByTestId('scene-done').click();
   await page.getByTestId('to-gate').click();
-  return page.evaluate<SavedSoul[]>(`JSON.parse(localStorage.getItem('cots.campaign.0') ?? 'null')?.save.queue ?? []`);
+  return page.evaluate<CaseSpec[]>(`JSON.parse(localStorage.getItem('cots.campaign.0') ?? 'null')?.save.queue ?? []`);
+}
+
+/** Where in `queue` the soul at `i` leaves the desk: itself, or the last of its party, who sends them all. */
+function leaves(queue: readonly CaseSpec[], i: number): number {
+  const span = partyOf(queue, i);
+  return span ? span.start + span.size - 1 : i;
 }
 
 // A soul sent to Hel on Day 6 who belonged in Valhalla; on Day 9 its kin may come.
@@ -79,8 +78,10 @@ const kinSave = (() => {
     const s = withMorning(scenarioSave(content, `e2e-kin-${i}`, 9, ENGINE_MAJOR), { named: [WRONGED] });
     const run = s.mornings.at(-1) as RunState;
     const queue = campaignQueue(run, { content, ctx: runContext(content, run) });
-    // Not the day's last soul (a citation can't show after the last stamp), and one who asks to join him.
-    if (queue.slice(0, -1).some((c) => c.kin && c.plea)) return s;
+    // One who asks to join him, and who leaves the desk before the day's last soul does (a citation can't show after
+    // the last stamp): alone, or with a party (docs/tech-spec.md §69) that isn't the last in the line.
+    const at = queue.findIndex((c) => c.kin && c.plea);
+    if (at >= 0 && leaves(queue, at) < queue.length - 1) return s;
   }
   throw new Error('No seed in 60 brings kin who ask on Day 9');
 })();
@@ -101,14 +102,17 @@ test('kin of a soul sent where it didn’t belong: at the desk, saying so, and a
         `${name} ${patronym} asks for a Hel stamp, to be with him: a mistake all the same.`,
       );
       await expectAccessible(page);
-      // Granted: a mistake all the same, cited on the spot.
+      // Granted: a mistake all the same.
       await stampAndSend(page, 'HEL', false);
+    } else {
+      await expect(page.getByTestId('kin-banner')).toHaveCount(0);
+      await stampAndSend(page, c.expect.dest, clip);
+    }
+    // Cited on the spot as it leaves the desk: with its party, if it came with one, when the last of them is sent.
+    if (i === leaves(queue, at)) {
       await expect(page.getByTestId('citation-close')).toBeVisible();
       await page.getByTestId('citation-close').click();
-      continue;
     }
-    await expect(page.getByTestId('kin-banner')).toHaveCount(0);
-    await stampAndSend(page, c.expect.dest, clip);
   }
   await expect(page.getByTestId('audit-score')).toHaveText(`${queue.length - 1} of ${queue.length} judged rightly`);
 });

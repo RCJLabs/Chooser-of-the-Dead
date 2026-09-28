@@ -1,0 +1,23 @@
+# What a member of a party says of a companion (docs/tech-spec.md §69): `{companion}` is the companion's name,
+# `{cgender}` theirs; the party's words ({place}, {foe}, {ship}) are the same in every member's lines.
+# A line for any soul (no personas) for every value each kind's claims can take (the compiler checks).
+
+# In one fight: who ran.
+- { id: pl.fled.false.1, asserts: { fact: fled, value: false }, kinds: [party.fight], msg: pl.fled.false.1, weight: 2 }
+- { id: pl.fled.false.2, asserts: { fact: fled, value: false }, kinds: [party.fight], personas: [braggart, veteran], msg: pl.fled.false.2 }
+- { id: pl.fled.true.1, asserts: { fact: fled, value: true }, kinds: [party.fight], msg: pl.fled.true.1, weight: 2 }
+- { id: pl.fled.true.2, asserts: { fact: fled, value: true }, kinds: [party.fight], personas: [coward, confused], msg: pl.fled.true.2 }
+
+# Whoever they were: who kept hold of their weapon.
+- { id: pl.grip.weapon.1, asserts: { fact: grip, value: weapon }, msg: pl.grip.weapon.1, weight: 2 }
+- { id: pl.grip.weapon.2, asserts: { fact: grip, value: weapon }, personas: [honest, veteran], msg: pl.grip.weapon.2 }
+- { id: pl.grip.none.1, asserts: { fact: grip, value: none }, msg: pl.grip.none.1, weight: 2 }
+- { id: pl.grip.none.2, asserts: { fact: grip, value: none }, personas: [braggart], msg: pl.grip.none.2 }
+
+# A ship's crew: how each of them died.
+- { id: pl.cause.drowned.1, asserts: { fact: cause, value: drowned }, kinds: [party.crew], msg: pl.cause.drowned.1, weight: 2 }
+- { id: pl.cause.drowned.2, asserts: { fact: cause, value: drowned }, kinds: [party.crew], personas: [confused], msg: pl.cause.drowned.2 }
+- { id: pl.cause.battle.1, asserts: { fact: cause, value: battle }, kinds: [party.crew], msg: pl.cause.battle.1, weight: 2 }
+- { id: pl.cause.battle.2, asserts: { fact: cause, value: battle }, kinds: [party.crew], personas: [braggart, veteran], msg: pl.cause.battle.2 }
+- { id: pl.cause.sickness.1, asserts: { fact: cause, value: sickness }, kinds: [party.crew], msg: pl.cause.sickness.1 }
+- { id: pl.cause.oldAge.1, asserts: { fact: cause, value: oldAge }, kinds: [party.crew], msg: pl.cause.oldAge.1 }

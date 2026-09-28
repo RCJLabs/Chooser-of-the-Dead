@@ -47,6 +47,8 @@ queue:
     - { id: arch.proud_liar, w: 2 }
     - { id: arch.spear_marked, w: 2 }
     - { id: arch.marked_boaster, w: 1 }
+  # Souls from one fight or one crew, together at the desk (docs/tech-spec.md §69).
+  parties: { n: [1, 2] }
   mix: { VALHALLA: [10, 30], FOLKVANGR: [5, 20], HEL: [20, 45], RETURN: [5, 10], RAN: [5, 20], TRANSFER: [15, 35], DETAIN: [5, 12] }
   knobs:
     lieRate: 100

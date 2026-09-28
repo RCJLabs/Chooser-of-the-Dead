@@ -2,7 +2,7 @@ import { evalPred, evalState, predPaths, type RunState, STATE_PATHS } from './ca
 import { type AchievementDef, DESTINATIONS, type PlayMode, type StatePred } from './content/types';
 import type { CaseSpec } from './gen/types';
 import type { DayCtx } from './logic/context';
-import { type ShiftAction, type ShiftState, shiftScore, type Verdict } from './shift/shift';
+import { memberSoul, type ShiftAction, type ShiftState, shiftScore, type Verdict } from './shift/shift';
 import { traceShift } from './shift/trace';
 
 /*
@@ -109,7 +109,8 @@ function confessions(c: CaseSpec | undefined, questioned: readonly string[]): nu
  */
 export function soulFacts(before: ShiftState, verdict: Verdict): Facts {
   const c = before.cases[verdict.index];
-  const soul = before.soul;
+  // At a party (docs/tech-spec.md §69), the member's own state: the one turned to is only one of them.
+  const soul = memberSoul(before, before.party ? verdict.index - before.party.start : 0) ?? before.soul;
   const facts: Record<string, number> = {
     correct: verdict.correct ? 1 : 0,
     lies: verdict.lies,

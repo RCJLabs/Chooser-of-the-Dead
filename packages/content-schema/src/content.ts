@@ -14,6 +14,8 @@ import type {
   NamedPredicate,
   ObservationDef,
   ObsPattern,
+  PartiesDef,
+  PartyLineTemplate,
   Pred,
   PressDef,
   PressTemplate,
@@ -280,8 +282,39 @@ export const QuestionTemplateSchema: z.ZodType<QuestionTemplate> = z.strictObjec
     persona: z.array(Id).min(1).optional(),
     kind: QuestionKindSchema,
     via: z.literal('tally').optional(),
+    about: z.literal(true).optional(),
   }),
   msgs: z.array(Key).min(1),
+  weight: Weight.default(1),
+});
+
+/** Souls who come to the desk together (`parties.yaml`, docs/tech-spec.md §69). */
+export const PartiesSchema: z.ZodType<PartiesDef> = z.strictObject({
+  kinds: z
+    .array(
+      z.strictObject({
+        id: Id,
+        since: Day,
+        title: Key,
+        words: z.record(z.string().regex(/^[a-z][a-zA-Z0-9]*$/), Key),
+        size: z.tuple([Int.min(2).max(3), Int.min(2).max(3)]),
+        members: z.record(z.string(), TruthConstraintSchema),
+        claims: z.array(z.string()).min(1),
+        weight: Weight.default(1),
+      }),
+    )
+    .min(1),
+  lie: Percent,
+  onQuestion: z.partialRecord(z.enum(['confess', 'excuse']), Weight),
+});
+
+/** What a member says of a companion (`templates/party.yaml`). */
+export const PartyLineTemplateSchema: z.ZodType<PartyLineTemplate> = z.strictObject({
+  id: Id,
+  asserts: Asserts,
+  kinds: z.array(Id).min(1).optional(),
+  personas: z.array(Id).min(1).optional(),
+  msg: Key,
   weight: Weight.default(1),
 });
 
@@ -436,6 +469,7 @@ export const DaySpecSchema: z.ZodType<DaySpec> = z.strictObject({
       .min(1)
       .optional(),
     archetypes: z.array(z.strictObject({ id: Id, w: Int.positive() })).min(1),
+    parties: z.strictObject({ n: z.tuple([Int.min(0), Int.min(0)]) }).optional(),
     mix: z.partialRecord(DestinationSchema, z.tuple([Percent, Percent])),
     knobs: KnobsSchema,
   }),

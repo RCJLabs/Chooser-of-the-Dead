@@ -33,6 +33,8 @@ queue:
     - { id: arch.borrowed_blade, w: 3 }
     - { id: arch.ulfberht_braggart, w: 2 }
     - { id: arch.long_nails, w: 2 }
+  # Souls from one fight or one crew, together at the desk (docs/tech-spec.md §69).
+  parties: { n: [1, 2] }
   mix: { VALHALLA: [15, 35], FOLKVANGR: [5, 20], HEL: [35, 55], RETURN: [5, 10], RAN: [10, 25] }
   knobs:
     lieRate: 100

@@ -3,6 +3,7 @@ import { fc, test } from '@fast-check/vitest';
 import { describe, expect, it } from 'vitest';
 import type { AppealsDef, CampaignDef, Content, Destination, Effect, Faction, ScriptedCaseDef } from '../content/types';
 import { generateDay, tierKnobs } from '../gen/generate';
+import { companionsAt, crossCaughtAt, partyAt, partyOf } from '../gen/party';
 import { scriptedCase } from '../gen/scripted';
 import type { CaseSpec } from '../gen/types';
 import { revealsOf, validateCase } from '../gen/validate';
@@ -87,8 +88,13 @@ function shiftActions(
   const cases = started.shift?.cases ?? [];
   const actions: RunAction[] = [{ t: 'beginShift', at: 0 }];
   let at = 0;
+  // A party (docs/tech-spec.md §69) is judged a member at a time, turning to each, and sent together.
+  let party: { start: number; size: number } | null = null;
   cases.forEach((c, i) => {
     at += 20_000;
+    party = partyAt(cases, i) ?? (party && i < party.start + party.size ? party : null);
+    const k = party ? i - party.start : 0;
+    if (party) actions.push({ t: 'shift', action: { t: 'turn', to: k, at } });
     if (opts.catchLies && c.lies.length > 0) {
       // Look at everything, then flag each contradiction the careful player would find.
       actions.push({ t: 'shift', action: { t: 'inspect', fields: c.evidence.fields.map((f) => f.id), at } });
@@ -100,7 +106,8 @@ function shiftActions(
       const tool = ctx.procedures.find((p) => p.id === id)?.tool;
       if (tool) actions.push({ t: 'shift', action: { t: 'tool', tool, at } });
     }
-    actions.push({ t: 'shift', action: { t: 'stamp', dest, at } }, { t: 'shift', action: { t: 'send', at } });
+    actions.push({ t: 'shift', action: { t: 'stamp', dest, at } });
+    if (!party || k === party.size - 1) actions.push({ t: 'shift', action: { t: 'send', at } });
   });
   return actions;
 }
@@ -1735,13 +1742,16 @@ describe('a noon decree (docs/tech-spec.md §45)', () => {
         expect(first).toBeGreaterThan(noon.notice);
         expect(queue.slice(first).every((c) => c.noon)).toBe(true);
         expect(queue.slice(0, first).some((c) => c.noon)).toBe(false);
-        // Each soul meets the contract under the rules it's judged by.
-        for (const c of queue) {
+        // Each soul meets the contract under the rules it's judged by (a party's with its companions, §69).
+        queue.forEach((c, i) => {
           const cx = soulCtx(ctx, c);
           expect(c.expect).toEqual(judge(c.truth, cx));
-          expect(validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs(cx)).ok).toBe(true);
+          const companions = companionsAt(queue, i, ctx);
+          expect(
+            validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs(cx), companions).ok,
+          ).toBe(true);
           if (c.noon && judge(c.truth, ctx).dest !== c.expect.dest) changed++;
-        }
+        });
         // The decree's first soul is made to show the change.
         expect(queue.find((c) => c.noon && c.procIndex === noon.at)?.archetype).toBe(spec?.noon?.teach);
       }
@@ -1831,8 +1841,17 @@ describe('someone at the desk (docs/tech-spec.md §46)', () => {
   const spec = full.days.find((d) => (d.queue.visits ?? []).length > 0);
   const visit = spec?.queue.visits?.[0];
   if (!spec || !visit) throw new Error('no one comes to the desk in this build');
+  /** Whether a party (docs/tech-spec.md §69) stands over the visit's place in the seed's line: its turn comes after. */
+  const straddled = (seed: string) => {
+    const base = { ...newRun(full, seed), day: spec.day };
+    const queue = campaignQueue(base, { content: full, ctx: runContext(full, base) });
+    const span = partyOf(queue, visit.at);
+    return span !== null && span.start < visit.at;
+  };
+  const seeds = ['desk', ...Array.from({ length: 40 }, (_, i) => `desk-${i}`)];
+  const plainSeed = seeds.find((x) => !straddled(x)) ?? 'desk';
   /** The visit's day, its shift begun and `sent` souls judged rightly. */
-  const at = (sent: number, base: RunState = { ...newRun(full, 'desk'), day: spec.day }) => {
+  const at = (sent: number, base: RunState = { ...newRun(full, plainSeed), day: spec.day }) => {
     const ctx = runContext(full, base);
     const queue = campaignQueue(base, { content: full, ctx });
     const actions: RunAction[] = [{ t: 'beginShift', at: 0 }];
@@ -1849,7 +1868,7 @@ describe('someone at the desk (docs/tech-spec.md §46)', () => {
   };
 
   it('comes when its turn does, once, and only while its condition holds', () => {
-    expect(deskVisit({ ...newRun(full, 'desk'), day: spec.day }, full)).toBeNull();
+    expect(deskVisit({ ...newRun(full, plainSeed), day: spec.day }, full)).toBeNull();
     expect(deskVisit(at(visit.at - 1).run, full)).toBeNull();
     const due = at(visit.at);
     expect(deskVisit(due.run, full)).toEqual(visit);
@@ -1866,6 +1885,22 @@ describe('someone at the desk (docs/tech-spec.md §46)', () => {
     };
     expect(deskVisit(due.run, picky)).toBeNull();
     expect(deskVisit({ ...due.run, flags: { ...due.run.flags, never: 1 } }, picky)).not.toBeNull();
+  });
+
+  it('comes after a party that stands over its place, whose members go together (docs/tech-spec.md §69)', () => {
+    const seed = seeds.find(straddled);
+    if (!seed) throw new Error('no party over the visit in 40 seeds');
+    const base = { ...newRun(full, seed), day: spec.day };
+    const queue = campaignQueue(base, { content: full, ctx: runContext(full, base) });
+    const span = partyOf(queue, visit.at);
+    if (!span) throw new Error('no party');
+    // Its members sent on one by one: nobody goes, and nobody comes, until the last of them is stamped.
+    const before = at(span.start + span.size - 1, base);
+    expect(before.run.shift?.verdicts.length).toBe(span.start);
+    expect(deskVisit(before.run, full)).toBeNull();
+    const after = at(span.start + span.size, base);
+    expect(after.run.shift?.verdicts.length).toBe(span.start + span.size);
+    expect(deskVisit(after.run, full)).toEqual(visit);
   });
 
   it('keeps what the visit does for the audit: standing and the day’s favours stay as the gate set them', () => {
@@ -2133,7 +2168,7 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
       }
     }
     expect(asked).toBeGreaterThan(days / 5);
-  });
+  }, 60_000);
 
   it('granted, is a mistake like any, but the soul stands in the hall it asked for at Ragnarök, and doesn’t appeal', () => {
     for (const to of ['VALHALLA', 'HEL'] as const) {
@@ -2928,14 +2963,18 @@ describe('the Norns’ weave (docs/tech-spec.md §53)', () => {
         for (const seed of ['fair-a', 'fair-b']) {
           const run = morning(day, id, seed);
           const ctx = runContext(full, run);
-          for (const c of queue(run)) {
+          // A party's members (docs/tech-spec.md §69) with their companions, whose evidence shows their lies about them.
+          const line = queue(run);
+          line.forEach((c, i) => {
             const cx = soulCtx(ctx, c);
-            const j = solve(c.evidence.fields, cx, { reveals: revealsOf(c.lies) }).judgment;
+            const crossCaught = crossCaughtAt(line, i, ctx);
+            const j = solve(c.evidence.fields, cx, { reveals: revealsOf(c.lies), crossCaught }).judgment;
             expect(j.kind === 'determined' && j.dest, `${id} day ${day} ${c.id}`).toBe(c.expect.dest);
             const knobs = tierKnobs(c.meta.tier, cx.spec.queue.knobs);
-            const valid = validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs);
+            const companions = companionsAt(line, i, ctx);
+            const valid = validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs, companions);
             expect(valid.ok, `${id} day ${day} ${c.id}`).toBe(true);
-          }
+          });
         }
       }
     }

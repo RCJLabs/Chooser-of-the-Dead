@@ -38,6 +38,8 @@ queue:
     - { id: arch.baptized, w: 2 }
     - { id: arch.prime_signed, w: 1 }
     - { id: arch.false_convert, w: 1 }
+  # Souls from one fight or one crew, together at the desk (docs/tech-spec.md §69).
+  parties: { n: [1, 2] }
   mix: { VALHALLA: [10, 35], FOLKVANGR: [5, 20], HEL: [30, 55], RETURN: [5, 10], RAN: [5, 25], TRANSFER: [5, 15] }
   knobs:
     lieRate: 100

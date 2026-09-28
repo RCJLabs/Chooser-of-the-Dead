@@ -3,6 +3,7 @@ import {
   type Destination,
   ENGINE_MAJOR,
   type Faction,
+  partyOf,
   type RunSave,
   type RunState,
   runContext,
@@ -188,10 +189,15 @@ test("Loki's favour pays at the audit for nails left uncut, under the name he go
   ]);
 
   // Every soul stamped rightly, no nail cut: each long-nailed soul is a mistake, cited, and paid for by the stranger.
+  // A soul is cited as it leaves the desk: one who came in a party (docs/tech-spec.md §69) with the rest of it, when
+  // the last of them is sent; and none after the day's last soul.
   await page.getByTestId('to-gate').click();
-  for (const c of queue) {
+  for (const [i, c] of queue.entries()) {
     await stampAndSend(page, c.expect.dest);
-    if ((c.expect.procedures ?? []).length > 0) await page.getByTestId('citation-close').click();
+    const span = partyOf(queue, i) ?? { start: i, size: 1 };
+    if (i !== span.start + span.size - 1 || i === queue.length - 1) continue;
+    const cited = queue.slice(span.start, i + 1).filter((m) => (m.expect.procedures ?? []).length > 0).length;
+    for (let k = 0; k < cited; k++) await page.getByTestId('citation-close').click();
   }
   await expect(page.getByTestId('audit-title')).toHaveText('Day 9: the audit');
   const row = page.getByTestId('audit-nails');

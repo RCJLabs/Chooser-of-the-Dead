@@ -210,11 +210,12 @@ export function dressCase(
  * no dressing passes, which the sweeps haven't seen. Not for story souls, whose lines are their own.
  */
 export function dressForDay(soul: CaseSpec, ctx: DayCtx): CaseSpec | null {
-  // Seen afresh under the day's own rules: a noon decree of the day before is over.
-  const { noon: _noon, ...c } = soul;
+  // Seen afresh under the day's own rules: a noon decree of the day before is over, and so is its party
+  // (docs/tech-spec.md §69), with what it said of its companions.
+  const { noon: _noon, party: _party, ...c } = soul;
   const arch = ctx.archetypes.get(c.archetype);
   if (!arch) return null;
-  const planned: PlannedLie[] = c.lies.map(({ field: _, ...lie }) => lie);
+  const planned: PlannedLie[] = c.lies.filter((l) => l.about === undefined).map(({ field: _, ...lie }) => lie);
   const truth = withLiars(c.truth, planned, ctx);
   const expected = judge(truth, ctx);
   for (const tier of ['strict', 'widenBand'] as const) {
@@ -223,13 +224,14 @@ export function dressForDay(soul: CaseSpec, ctx: DayCtx): CaseSpec | null {
       const rng = new Rng(`${ctx.content.genVersion}|wait|${c.id}|${ctx.day}|${tier}|${attempt}`);
       const dressed = dressCase(arch, truth, expected, planned, c.evidence.look, [], ctx, knobs, rng);
       if ('code' in dressed) continue;
+      const { crossProof: _cross, ...meta } = c.meta;
       return {
         ...c,
         truth,
         lies: dressed.lies,
         evidence: dressed.evidence,
         expect: expected,
-        meta: { ...c.meta, ...dressed.meta },
+        meta: { ...meta, ...dressed.meta },
       };
     }
   }

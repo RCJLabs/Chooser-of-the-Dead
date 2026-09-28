@@ -1,8 +1,8 @@
 name: Nightly sweep
 
 # The full-size generator checks (docs/tech-spec.md §9): 10k seeds x every
-# playable day, 10k Dailies, the campaign bots, plus a deeper run of the
-# fairness property tests. Each is its own job, and the generator sweep is split
+# playable day, 10k Dailies, the days' parties (§69), the campaign bots, plus a
+# deeper run of the fairness property tests. Each is its own job, and the generator sweep is split
 # by days across four runners: run in one job, 20 days x 10k seeds took 50
 # minutes and the whole night ran past an hour.
 # Scheduled workflows run from the default branch.
@@ -71,6 +71,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Dailies #1-#10000: about 27 years of them.
       - run: pnpm sim sweep --daily --seeds 10000
+
+  parties:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Linked souls (docs/tech-spec.md §69): every day with parties, each member checked with its companions, and a
+      # careful bot at the desk.
+      - run: pnpm sim sweep --parties --seeds 1000 --prefix nightly
 
   campaign:
     runs-on: ubuntu-latest

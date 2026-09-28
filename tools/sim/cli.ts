@@ -2,6 +2,8 @@
  * Generator sweeps and campaign simulations (docs/tech-spec.md §9-10).
  *   pnpm sim sweep [--seeds 200] [--days 1-11] [--prefix sweep] [--no-timing] [--weave id]   (default: every day with a spec)
  *   pnpm sim sweep --daily [--seeds 200]      Dailies #1..#seeds
+ *   pnpm sim sweep --parties [--seeds 200] [--days 9-20] [--prefix parties] [--no-timing]
+ *     Days with parties (docs/tech-spec.md §69): each member checked with its companions, and a careful bot at the desk.
  *   pnpm sim campaign [--seeds 200] [--target dev-full|web-demo] [--story plain,ferry,…|all] [--no-fines] [--pace 25] [--serve freyja] [--promote] [--bribes] [--weave id]
  *     Bots play the target's scenes with each story policy (plain by default; see STORY_POLICIES);
  *     --no-fines plays every shift with that assist on; --pace sets the seconds of sun a bot spends on each
@@ -19,6 +21,7 @@ import type { TargetId } from '@cots/content-schema';
 import type { Faction } from '@cots/engine';
 import {
   applyOverrides,
+  checkPartyThresholds,
   checkThresholds,
   compareProfile,
   comparisonText,
@@ -28,6 +31,7 @@ import {
   loadScenes,
   type NightStrategy,
   parseOverride,
+  partySweep,
   STORY_POLICIES,
   simulateCampaign,
   storyPolicy,
@@ -183,7 +187,7 @@ if (cmd === 'compare') {
 }
 if (cmd !== 'sweep') {
   console.error(
-    "Usage: pnpm sim sweep [--seeds N] [--days 1-11 | --daily] [--prefix P] [--no-timing] [--weave id] | pnpm sim campaign [--seeds N] [--story plain,…|all] [--weave id] | pnpm sim compare --set 'path=value' [--seeds N]",
+    "Usage: pnpm sim sweep [--seeds N] [--days 1-11 | --daily | --parties] [--prefix P] [--no-timing] [--weave id] | pnpm sim campaign [--seeds N] [--story plain,…|all] [--weave id] | pnpm sim compare --set 'path=value' [--seeds N]",
   );
   process.exit(2);
 }
@@ -206,6 +210,31 @@ if (weaveId && !weave) {
   process.exit(2);
 }
 const started = performance.now();
+// Days with parties (docs/tech-spec.md §69): formed from each day's line, each member checked with its companions.
+if (process.argv.includes('--parties')) {
+  const withParties = days.filter((d) => full.days.find((s) => s.day === d)?.queue.parties);
+  const p = partySweep({
+    content: full,
+    days: withParties,
+    seeds,
+    seedPrefix: arg('prefix', 'parties'),
+    now: () => performance.now(),
+  });
+  const share = (a: number, b: number) => (b ? ((a * 100) / b).toFixed(1) : '0.0');
+  console.log(
+    `party sweep: ${seeds} seeds x days ${withParties.join(',')} = ${p.parties} parties of ${p.members} souls in ${((performance.now() - started) / 1000).toFixed(1)}s`,
+  );
+  console.log(
+    `said of companions: ${p.claims}, lies ${p.lies} (${share(p.lies, p.claims)}%); souls a caught lie about a companion decides: ${p.decided}`,
+  );
+  console.log(
+    `careful bot at the desk: ${share(p.ideal.correct, p.ideal.total)}% of ${p.ideal.total} souls, caught ${p.ideal.caught} of ${p.lies} lies about companions`,
+  );
+  console.log(`forming parties: mean ${p.linkMsMean.toFixed(2)} ms, p99 ${p.linkMsP99.toFixed(2)} ms a day`);
+  const breaches = checkPartyThresholds(p, { timing });
+  for (const b of breaches) console.error(`THRESHOLD: ${b}`);
+  process.exit(breaches.length > 0 ? 1 : 0);
+}
 const r = sweep({
   content: daily ? loadDailyContent() : full,
   ...(weave ? { weave } : {}),

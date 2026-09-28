@@ -42,8 +42,10 @@ export function questionResponse(
       (t.on.persona === undefined || t.on.persona.includes(persona)),
   );
   // Answers about a forged tally come before any more specific answer about a spoken lie, and never the other way.
-  const sameVia = fits.filter((t) => t.on.via === lie.via);
-  const matches = sameVia.length > 0 ? sameVia : fits.filter((t) => t.on.via === undefined);
+  // A lie about a companion (docs/tech-spec.md §69) is only ever answered with lines for one, and they for nothing else.
+  const told = fits.filter((t) => (t.on.about === true) === (lie.about !== undefined));
+  const sameVia = told.filter((t) => t.on.via === lie.via);
+  const matches = sameVia.length > 0 ? sameVia : told.filter((t) => t.on.via === undefined);
   if (matches.length === 0) return null;
   const best = Math.max(...matches.map(specificity));
   const top = matches.filter((t) => specificity(t) === best);
@@ -55,16 +57,21 @@ export function questionResponse(
     pool.map((t) => t.weight),
     rng,
   );
+  // A lie about a companion names them as its line did.
+  const said = lie.about !== undefined ? c.evidence.fields.find((f) => f.id === lieField)?.text?.params : undefined;
   const params = {
     name: c.evidence.look.name,
     patronym: c.evidence.look.patronym,
     gender: c.evidence.look.gender,
     truth: String(lie.truth),
+    ...(said?.companion !== undefined ? { companion: said.companion } : {}),
+    ...(said?.cgender !== undefined ? { cgender: said.cgender } : {}),
   };
   return {
     kind: lie.onQuestion,
     template: tpl.id,
     lines: tpl.msgs.map((msg) => ({ msg, params })),
-    reveals: lie.onQuestion === 'confess' ? [{ fact: lie.fact, value: lie.truth }] : [],
+    // Owning up to a lie about a companion says nothing new about the soul itself.
+    reveals: lie.onQuestion === 'confess' && lie.about === undefined ? [{ fact: lie.fact, value: lie.truth }] : [],
   };
 }

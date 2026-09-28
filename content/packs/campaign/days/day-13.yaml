@@ -41,6 +41,8 @@ queue:
     - { id: arch.prime_signed, w: 1 }
     - { id: arch.false_convert, w: 1 }
     - { id: arch.loki, w: 2 }
+  # Souls from one fight or one crew, together at the desk (docs/tech-spec.md §69).
+  parties: { n: [1, 2] }
   mix: { VALHALLA: [10, 30], FOLKVANGR: [5, 20], HEL: [30, 50], RETURN: [5, 10], RAN: [5, 20], TRANSFER: [5, 15], DETAIN: [5, 12] }
   knobs:
     lieRate: 100

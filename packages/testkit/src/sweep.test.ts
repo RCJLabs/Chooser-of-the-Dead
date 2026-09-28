@@ -1,6 +1,7 @@
 import { weaveDay } from '@cots/engine';
 import { expect, it } from 'vitest';
 import { loadContent, loadDailyContent } from './content';
+import { checkPartyThresholds, partySweep } from './party-sweep';
 import { checkThresholds, sweep, THRESHOLDS } from './sweep';
 
 // The CI gate from docs/tech-spec.md §3.8, on a PR-sized sweep. `pnpm sim sweep --seeds 10000` runs the nightly size.
@@ -48,4 +49,22 @@ it('every soul made on a woven day can be dressed for the weave, and the careful
       THRESHOLDS.maxTrustingPct,
     );
   }
+}, 120_000);
+
+// Linked souls (docs/tech-spec.md §69): every day with parties, formed from its line, each member fair and valid with
+// its companions, and a careful bot at the desk judging every soul rightly and catching every lie about a companion.
+// `pnpm sim sweep --parties` runs the nightly size.
+it('parties are fair: every member checks out with its companions, and the careful bot at the desk is always right', () => {
+  const content = loadContent('dev-full');
+  const report = partySweep({
+    content,
+    days: content.days.filter((d) => d.queue.parties).map((d) => d.day),
+    seeds: Number(process.env.SWEEP_PARTY_SEEDS ?? 30),
+    seedPrefix: 'ci-parties',
+    now: () => performance.now(),
+  });
+  expect(checkPartyThresholds(report)).toEqual([]);
+  expect(report.parties).toBeGreaterThan(200);
+  expect(report.lies).toBeGreaterThan(100);
+  expect(report.decided).toBeGreaterThan(20);
 }, 120_000);

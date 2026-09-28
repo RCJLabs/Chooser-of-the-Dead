@@ -1,0 +1,28 @@
+# Linked souls (docs/tech-spec.md §69): souls from one fight or one ship's crew come to the desk together, and each
+# says something of another. What one says of a companion is checked against the companion's own body and the ravens,
+# never a tally or a guess: a true word is never shown false there, and a lie always is. From Day 16 a lie about a
+# companion makes the soul a liar like any other.
+#
+# lie: percent of the time what a member says of a companion is a lie, where the companion's body can show it false.
+lie: 40
+# How a soul caught lying about a companion answers questioning. It never insists or deflects: it knows.
+onQuestion: { confess: 3, excuse: 2 }
+kinds:
+  # Souls who fell in one fight: they speak of who ran and who kept hold of their weapon.
+  - id: party.fight
+    since: 9
+    title: party.fight.title
+    words: { place: pool.places, foe: pool.foes }
+    size: [2, 3]
+    members: { cause: { is: battle } }
+    claims: [fled, grip]
+    weight: 3
+  # A ship's crew: some went down with her, some fell on her deck. They speak of how.
+  - id: party.crew
+    since: 9
+    title: party.crew.title
+    words: { ship: pool.ships, place: pool.places, foe: pool.foes }
+    size: [2, 3]
+    members: { cause: { in: [drowned, battle] } }
+    claims: [cause, grip]
+    weight: 2

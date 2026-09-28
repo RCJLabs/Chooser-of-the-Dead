@@ -3,6 +3,7 @@ import fc from 'fast-check';
 export {
   botBattle,
   botOrder,
+  catchCrossLie,
   catchLie,
   JUDGING,
   type Judging,
@@ -37,6 +38,13 @@ export {
 export { loadContent, loadDailyContent, loadScenes } from './content';
 export { type OracleResult, oracleSolve } from './oracle';
 export { oracleSolveReference } from './oracle-reference';
+export {
+  checkPartyThresholds,
+  MAX_LINK_MS_P99,
+  type PartySweepOptions,
+  type PartySweepReport,
+  partySweep,
+} from './party-sweep';
 export { checkThresholds, type SweepOptions, type SweepReport, sweep, THRESHOLDS } from './sweep';
 export { fc };
 

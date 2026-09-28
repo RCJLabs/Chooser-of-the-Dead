@@ -17,6 +17,11 @@ export interface Field {
   readonly cue?: { readonly key: string };
   /** A statement about a fact. `null` means Muninn forgot. */
   readonly says?: { readonly fact: string; readonly value: Value | null };
+  /**
+   * A statement about a companion in the soul's party (docs/tech-spec.md §69): member `soul`'s fact. Never about the
+   * soul itself, so nothing that reads `says` reads it; it's checked against the companion's own evidence.
+   */
+  readonly about?: { readonly soul: number; readonly fact: string; readonly value: Value };
   /** A forgery sign on the soul's saga tally: seen, it makes the whole tally worthless. */
   readonly tell?: ForgeryTell;
   readonly text?: { readonly msg: string; readonly params: Readonly<Record<string, string | number>> };
@@ -53,6 +58,11 @@ export interface Lie {
   readonly field: string;
   /** Carved on a forged saga tally rather than spoken. */
   readonly via?: 'tally';
+  /**
+   * A lie about a companion (docs/tech-spec.md §69): about party member `about`, so `fact`, `claimed` and `truth` are
+   * that soul's. Owning up to it reveals nothing about the liar.
+   */
+  readonly about?: number;
   readonly fact: string;
   readonly claimed: Value;
   readonly truth: Value;
@@ -73,6 +83,23 @@ export interface CaseMeta {
   readonly difficulty: number;
   /** Ids of cue fields that point the wrong way (hidden from the player). */
   readonly decoys: readonly string[];
+  /**
+   * What else the proof needs, on the soul's companions (docs/tech-spec.md §69): what shows a lie about one false,
+   * when catching it decides the soul. Absent when nothing.
+   */
+  readonly crossProof?: readonly { readonly soul: number; readonly field: string }[];
+}
+
+/** A soul's place in a party at the desk (docs/tech-spec.md §69). */
+export interface PartyTag {
+  /** The same for every member, and no one else in the line. */
+  readonly id: string;
+  readonly kind: string;
+  /** Its place in the party, from 0; members stand in the line in this order. */
+  readonly index: number;
+  readonly size: number;
+  /** How the desk names the party. */
+  readonly title: { readonly msg: string; readonly params: Readonly<Record<string, string | number>> };
 }
 
 export interface CaseSpec {
@@ -88,6 +115,8 @@ export interface CaseSpec {
   readonly plea?: { readonly stamp: Destination; readonly text: string };
   /** Whose kin it is (docs/tech-spec.md §60): a soul the run sent to a hall where it didn't belong. */
   readonly kin?: { readonly name: string; readonly day: number; readonly hall: Destination };
+  /** The party it came with (docs/tech-spec.md §69), if any. */
+  readonly party?: PartyTag;
   readonly archetype: string;
   readonly truth: Truth;
   readonly lies: readonly Lie[];

@@ -177,7 +177,16 @@ export type TruthConstraint =
   | { readonly gte?: number; readonly lte?: number };
 
 export type QuestionKind = 'confess' | 'excuse' | 'insist' | 'deflect';
-export type Motive = 'wantsValhalla' | 'avoidHel' | 'hideFaith' | 'evadeRegistry' | 'mistaken' | 'mischief';
+export type Motive =
+  | 'wantsValhalla'
+  | 'avoidHel'
+  | 'hideFaith'
+  | 'evadeRegistry'
+  | 'mistaken'
+  | 'mischief'
+  /** Lies about a companion (docs/tech-spec.md §69): covering for one, or spiting one. */
+  | 'loyalty'
+  | 'grudge';
 
 export interface LieSpec {
   readonly fact: string;
@@ -273,6 +282,8 @@ export interface QuestionTemplate {
     readonly kind: QuestionKind;
     /** Only for lies carved on a forged tally. */
     readonly via?: 'tally';
+    /** Only for lies about a companion (docs/tech-spec.md §69); its lines can name them as `{companion}`. */
+    readonly about?: true;
   };
   readonly msgs: readonly string[];
   readonly weight: number;
@@ -549,6 +560,11 @@ export interface DaySpec {
      */
     readonly visits?: readonly DeskVisit[];
     readonly archetypes: readonly { readonly id: string; readonly w: number }[];
+    /**
+     * How many parties the day's line forms (docs/tech-spec.md §69): souls from one fight or one ship's crew, brought
+     * together at the desk. Fewer when the line has too few souls of a kind. Never on the Daily.
+     */
+    readonly parties?: { readonly n: readonly [number, number] };
     /** Percent [min, max] share of the queue per destination. */
     readonly mix: Readonly<Partial<Record<Destination, readonly [number, number]>>>;
     readonly knobs: Knobs;
@@ -1098,6 +1114,47 @@ export interface FactionAlias {
   readonly untilDay: number;
 }
 
+/**
+ * A kind of party (docs/tech-spec.md §69): souls from one fight or one ship's crew, who come to the desk together and
+ * speak of each other.
+ */
+export interface PartyKindDef {
+  readonly id: string;
+  /** The first day parties of this kind come. */
+  readonly since: number;
+  /** How the desk names the party (a string key); the party's words are its params. */
+  readonly title: string;
+  /** Words every member's lines share, by param name (a pool id): one fight is fought at one place. */
+  readonly words: Readonly<Record<string, string>>;
+  /** How many souls, [min, max], at least 2. */
+  readonly size: readonly [number, number];
+  /** What every member's truth meets: a fight's all fell in battle. */
+  readonly members: Readonly<Record<string, TruthConstraint>>;
+  /** The facts a member may speak of about a companion. */
+  readonly claims: readonly string[];
+  readonly weight: number;
+}
+
+/** Parties (`parties.yaml`, docs/tech-spec.md §69). */
+export interface PartiesDef {
+  readonly kinds: readonly PartyKindDef[];
+  /** Percent: how often what a member says about a companion is a lie, where a lie can be told. */
+  readonly lie: number;
+  /** How a soul caught lying about a companion answers questioning (weights; never insist or deflect). */
+  readonly onQuestion: Readonly<Partial<Record<'confess' | 'excuse', number>>>;
+}
+
+/** What a member says about a companion (`templates/party.yaml`): `{companion}` is the companion's name. */
+export interface PartyLineTemplate {
+  readonly id: string;
+  readonly asserts: { readonly fact: string; readonly value: Value };
+  /** Only in parties of these kinds; any when absent. */
+  readonly kinds?: readonly string[];
+  readonly personas?: readonly string[];
+  readonly msg: string;
+  readonly weight: number;
+}
+
 /** What the sun costs besides the tools (`sun.yaml`, docs/tech-spec.md §4, §26, §63), in seconds. */
 export interface SunCosts {
   /** A Compare that finds nothing. */
@@ -1151,4 +1208,8 @@ export interface Content {
   readonly press?: PressDef;
   /** What pressed souls say. */
   readonly pressLines?: readonly PressTemplate[];
+  /** Souls who come to the desk together (docs/tech-spec.md §69); none in the demo. */
+  readonly parties?: PartiesDef;
+  /** What they say about each other. */
+  readonly partyLines?: readonly PartyLineTemplate[];
 }

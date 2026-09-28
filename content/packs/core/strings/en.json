@@ -706,5 +706,13 @@
   "ui.problem.note": "Something went wrong. If the game stops responding, reload: nothing you've saved is lost.",
   "ui.problem.report": "Report it",
   "ui.problem.dismiss": "Dismiss",
-  "ui.sun.low": "A minute of sun left."
+  "ui.sun.low": "A minute of sun left.",
+  "ui.party.label": "{n} souls who came together",
+  "ui.party.send": "Send all {n}",
+  "ui.party.send.hold": "Hold to send all {n}",
+  "ui.party.sent": "Sent together: {right} of {n} judged rightly.",
+  "ui.party.next": "Now {name}.",
+  "ui.party.on": "{name}: {what}",
+  "coach.party": "These came together. Turn to each by name, or with [ and ]. What one says of another, Compare with that one's own body: a lie about a companion is a lie like any other. Stamp each and send it on; the last one sends them all.",
+  "ui.party.nextSoul": "Next: {name}"
 }

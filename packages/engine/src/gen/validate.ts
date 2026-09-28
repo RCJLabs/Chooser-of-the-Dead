@@ -3,7 +3,8 @@ import type { DayCtx } from '../logic/context';
 import { type Judgment, judge, observe, sameJudgment, withOverride } from '../logic/judge';
 import { eval2, type Truth } from '../logic/pred';
 import { isPerceivable, type SolveResult, solve } from '../logic/solver';
-import type { Evidence, Field, Lie, RejectCode } from './types';
+import { companionShows, factValue, memberField, parseMemberField } from './companions';
+import type { CaseSpec, Evidence, Field, Lie, RejectCode } from './types';
 
 /** Facts whose value decides the judgment: changing any one of them changes the destination or the procedures due. */
 export function decisiveFacts(truth: Truth, expected: Judgment, ctx: DayCtx): string[] {
@@ -20,12 +21,20 @@ export function decisiveFacts(truth: Truth, expected: Judgment, ctx: DayCtx): st
   return out;
 }
 
-/** Answers questioning would give: a confession reveals the true value. */
+/**
+ * Answers questioning would give: a confession reveals the true value. Owning up to a lie about a companion
+ * (docs/tech-spec.md §69) reveals nothing about the soul itself.
+ */
 export function revealsOf(lies: readonly Lie[]): Map<string, { fact: string; value: Value }> {
   const out = new Map<string, { fact: string; value: Value }>();
-  for (const l of lies) if (l.onQuestion === 'confess') out.set(l.field, { fact: l.fact, value: l.truth });
+  for (const l of lies) {
+    if (l.onQuestion === 'confess' && l.about === undefined) out.set(l.field, { fact: l.fact, value: l.truth });
+  }
   return out;
 }
+
+/** A soul's companions in its party (docs/tech-spec.md §69), by their place in it, and the rules they're judged by. */
+export type Companions = ReadonlyMap<number, { readonly case: CaseSpec; readonly ctx: DayCtx }>;
 
 export function toolsFor(fields: readonly Field[]): ToolId[] {
   const tools: ToolId[] = [];
@@ -45,6 +54,11 @@ export interface Proof {
   readonly fields: readonly string[];
   readonly costS: number;
   readonly tools: readonly ToolId[];
+  /**
+   * What the proof needs on the soul's companions (docs/tech-spec.md §69): the fields that show a lie in `fields` about
+   * one false. Empty when nothing.
+   */
+  readonly cross: readonly { readonly soul: number; readonly field: string }[];
 }
 
 /**
@@ -52,7 +66,13 @@ export interface Proof {
  * dropping any single field breaks it). Drives difficulty, timer tuning, the
  * efficient bot and the citation that explains a mistake.
  */
-export function minimalProof(evidence: Evidence, lies: readonly Lie[], expected: Judgment, ctx: DayCtx): Proof {
+export function minimalProof(
+  evidence: Evidence,
+  lies: readonly Lie[],
+  expected: Judgment,
+  ctx: DayCtx,
+  crossCaught?: ReadonlyMap<string, readonly string[]>,
+): Proof {
   const reveals = revealsOf(lies);
   const candidates = evidence.fields.filter((f) => f.cue === undefined);
   const order = candidates
@@ -65,7 +85,7 @@ export function minimalProof(evidence: Evidence, lies: readonly Lie[], expected:
     const r = solve(
       evidence.fields.filter((f) => keep.has(f.id)),
       ctx,
-      { reveals },
+      { reveals, ...(crossCaught ? { crossCaught } : {}) },
     ).judgment;
     if (r.kind !== 'determined' || !sameJudgment(r, expected)) keep.add(id);
   }
@@ -74,7 +94,14 @@ export function minimalProof(evidence: Evidence, lies: readonly Lie[], expected:
   let costS = 0;
   for (const f of proofFields) costS += f.cost;
   for (const t of tools) costS += ctx.tools.get(t) ?? 0;
-  return { fields: proofFields.map((f) => f.id), costS, tools };
+  const cross: { soul: number; field: string }[] = [];
+  for (const f of proofFields) {
+    for (const id of crossCaught?.get(f.id) ?? []) {
+      const at = parseMemberField(id);
+      if (at && !cross.some((x) => x.soul === at.soul && x.field === at.field)) cross.push(at);
+    }
+  }
+  return { fields: proofFields.map((f) => f.id), costS, tools, cross };
 }
 
 export function difficultyOf(proof: Proof, evidence: Evidence, lies: readonly Lie[], expected: Judgment, ctx: DayCtx) {
@@ -115,6 +142,7 @@ export function validateCase(
   decisive: readonly string[],
   ctx: DayCtx,
   knobs: Knobs,
+  companions?: Companions,
 ): Validation {
   // F8: content rules.
   if (evidence.look.age < 18 || evidence.look.age > 85) return fail('CONTENT_RULE', `age ${evidence.look.age}`);
@@ -151,7 +179,35 @@ export function validateCase(
     }
   }
 
-  const solved = solve(evidence.fields, ctx, { reveals: revealsOf(lies) });
+  // What the soul says of its companions (docs/tech-spec.md §69), against what their own evidence can't be wrong
+  // about: a true word fits and is never shown false (F1, F2); every lie about one is shown false (F4), whether or not
+  // it changes anything, so it can always be caught.
+  const crossCaught = new Map<string, string[]>();
+  for (const f of evidence.fields) {
+    if (!f.about) continue;
+    const { soul, fact, value } = f.about;
+    const mate = companions?.get(soul);
+    if (!mate) return fail('UNSOUND', `${f.id} speaks of member ${soul}, who isn't here`);
+    const lie = lies.find((l) => l.field === f.id);
+    const actual = factValue(mate.case.truth, fact, mate.ctx);
+    if (lie ? lie.about !== soul || lie.fact !== fact || lie.claimed !== value || actual === value : actual !== value) {
+      return fail('UNSOUND', `${f.id} says member ${soul}'s ${fact} is ${String(value)}; it is ${String(actual)}`);
+    }
+    const shows = companionShows(mate.case.evidence.fields, fact, value, mate.ctx);
+    if (shows && !lie) return fail('FALSE_ALARM', `${f.id} about member ${soul} looks false`);
+    if (!shows && lie) return fail('HIDDEN_LIE', `${f.id} (member ${soul}'s ${fact}) is never shown false`);
+    if (shows) {
+      crossCaught.set(
+        f.id,
+        shows.map((id) => memberField(soul, id)),
+      );
+    }
+  }
+  const told = new Set(evidence.fields.filter((f) => f.about).map((f) => f.id));
+  const untold = lies.find((l) => l.about !== undefined && !told.has(l.field));
+  if (untold) return fail('UNSOUND', `a lie about member ${untold.about} is told by ${untold.field}, not about them`);
+
+  const solved = solve(evidence.fields, ctx, { reveals: revealsOf(lies), crossCaught });
 
   // F2: no false alarms.
   if (solved.conflicts.length > 0) return fail('FALSE_ALARM', `conflict on ${solved.conflicts[0]?.fact}`);
@@ -182,6 +238,7 @@ export function validateCase(
 
   // F4: every lie that would change the outcome is caught by a contradiction (a forged line also by its tally's tell).
   for (const lie of lies) {
+    if (lie.about !== undefined) continue;
     const changes = !sameJudgment(judge(withOverride(truth, lie.fact, lie.claimed, ctx), ctx), expected);
     const exposed = solved.contradictions.some((c) => c.lie === lie.field) || (carved(lie) && tells.length > 0);
     if (changes && !exposed) {
@@ -216,7 +273,7 @@ export function validateCase(
   }
 
   // F7: effort limits.
-  const proof = minimalProof(evidence, lies, expected, ctx);
+  const proof = minimalProof(evidence, lies, expected, ctx, crossCaught);
   const [lo, hi] = knobs.proofCostS;
   if (proof.costS < lo || proof.costS > hi) return fail('EFFORT_BAND', `proof costs ${proof.costS}s`);
   if (proof.tools.length > knobs.maxTools) return fail('TOO_MANY_TOOLS', `${proof.tools.length} tools`);

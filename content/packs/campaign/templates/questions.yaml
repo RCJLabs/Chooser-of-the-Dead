@@ -34,3 +34,25 @@
   on: { fact: trickster, kind: deflect, persona: [braggart] }
   msgs: [q.guise.deflect.2]
 - { id: q.any.deflect, on: { fact: '*', kind: deflect }, msgs: [q.any.deflect.1] }
+# A soul caught lying about a companion (docs/tech-spec.md §69): it owns up, or blames the dark. `{companion}` is who
+# it lied about.
+- { id: q.party.confess, on: { fact: '*', kind: confess, about: true }, msgs: [q.party.confess.1] }
+- id: q.party.fled.cover.confess
+  on: { fact: fled, claimed: false, kind: confess, about: true }
+  msgs: [q.party.fled.cover.confess.1]
+- id: q.party.fled.spite.confess
+  on: { fact: fled, claimed: true, kind: confess, about: true }
+  msgs: [q.party.fled.spite.confess.1]
+- id: q.party.grip.cover.confess
+  on: { fact: grip, claimed: weapon, kind: confess, about: true }
+  msgs: [q.party.grip.cover.confess.1]
+- id: q.party.grip.spite.confess
+  on: { fact: grip, claimed: none, kind: confess, about: true }
+  msgs: [q.party.grip.spite.confess.1]
+- id: q.party.cause.confess
+  on: { fact: cause, kind: confess, about: true }
+  msgs: [q.party.cause.confess.1]
+- { id: q.party.excuse, on: { fact: '*', kind: excuse, about: true }, msgs: [q.party.excuse.1] }
+- id: q.party.coward.excuse
+  on: { fact: '*', kind: excuse, persona: [coward], about: true }
+  msgs: [q.party.coward.excuse.1]

@@ -191,6 +191,11 @@ export interface DayLedger {
    */
   readonly pressed?: { readonly n: number; readonly gave: number };
   /**
+   * Parties at the desk today (docs/tech-spec.md §69): how many, their souls, the lies told about companions and how
+   * many of those were caught. Absent on a day with none, for a playtest's report.
+   */
+  readonly parties?: { readonly n: number; readonly souls: number; readonly lies: number; readonly caught: number };
+  /**
    * The souls judged today who asked for another hall, and kin who came (docs/tech-spec.md §60): kept in a build whose
    * campaign has pleas or kin, empty on a day nobody asked, and absent in saves from before they were kept.
    */
