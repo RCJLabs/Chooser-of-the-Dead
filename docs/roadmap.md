@@ -1,10 +1,14 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–68.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–69.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 3's first step (below), in the full game only:
+
+- **3a. Linked souls** ([`tech-spec.md`](tech-spec.md) §69). From Day 9, one or two parties a day come to the desk together: two or three souls who fell in one fight, or a ship's crew. The player turns between them, and each says something of another: who ran, who kept hold of their weapon, how each died. What one says is checked against the other's own body, never a guess or a tally, so a lie about a companion can always be caught. Caught, it's a lie like any other, and from Day 16 it makes the soul a liar. Stamp each, and the last one sends them all. The numbers are guesses until playtest reports count them.
 
 Game phase 4 (below), in the full game only:
 
@@ -26,16 +30,15 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1, 2 and 4 (above).
-- **Next:** 3.
+- **Done:** 1, 2, 4, and 3's first step (above).
+- **Next:** 3's second step, the retinue.
 - **Held:** 5–8. They're heavy on writing, so they wait for your story sign-off and go into the rewrite rather than being redone after it.
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
 3. **Linked souls.**
-   - Souls from one battle or shipwreck arrive in the same shift, and their stories must agree ("I died beside my brother Ketil", while Ketil says he fell alone).
-   - A jarl's retinue is judged as a group.
-   - It's the cross-checking between souls the desk doesn't have yet, and the biggest engine job here.
+   - Souls from one battle or shipwreck arrive in the same shift, and their stories must agree ("I died beside my brother Ketil", while Ketil says he fell alone). Done ([`tech-spec.md`](tech-spec.md) §69).
+   - A jarl's retinue is judged as a group. Next: the hearth-men share their jarl's fate, a rule that reads across souls.
 4. **Endless as a run** (done, [`tech-spec.md`](tech-spec.md) §68). Between rounds, pick one of three boons, or take a curse for a higher score. Its numbers are guesses until players have run it.
 5. **The forger's trail.** The Day 11 forger, Loki's disguised agents and Muninn's gaps leave marks at the desk. Pin them to a board across days, and accuse on set nights.
 6. **Valkyrie origins.** Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, a different household and a few scenes of its own.

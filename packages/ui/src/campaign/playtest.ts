@@ -233,6 +233,27 @@ function dayList(days: readonly number[]): string {
 }
 
 /**
+ * Parties at the desk (docs/tech-spec.md §69): on each day that had any, how many and their souls, and the lies told
+ * about companions with how many were caught before the stamp. Nothing for a run that met none.
+ */
+function parties(p: PlaytestInput): string[] {
+  const days = p.run.ledger.flatMap((l) => (l.parties ? [{ day: l.day, ...l.parties }] : []));
+  if (days.length === 0) return [];
+  const total = (k: 'n' | 'souls' | 'lies' | 'caught') => days.reduce((n, d) => n + d[k], 0);
+  const lines = days.map(
+    (d) =>
+      `- Day ${d.day}: ${d.n} ${d.n === 1 ? 'party' : 'parties'} of ${d.souls} souls; lies about a companion caught: ${d.caught} of ${d.lies}.`,
+  );
+  return [
+    '### Parties',
+    '',
+    `Parties: ${total('n')}, of ${total('souls')} souls. Lies about a companion: ${total('lies')}, caught before the stamp: ${total('caught')}.`,
+    '',
+    ...lines,
+  ];
+}
+
+/**
  * The souls who asked for another hall (docs/tech-spec.md §51, §59) and the kin who came for a soul sent wrong (§60):
  * how many, and each by day with where it belonged, what it asked, and whether it was given it. A refused plea is a
  * right stamp, so nothing else in the report shows it. Days played on a build that didn't keep them are named.
@@ -482,6 +503,7 @@ export function playtestReport(p: PlaytestInput): string {
     ...mistakes(p),
     '',
     ...(pleas(p).length > 0 ? [...pleas(p), ''] : []),
+    ...(parties(p).length > 0 ? [...parties(p), ''] : []),
     ...appeals(p),
     '',
     ...line(p),

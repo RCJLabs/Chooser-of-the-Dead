@@ -162,6 +162,28 @@ describe('the playtest report', () => {
     expect(lines.slice(1).filter((l) => l.includes('plea'))).toEqual([]);
   });
 
+  it('counts each day’s parties, and the lies about a companion caught (docs/tech-spec.md §69)', () => {
+    const save = played('playtest-parties', 1, right);
+    const day1 = (save.mornings.at(-1) as RunState).ledger[0];
+    if (!day1) throw new Error('no day filed');
+    // Day 1 has no parties: nothing filed, and no section.
+    expect(day1.parties).toBeUndefined();
+    expect(report(save)).not.toContain('### Parties');
+    const ledger: DayLedger[] = [
+      { ...day1, day: 9, parties: { n: 1, souls: 2, lies: 1, caught: 1 } },
+      { ...day1, day: 10 },
+      { ...day1, day: 16, parties: { n: 2, souls: 5, lies: 2, caught: 0 } },
+    ];
+    const text = report({ ...save, mornings: save.mornings.map((m) => ({ ...m, ledger })) });
+    const section = text.slice(text.indexOf('### Parties'), text.indexOf('### Appeals'));
+    expect(section.split('\n').filter((l) => l !== '')).toEqual([
+      '### Parties',
+      'Parties: 3, of 7 souls. Lies about a companion: 3, caught before the stamp: 1.',
+      '- Day 9: 1 party of 2 souls; lies about a companion caught: 1 of 1.',
+      '- Day 16: 2 parties of 5 souls; lies about a companion caught: 0 of 2.',
+    ]);
+  });
+
   it('counts the souls who asked for another hall and the kin who came, and names days not counted (docs/tech-spec.md §60)', () => {
     const save = played('playtest-pleas', 1, right);
     const day1 = (save.mornings.at(-1) as RunState).ledger[0];

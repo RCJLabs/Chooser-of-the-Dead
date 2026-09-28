@@ -11,7 +11,10 @@ import {
   hintsLeft,
   kinRelation,
   type Lesson,
+  memberField,
+  memberSoul,
   nextHint,
+  parseMemberField,
   patienceLeft,
   pleaOf,
   pressable,
@@ -28,6 +31,7 @@ import {
   sunCosts,
   sunLeft,
   toolsFor,
+  turnedTo,
   type Verdict,
 } from '@cots/engine';
 import { copyText } from '@cots/platform';
@@ -47,6 +51,7 @@ import {
   canTryAgain,
   citation,
   clock,
+  closeCitation,
   closeReview,
   coachAcks,
   coachState,
@@ -91,8 +96,18 @@ export function useAutoFocus<T extends HTMLElement>() {
 
 // ---------- compare ----------
 
+/**
+ * An evidence id as Compare picks it: at a party (docs/tech-spec.md §69), with the member it's on, so a pick survives
+ * turning to another member.
+ */
+export function pickId(id: string): string {
+  const st = session.peek()?.state;
+  return st?.party ? memberField(turnedTo(st), id) : id;
+}
+
 /** Picks an item for Compare; the second pick runs the comparison. */
-export function pick(id: string): void {
+export function pick(field: string): void {
+  const id = pickId(field);
   const first = compareFirst.peek();
   if (!comparing.peek() || first === null) {
     comparing.value = true;
@@ -285,7 +300,7 @@ function BodyStage({ s, c }: { s: Session; c: CaseSpec }) {
 }
 
 function Evidence({ s, c, f, variant }: { s: Session; c: CaseSpec; f: Field; variant: 'chip' | 'line' }) {
-  const selected = comparing.value && compareFirst.value === f.id;
+  const selected = comparing.value && compareFirst.value === pickId(f.id);
   const { soul } = s.state;
   const flag = soul.flagged.find((x) => x.lie === f.id);
   const questioned = soul.questioned.includes(f.id);
@@ -492,8 +507,17 @@ function CompareBar() {
 }
 
 function SendButton({ s }: { s: Session }) {
-  const chosen = s.state.soul.stamp;
-  const hold = settings.value.holdToSend;
+  const chosen = s.state.soul.stamp !== null;
+  // A party goes together (docs/tech-spec.md §69): until every member has its stamp, Send goes on to the next.
+  const party = s.state.party;
+  const here = party ? turnedTo(s.state) : 0;
+  const n = party?.souls.length ?? 1;
+  const next = party
+    ? Array.from({ length: n }, (_, k) => (here + 1 + k) % n).find((k) => memberSoul(s.state, k)?.stamp === null)
+    : undefined;
+  const nextName = party && next !== undefined ? (s.state.cases[party.start + next]?.evidence.look.name ?? '') : '';
+  // Going on to the next member sends nobody, so it needs no holding.
+  const hold = settings.value.holdToSend && next === undefined;
   const pointer = useRef('mouse');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [holding, setHolding] = useState(false);
@@ -529,7 +553,12 @@ function SendButton({ s }: { s: Session }) {
         act({ t: 'send' });
       }}
     >
-      {t(hold && coarse && !padInUse.value ? 'ui.send.hold' : 'ui.send')} <kbd>Enter</kbd>
+      {party && next !== undefined
+        ? t('ui.party.nextSoul', { name: nextName })
+        : party
+          ? t(hold && coarse && !padInUse.value ? 'ui.party.send.hold' : 'ui.party.send', { n })
+          : t(hold && coarse && !padInUse.value ? 'ui.send.hold' : 'ui.send')}{' '}
+      <kbd>Enter</kbd>
     </button>
   );
 }
@@ -922,6 +951,81 @@ function AnswerBox({ a }: { a: Answer }) {
   );
 }
 
+/**
+ * Fields a verdict says were never looked at, as the player reads them. A companion's (docs/tech-spec.md §69), named
+ * `@<member>:<field>`, is read with the companion's name.
+ */
+function missedText(cases: readonly CaseSpec[], c: CaseSpec, index: number, ids: readonly string[]): string[] {
+  return ids.flatMap((id) => {
+    const at = parseMemberField(id);
+    const whose = at && c.party ? cases[index - c.party.index + at.soul] : c;
+    const f = whose?.evidence.fields.find((x) => x.id === (at?.field ?? id));
+    if (!whose || !f) return [];
+    return [at ? t('ui.party.on', { name: whose.evidence.look.name, what: fieldText(f, whose) }) : fieldText(f, whose)];
+  });
+}
+
+/** The one-time tip for a party at the desk (docs/tech-spec.md §69). */
+function partyTip(s: Session): boolean {
+  const c = coachState();
+  return c.on && !(c.tips ?? []).includes('party') && s.state.party !== undefined && !activeLesson(s, c);
+}
+
+/**
+ * A party at the desk (docs/tech-spec.md §69): what brought them, and each of them, to turn to, marked with its stamp
+ * once it has one. They go together, when all are stamped.
+ */
+function PartyStrip({ s }: { s: Session }) {
+  const party = s.state.party;
+  if (!party) return null;
+  const members = s.state.cases.slice(party.start, party.start + party.souls.length);
+  const title = members[0]?.party?.title;
+  const here = turnedTo(s.state);
+  return (
+    <section class="party" data-testid="party" aria-label={t('ui.party.label', { n: members.length })}>
+      {title ? (
+        <p class="party__title" data-testid="party-title">
+          {t(title.msg, title.params)}
+        </p>
+      ) : null}
+      <div class="party__members">
+        {members.map((m, k) => {
+          const stamped = memberSoul(s.state, k)?.stamp;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              class={`party__member${k === here ? ' is-here' : ''}`}
+              aria-current={k === here ? 'true' : undefined}
+              data-testid="party-member"
+              data-member={k}
+              onClick={() => act({ t: 'turn', to: k })}
+            >
+              {m.evidence.look.name}
+              {stamped ? (
+                <span class="party__stamp" data-testid="party-stamp">
+                  {t(`dest.${stamped}`)}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+        <span class="party__keys" aria-hidden="true">
+          <kbd>[</kbd> <kbd>]</kbd>
+        </span>
+      </div>
+      {partyTip(s) ? (
+        <div class="party__tip" data-testid="party-tip" role="note">
+          <p>{t('coach.party')}</p>
+          <button type="button" class="btn btn--small" data-testid="party-tip-ok" onClick={() => noteTip('party')}>
+            {t('ui.coach.gotIt')}
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function CitationSlip({ s }: { s: Session }) {
   const v = citation.value;
   return v ? <CitationBox key={v.index} s={s} v={v} /> : null;
@@ -931,7 +1035,7 @@ function CitationBox({ s, v }: { s: Session; v: Verdict }) {
   const focus = useAutoFocus<HTMLButtonElement>();
   const c = s.state.cases[v.index];
   const rule = s.ctx.rules.find((r) => r.id === v.rule);
-  const missed = (c?.evidence.fields ?? []).filter((f) => v.missed.includes(f.id)).map((f) => fieldText(f, c));
+  const missed = c ? missedText(s.state.cases, c, v.index, v.missed) : [];
   const skipped = skippedText(v.skipped, s.ctx);
   const name = c?.evidence.look.name ?? '';
   const dest = t(`dest.${v.expected}`);
@@ -967,7 +1071,7 @@ function CitationBox({ s, v }: { s: Session; v: Verdict }) {
             data-testid="citation-close"
             data-back
             ref={focus}
-            onClick={() => (citation.value = null)}
+            onClick={closeCitation}
           >
             {t('ui.citation.close')}
           </button>
@@ -1078,6 +1182,11 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
     return f ? [f] : [];
   });
   const marks = new Map(proof.map((f) => [f.id, missed.has(f.id) ? ('missed' as const) : ('proof' as const)]));
+  // What the proof needed on the soul's companions (docs/tech-spec.md §69): what showed its lie about one false.
+  const across = (c.meta.crossProof ?? []).map((x) => {
+    const id = memberField(x.soul, x.field);
+    return { id, text: missedText(s.state.cases, c, v.index, [id])[0] ?? id, missed: missed.has(id) };
+  });
   const name = `${c.evidence.look.name} ${c.evidence.look.patronym}`;
   const expected = t(`dest.${v.expected}`);
   const skipped = skippedText(v.skipped, ctx);
@@ -1115,6 +1224,11 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
           {proof.map((f) => (
             <li key={f.id} data-field={f.id} class={missed.has(f.id) ? 'is-missed' : undefined}>
               {fieldText(f, c)} {missed.has(f.id) ? <span class="evidence__badge">{t('ui.review.missed')}</span> : null}
+            </li>
+          ))}
+          {across.map((x) => (
+            <li key={x.id} data-field={x.id} class={x.missed ? 'is-missed' : undefined}>
+              {x.text} {x.missed ? <span class="evidence__badge">{t('ui.review.missed')}</span> : null}
             </li>
           ))}
         </ul>
@@ -1438,6 +1552,7 @@ export function ShiftScreen() {
           </div>
         ) : null}
         <CoachBar s={s} lesson={lesson} />
+        <PartyStrip s={s} />
         {c ? <SoulDesk key={c.id} s={s} c={c} layout={layout} /> : null}
       </div>
       {/* A soul looked at again holds the sun, and covers the desk instead of the pause (docs/tech-spec.md §67). */}

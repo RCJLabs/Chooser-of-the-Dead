@@ -4261,6 +4261,102 @@ The brainstorm's version, and what changed:
 - **The desk's compare bar can cover signs.** On a 1920×1080 desk, the floating bar sits over part of the row of body signs under the body. That was so before; the oath's note is kept to the bar's old width.
 - **The rulebook's costs line still speaks of sun in rounds without one,** as it does in untimed practice.
 
+## 69. Linked souls (game phase 3)
+
+**Why.** Game phase 3 in [`roadmap.md`](roadmap.md). Until now each soul at the desk was judged on its own evidence alone. Now souls from one fight or one ship's crew come to the desk together and speak of each other, and what one says of another is checked against the other's body. The phase's second half, a jarl's retinue judged as a group, isn't built yet (Known limits).
+
+**Only in the full game, from Day 9.**
+- Parties are content in the campaign pack: `parties.yaml`, `templates/party.yaml`, question lines for lies about a companion, and `queue.parties` on Days 9–20.
+- The Daily, the primer and the demo's days have none. Their lines, and the Daily's checksums, are unchanged.
+- The campaign, practice and Endless rounds on those days' rules get them.
+
+**A party** (`linkParties` in `packages/engine/src/gen/party.ts`):
+- **Formed last, from a day's finished line:** its own souls, those who waited, an event's, a rank's, the story souls, kin and pleas.
+  - It runs on a stream of its own (`…|parties`), so the rest of the line is the same with or without parties.
+- **1–2 a day** (the day's `parties.n`), each of 2 or 3 souls of a kind that already stand next to each other in the line.
+  - So the line keeps its order, and story souls and desk visits keep their places.
+  - Never at the head of the line (a day's first soul teaches its rule), never across a noon decree, never a story soul, and never two souls with the same name.
+- **Two kinds:**
+
+  | Kind | Its souls | The desk calls it | What they speak of |
+  |---|---|---|---|
+  | A fight | all fell in battle | "Fell together at the black ford" | who ran; who kept hold of their weapon |
+  | A crew | drowned, or fell in battle | "The crew of the Long Serpent" | how each died; who kept hold of their weapon |
+
+- **One fight, one story.** A party's lines share its place, foe and ship: every member tells of the same fight.
+- **Each member says one thing of the next** (the last of the first). It's about a fact the companion's own body or the ravens settle. At 40% it's a lie, and then always one that evidence shows false.
+
+**Fairness**
+- **What a soul says of a companion is a field of its own kind** (`Field.about`), never `says`. So nothing that reads what a soul says of itself reads it: the solver's own-soul logic, the trusting bot, pressing, the oracles.
+- **It's checked only against what can't be wrong in the companion's own evidence:**
+  - body signs read through taught laws, the ravens, confessions (`companionShows`, the solver's `certainOnly`);
+  - never a presumption, and never a saga tally.
+
+  So a true word is never shown false, even when the companion's tally is forged and its tell not yet seen.
+- **The validator (F1–F8) takes the soul's companions:**
+  - F1: a true word fits the companion's truth.
+  - F2: a true word is never shown false.
+  - F4: every lie about a companion is shown false by the companion's evidence, whether or not it changes anything. So it can always be caught.
+  - The proof can need a companion's fields (`meta.crossProof`). Citations and Look again name them with the companion's name.
+- **A lie about a companion is a lie like any other.**
+  - Caught, it earns its ring and counts for the day's grade.
+  - From Day 16 it makes the soul a liar (`fromLies`), so it can send an honoured soul to Hel. The solver takes what companions show as `crossCaught`.
+- **Nothing a soul says of a companion changes the companion,** or how it's judged: its own evidence decides it, as before.
+- **A lie never moves a soul out of a hall the morning's requests ask for souls from,** so a request can still be done.
+- **Checked by:**
+  - unit tests (`party.test.ts`);
+  - a party sweep (`partySweep` in the testkit), in CI at 30 seeds × Days 9–20 and nightly at 1,000 (`pnpm sim sweep --parties`). Every member passes F1–F8 with its companions, every word about a companion is fair, and a careful bot at the desk judges every soul rightly and catches every lie about a companion.
+
+  On 40 seeds × 12 days: 733 parties of 1,810 souls, and 707 lies about companions. For 140 souls, the hall turned on catching one. Forming a day's parties takes 4 ms on average, 11 ms at the 99th percentile.
+
+**At the desk** (`ShiftState.party` in the engine; the UI)
+- **The party stands at the desk together.**
+  - A strip above the desk names it and each member.
+  - The player turns between them by name, or with `[` and `]`. On a controller, the d-pad reaches the names.
+  - Each member keeps its own state: what's been looked at, turned over, caught and stamped.
+- **Compare across them.** Pick what one says of another, turn to the other, and pick what shows it false.
+  - A Compare pick is named with the member it's on (`@1:body.front.grip`), so it survives turning.
+  - A caught lie is marked on the soul who told it, who can be questioned on it. Owning up reveals nothing about itself.
+  - A Compare that finds nothing costs its sun, as any does (under Týr's oath, a strike).
+- **Stamp each, and send it on.**
+  - Send on a stamped member goes on to the next without a stamp ("Next: Hrafn").
+  - The last one sends them all ("Send all 3"), and they walk off together.
+  - Each gets its own verdict, and a citation if it was wrong. The citations come once the last one is sent, one after another. As for any soul, none shows after the day's last: those are read at the audit.
+- **A one-time tip** the first time a party comes.
+- **Hints and presses:** Skögul points only at the soul turned to, and pressing isn't offered on what a soul says of a companion.
+- **Around it:**
+  - A soul who came with a party never appeals.
+  - Souls left in line at dusk come back the next day alone; their words about companions stay with the party.
+  - A desk visit whose place falls inside a party comes after the party.
+  - Try again plays the whole party again.
+  - The rule tracker reads a caught lie about a companion as a caught lie.
+  - The playtest report counts each day's parties, and the lies about companions caught.
+
+**Tests**
+- **Engine** (`party.test.ts`):
+  - no parties on days without them, nor on the Daily;
+  - parties of 2–3 souls of a kind standing together, never first in line, never across noon, with distinct names;
+  - every word about a companion true or shown false, and every member valid with its companions;
+  - from Day 16, a lie about a companion deciding a hall;
+  - requests' halls kept;
+  - turning, Compare across members, questioning, sending on and sending together, traces, dusk.
+- **Campaign tests** now check party members with their companions, and a desk visit inside a party comes after it.
+- **Compiler** (`compile.test.ts`): the parties lint. It catches a missing string or pool, and an unknown fact. It catches a value of a claim no line can say, a missing answer for a lie about a companion, and a day that forms parties with no `parties.yaml`.
+- **Testkit:** the party sweep; the campaign bots turn to each member and catch lies about companions too.
+- **e2e** (`party.spec.ts`, full game, phone and desktop): a Day 9 save with two souls who fell together right behind the jarl.
+  - The strip, the tip and the keys.
+  - One's lie about the other's weapon caught against the other's hands, and questioned.
+  - Next, then Send all.
+  - An accessibility scan, and no sideways scroll.
+- **Older e2e specs** that walk a Day 9 or Day 14 line (`favours.spec.ts`, `return.spec.ts`) now wait for a party's citations until its last member is sent.
+
+**Known limits**
+- **The retinue isn't built.** A jarl's hearth-men sharing their jarl's fate is a rule across souls, and the second step of this phase.
+- **Parties come only from souls already next to each other,** so a day with few souls of a kind may have none.
+- **A party's shared words are written into its members' lines after they're made.** A member's own lines and its party's agree, but a party can't give a member a line it never had.
+- **The numbers are guesses:** the lie rate (40%), 1–2 parties a day, sizes 2–3. The playtest report counts them now.
+- **Time at the desk is booked to a party's first member** in traces and reports, since they're sent together.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

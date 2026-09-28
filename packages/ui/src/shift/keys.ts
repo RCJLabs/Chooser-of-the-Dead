@@ -1,9 +1,10 @@
-import { nextHint, stampsFor } from '@cots/engine';
+import { nextHint, stampsFor, turnedTo } from '@cots/engine';
 import { campaignUi } from '../campaign/lazy';
 import {
   act,
   answer,
   citation,
+  closeCitation,
   closeReview,
   comparing,
   drawerTab,
@@ -24,7 +25,7 @@ function focusSend(): void {
 /**
  * The shift's keyboard map (docs/tech-spec.md §6.4): F turn over, T feather, G registry,
  * C compare, Q question, H hint, 1-9 stamps (focus moves to Send), Enter send,
- * R rules, Esc cancels or pauses.
+ * R rules, [ and ] turn to the party's other souls (§69), Esc cancels or pauses.
  */
 export function onShiftKey(e: KeyboardEvent): void {
   if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
@@ -53,8 +54,8 @@ export function onShiftKey(e: KeyboardEvent): void {
   }
   if (answer.peek() || citation.peek()) {
     if (key === 'Escape') {
-      answer.value = null;
-      citation.value = null;
+      if (answer.peek()) answer.value = null;
+      else closeCitation();
       e.preventDefault();
     }
     return;
@@ -101,6 +102,15 @@ export function onShiftKey(e: KeyboardEvent): void {
       if (target?.closest(INTERACTIVE)) return;
       if (s.state.soul.stamp) act({ t: 'send' });
       break;
+    case '[':
+    case ']': {
+      // A party at the desk (docs/tech-spec.md §69): the member before or after, round the party.
+      const party = s.state.party;
+      if (!party) return;
+      const n = party.souls.length;
+      act({ t: 'turn', to: (turnedTo(s.state) + (key === ']' ? 1 : n - 1)) % n });
+      break;
+    }
     default: {
       if (!/^[1-9]$/.test(key)) return;
       const dest = stampsFor(s.ctx)[Number(key) - 1];

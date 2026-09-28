@@ -30,6 +30,7 @@ import {
   guardDaily,
   hasBoons,
   type PlayMode,
+  partyOf,
   queueChecksum,
   type RunRules,
   runRules,
@@ -731,6 +732,8 @@ export function closeReview(): void {
   const r = review.peek();
   review.value = null;
   if (r?.held) act({ t: 'resume' });
+  // Citations a party earned together (docs/tech-spec.md §69) wait while one of them is looked at again.
+  if (citation.peek() === null && moreCitations.peek().length > 0) closeCitation();
 }
 
 /** Whether a judged soul can be tried again: once its shift is over, and never under the oath. */
@@ -748,7 +751,11 @@ export function tryAgain(index: number): void {
   const c = s?.state.cases[index];
   if (!s || !c || !canTryAgain(s)) return;
   const from = screen.peek();
-  const { state } = startShift(s.content, { ...s.state.config, untimed: true }, [c], s.ctx);
+  // A soul who came with a party (docs/tech-spec.md §69) comes again with it: what they say of each other needs
+  // them all there.
+  const span = partyOf(s.state.cases, index);
+  const again = span ? s.state.cases.slice(span.start, span.start + span.size) : [c];
+  const { state } = startShift(s.content, { ...s.state.config, untimed: true }, again, s.ctx);
   const begin: ShiftAction = { t: 'begin', at: clock() };
   const back = () => {
     batch(() => {
@@ -773,6 +780,25 @@ export function tryAgain(index: number): void {
   });
 }
 export const citation = signal<Verdict | null>(null);
+/** Citations still to read: a party sent together (docs/tech-spec.md §69) can earn more than one. */
+export const moreCitations = signal<readonly Verdict[]>([]);
+
+/** Puts the citation away, and brings the next one still to read, if any. */
+export function closeCitation(): void {
+  const [next, ...rest] = moreCitations.peek();
+  batch(() => {
+    citation.value = next ?? null;
+    moreCitations.value = rest;
+  });
+}
+
+/** Puts away every citation still to read. */
+function clearCitations(): void {
+  batch(() => {
+    citation.value = null;
+    moreCitations.value = [];
+  });
+}
 /** The soul just sent, and its stamp: the desk shows it walking off that way (shift/motion.ts). */
 export const departed = signal<{ readonly caseId: string; readonly dest: Destination } | null>(null);
 export const comparing = signal(false);
@@ -811,11 +837,17 @@ export function act(input: ActionInput): void {
   if (r.state === s.state && r.events.length === 0) return;
   const changed = r.state !== s.state;
   const next: Session = { ...s, state: r.state, actions: changed ? [...s.actions, action] : s.actions };
-  // A lesson is taught once its soul has been judged.
-  if (r.state.cursor > s.state.cursor && activeLesson(s, coachState())) noteCoached(s.ctx.day);
+  // A lesson is taught once its soul has been judged (a turn to another member of a party moves the cursor too).
+  if (r.state.verdicts.length > s.state.verdicts.length && activeLesson(s, coachState())) noteCoached(s.ctx.day);
   batch(() => {
     session.value = next;
     for (const e of r.events) onEvent(e, next);
+    // A party sent together (docs/tech-spec.md §69): one word for all of them, after each one's.
+    const judged = r.events.flatMap((e) => (e.e === 'judged' ? [e.verdict] : []));
+    if (judged.length > 1) {
+      const right = judged.filter((v) => v.correct).length;
+      say(t('ui.party.sent', { right, n: judged.length }), right === judged.length ? 'good' : 'bad');
+    }
     // A judged soul, read from the shift as it stood before the send (its questions and hints are still on it).
     for (const e of r.events) {
       const mode = playMode(s.mode);
@@ -888,8 +920,19 @@ function onEvent(e: ShiftEvent, s: Session): void {
       if (s.mode.kind === 'endless') countEndless(e);
       break;
     }
+    case 'turned':
+      // Sent on to the next member of a party (docs/tech-spec.md §69), who hasn't a stamp yet: a new soul at the desk,
+      // as far as the desk's own things go. Turned to one by hand, only the stamps are put away, so a Compare begun on
+      // one member can end on another.
+      if (e.next) {
+        resetSoulUi();
+        say(t('ui.party.next', { name: cases[s.state.cursor]?.evidence.look.name ?? '' }));
+      } else stampSheet.value = false;
+      break;
     case 'citation':
-      if (s.state.phase !== 'done') citation.value = e.verdict;
+      if (s.state.phase === 'done') break;
+      if (citation.peek() === null) citation.value = e.verdict;
+      else moreCitations.value = [...moreCitations.peek(), e.verdict];
       break;
     case 'dusk':
       say(t('ui.dusk'), 'bad');
@@ -915,7 +958,7 @@ function saveProgress(s: Session): void {
 }
 
 function finish(s: Session): void {
-  citation.value = null;
+  clearCitations();
   answer.value = null;
   if (s.done) {
     s.done(s);
@@ -1211,7 +1254,7 @@ function endlessSession(mode: EndlessMode, replay: readonly ShiftAction[] = []):
 function showEndless(s: Session): void {
   resetSoulUi();
   batch(() => {
-    citation.value = null;
+    clearCitations();
     answer.value = null;
     session.value = s;
   });
@@ -1367,7 +1410,7 @@ export function begin(): void {
 export function quitToSlots(): void {
   batch(() => {
     session.value = null;
-    citation.value = null;
+    clearCitations();
     answer.value = null;
     screen.value = 'campaign';
   });
@@ -1376,7 +1419,7 @@ export function quitToSlots(): void {
 export function toTitle(): void {
   batch(() => {
     session.value = null;
-    citation.value = null;
+    clearCitations();
     answer.value = null;
     screen.value = 'title';
   });
