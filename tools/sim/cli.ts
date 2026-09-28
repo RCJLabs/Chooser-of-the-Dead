@@ -8,16 +8,26 @@
  *     soul (25 by default, when the sun never sets on the line), and adds the souls left at dusk; --serve has bots
  *     do one god's requests (docs/tech-spec.md §42) and adds each god's standing and the requests done; --bribes
  *     has bots take what story souls offer for a wrong stamp (§47).
+ *   pnpm sim compare --set 'path=value' [--set …] [--seeds 30] [--target dev-full] [--judging expert,competent,novice]
+ *       [--strategy payAll] [--story plain] [--pace 25] [--nights 3,9,15,19]
+ *     The tuning workbench (§63): the same bots on the same seeds with the content as built and with the changes, and
+ *     what moved, with 95% intervals. A path picks list items by [id], [day], [index] or [*]; `+=` and `-=` add
+ *     and take away, `*=` scales.
  * Sweeps print a report and exit 1 if any CI threshold is breached.
  */
 import type { TargetId } from '@cots/content-schema';
 import type { Faction } from '@cots/engine';
 import {
+  applyOverrides,
   checkThresholds,
+  compareProfile,
+  comparisonText,
   JUDGING,
   loadContent,
   loadDailyContent,
   loadScenes,
+  type NightStrategy,
+  parseOverride,
   STORY_POLICIES,
   simulateCampaign,
   storyPolicy,
@@ -110,9 +120,70 @@ if (cmd === 'campaign') {
   }
   process.exit(reports.some((r) => r.ledgerErrors > 0) ? 1 : 0);
 }
+if (cmd === 'compare') {
+  const fail = (message: string): never => {
+    console.error(`sim compare: ${message}`);
+    process.exit(2);
+  };
+  const target = arg('target', 'dev-full') as TargetId;
+  const seeds = Number(arg('seeds', '30'));
+  if (!Number.isInteger(seeds) || seeds < 2) fail('--seeds takes a whole number, 2 or more');
+  const sets = process.argv.flatMap((a, i) => (a === '--set' ? [process.argv[i + 1] ?? ''] : []));
+  if (sets.length === 0) fail("say what to change: --set 'path=value' (see docs/tech-spec.md §63)");
+  const base = loadContent(target);
+  let made: ReturnType<typeof applyOverrides> | undefined;
+  try {
+    made = applyOverrides(base, sets.map(parseOverride));
+  } catch (e) {
+    fail((e as Error).message);
+  }
+  const { content: variant, changes } = made as ReturnType<typeof applyOverrides>;
+  const names = arg('judging', 'expert,competent,novice').split(',');
+  const judgings = names.map((n) => JUDGING.find((j) => j.name === n) ?? fail(`no bots judge as "${n}"`));
+  const strategies = arg('strategy', 'payAll').split(',') as NightStrategy[];
+  const pace = process.argv.includes('--pace') ? Number(arg('pace', '25')) : undefined;
+  const lastDay = base.campaign?.lastDay ?? 0;
+  const nights = arg('nights', '3,9,15,19')
+    .split(',')
+    .map(Number)
+    .filter((n) => n >= 1 && n <= lastDay);
+  const story = storyPolicy(arg('story', 'plain'));
+  const show = (x: unknown) => (typeof x === 'string' ? x : JSON.stringify(x));
+  console.log(
+    `sim compare: ${target}, ${seeds} seeds each, ${story.name} story${pace !== undefined ? `, ${pace}s a soul` : ''}`,
+  );
+  for (const [by, set] of sets.entries()) {
+    // Each --set, and the places it changed: a few, then how many more.
+    const made = changes.filter((c) => c.by === by);
+    const shown = made.slice(0, made.length > 4 ? 3 : 4).map((c) => `${c.at}: ${show(c.from)} → ${show(c.to)}`);
+    console.log(`  ${set}${made.length > 1 ? ` (${made.length} places)` : ''}`);
+    for (const line of shown) console.log(`    ${line}`);
+    if (made.length > shown.length) console.log(`    … and ${made.length - shown.length} more`);
+  }
+  const started = performance.now();
+  for (const judging of judgings) {
+    for (const strategy of strategies) {
+      try {
+        const c = compareProfile(base, variant, judging, strategy, {
+          seeds,
+          nights,
+          sim: { story, scenes: loadScenes(target), ...(pace !== undefined ? { paceS: pace } : {}) },
+        });
+        console.log(`\n${comparisonText(c)}`);
+      } catch (e) {
+        console.error(`\nsim compare: ${(e as Error).message}`);
+        process.exit(1);
+      }
+    }
+  }
+  console.log(
+    `\n${((performance.now() - started) / 1000).toFixed(1)}s. "noise": the interval holds no change, so these runs can't tell it from luck; more --seeds narrow it.`,
+  );
+  process.exit(0);
+}
 if (cmd !== 'sweep') {
   console.error(
-    'Usage: pnpm sim sweep [--seeds N] [--days 1-11 | --daily] [--prefix P] [--no-timing] [--weave id] | pnpm sim campaign [--seeds N] [--story plain,…|all] [--weave id]',
+    "Usage: pnpm sim sweep [--seeds N] [--days 1-11 | --daily] [--prefix P] [--no-timing] [--weave id] | pnpm sim campaign [--seeds N] [--story plain,…|all] [--weave id] | pnpm sim compare --set 'path=value' [--seeds N]",
   );
   process.exit(2);
 }

@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/generated", "!**/node_modules", "!docs", "!LICENSE"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/generated",
+      "!**/node_modules",
+      "!docs",
+      "!LICENSE",
+      "!tests/fixtures/playtests"
+    ]
   },
   "formatter": {
     "enabled": true,

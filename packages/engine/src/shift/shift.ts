@@ -166,10 +166,19 @@ export type ShiftEvent =
   | { readonly e: 'resumed' }
   | { readonly e: 'rejected'; readonly reason: string };
 
-/** Sun penalties in ms (docs/tech-spec.md §4, §26). Tool costs come from content. */
-export const PENALTY = { badCompare: 10_000, question: 20_000, hint: 15_000 } as const;
-/** How long the current soul may still be judged after dusk. */
-export const DUSK_GRACE_MS = 60_000;
+/**
+ * What the sun costs besides the tools, in ms (docs/tech-spec.md §4, §26): the content's `sun.yaml`, so tuning it is
+ * data (§63). The tools' own costs are content too.
+ */
+export function sunCosts(content: Content): {
+  readonly badCompare: number;
+  readonly question: number;
+  readonly hint: number;
+  readonly duskGrace: number;
+} {
+  const { badCompare, question, hint, duskGrace } = content.sun;
+  return { badCompare: badCompare * 1000, question: question * 1000, hint: hint * 1000, duskGrace: duskGrace * 1000 };
+}
 
 const freshSoul = (): SoulState => ({
   seen: [],
@@ -293,9 +302,9 @@ export function toolCost(state: ShiftState, ctx: DayCtx, tool: ToolId): number |
 }
 
 /** What questioning a liar costs, in sun-ms, after upgrades. */
-export function questionCostMs(state: ShiftState): number {
+export function questionCostMs(state: ShiftState, ctx: DayCtx): number {
   const s = state.config.mods?.questionS;
-  return s === undefined ? PENALTY.question : s * 1000;
+  return s === undefined ? sunCosts(ctx.content).question : s * 1000;
 }
 
 /** Whether the next question is one of the day's free ones (a god's favour, docs/tech-spec.md §43). */
@@ -330,7 +339,7 @@ function finish(state: ShiftState, endedBy: 'queue' | 'dusk', at: number): { sta
 }
 
 /** Checks dusk (and the grace after it); returns events for anything that happened. */
-function checkSun(state: ShiftState, at: number): { state: ShiftState; events: ShiftEvent[] } {
+function checkSun(state: ShiftState, at: number, ctx: DayCtx): { state: ShiftState; events: ShiftEvent[] } {
   if (state.config.untimed || state.phase !== 'shift' || state.clock.pausedAt !== null) {
     return { state, events: [] };
   }
@@ -341,7 +350,7 @@ function checkSun(state: ShiftState, at: number): { state: ShiftState; events: S
     s = { ...s, clock: { ...s.clock, dusk: true } };
     events.push({ e: 'dusk' });
   }
-  if (s.clock.dusk && elapsed >= s.sunMs + DUSK_GRACE_MS) {
+  if (s.clock.dusk && elapsed >= s.sunMs + sunCosts(ctx.content).duskGrace) {
     const f = finish(s, 'dusk', at);
     return { state: f.state, events: [...events, ...f.events] };
   }
@@ -388,7 +397,7 @@ export function stepShift(
   }
   if (state.clock.pausedAt !== null) return reject(state, 'the shift is paused');
 
-  const sun = checkSun(state, action.at);
+  const sun = checkSun(state, action.at, day);
   if (sun.state.phase !== 'shift' || action.t === 'tick') return sun;
   const s = sun.state;
   const c = s.cases[s.cursor];
@@ -441,10 +450,8 @@ export function stepShift(
         (x) => (x.lie === a && x.against.includes(b)) || (x.lie === b && x.against.includes(a)),
       );
       if (!found) {
-        return withSun({
-          state: penalize(s, PENALTY.badCompare),
-          events: [{ e: 'noConflict', a, b, penaltyMs: PENALTY.badCompare }],
-        });
+        const penaltyMs = sunCosts(day.content).badCompare;
+        return withSun({ state: penalize(s, penaltyMs), events: [{ e: 'noConflict', a, b, penaltyMs }] });
       }
       if (s.soul.flagged.some((f) => f.lie === found.lie)) return withSun({ state: s, events: [] });
       const other = found.lie === a ? b : a;
@@ -462,7 +469,7 @@ export function stepShift(
       if (!response) return withSun(reject(s, 'this soul has nothing to say'));
       const recentQ = [...s.recentQ, response.template].slice(-20);
       const free = freeQuestion(s);
-      const cost = free ? 0 : questionCostMs(s);
+      const cost = free ? 0 : questionCostMs(s, day);
       const asked = { ...s, recentQ, soul: { ...s.soul, questioned: [...s.soul.questioned, action.lie] } };
       return withSun({
         state: penalize(free ? { ...asked, freeAsked: (s.freeAsked ?? 0) + 1 } : asked, cost),
@@ -474,10 +481,8 @@ export function stepShift(
       const field = nextHint(s);
       if (!field) return withSun(reject(s, 'nothing left to point at'));
       const soul = { ...s.soul, hinted: [...(s.soul.hinted ?? []), field] };
-      return withSun({
-        state: penalize({ ...s, soul }, PENALTY.hint),
-        events: [{ e: 'hint', field, penaltyMs: PENALTY.hint }],
-      });
+      const penaltyMs = sunCosts(day.content).hint;
+      return withSun({ state: penalize({ ...s, soul }, penaltyMs), events: [{ e: 'hint', field, penaltyMs }] });
     }
     case 'stamp': {
       if (!ctx.destinations.has(action.dest)) return withSun(reject(s, `no ${action.dest} stamp today`));

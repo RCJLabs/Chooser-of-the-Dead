@@ -2582,3 +2582,35 @@ a.btn {
   margin: 0 0 0.25rem;
   font-size: 0.85rem;
 }
+
+/*
+ * When something breaks (docs/tech-spec.md §63): the screen that says so, and the notice at the top for an error
+ * that didn't break the screen.
+ */
+.screen--crash .card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.screen--crash h1 {
+  margin: 0;
+}
+
+.problem {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  width: min(32rem, calc(100vw - 1rem));
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  background: var(--panel);
+  border-left: 5px solid var(--bad);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+
+.problem p {
+  margin: 0 0 0.5rem;
+}

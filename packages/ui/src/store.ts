@@ -1215,7 +1215,8 @@ export async function shareEndless(r: EndlessResult): Promise<ShareResult> {
 
 let ticker: ReturnType<typeof setInterval> | undefined;
 
-function pauseIfPlaying(): void {
+/** Pauses the shift being played, if its sun is running (the page hidden, the window left, something broken). */
+export function pauseIfPlaying(): void {
   const s = session.peek();
   if (s && screen.peek() === 'shift' && s.state.phase === 'shift' && s.state.clock.pausedAt === null) {
     act({ t: 'pause' });

@@ -1,0 +1,22 @@
+name: Report a problem
+description: Something in the game broke or stopped responding. Opened from "Report the problem" in the game.
+title: "Problem: "
+labels: [problem, alpha]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The game fills in the details below: the build, the error, where you were in the game, and your browser, screen size and language.
+  - type: textarea
+    id: report
+    attributes:
+      label: Report
+      description: Filled in by the game. If it's empty, press "Copy the report" in the game and paste it here.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What were you doing?
+      description: For example "I had just stamped the third soul and pressed Send".

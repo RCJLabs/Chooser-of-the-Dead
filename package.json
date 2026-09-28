@@ -37,6 +37,8 @@
     "e2e:steam": "playwright test -c tests/electron/playwright.config.ts",
     "icons": "tsx tools/icons/make-icons.ts",
     "sim": "tsx tools/sim/cli.ts",
+    "playtest:read": "tsx tools/playtest/cli.ts read",
+    "playtest:keep": "tsx tools/playtest/cli.ts keep",
     "art:sheet": "tsx tools/art-sheet/cli.ts",
     "story:script": "tsx tools/story-script/cli.ts script",
     "story:approve": "tsx tools/story-script/cli.ts approve",

@@ -1482,7 +1482,7 @@ Fines are what sink a novice. In a scratch run of 30 seeds, cutting every bill b
 ## 26. After M7: Skögul's hint (audit item 8)
 
 **What changed**
-- **A Hint button (and H)** asks Skögul where to look, for 15 seconds of sun (`PENALTY.hint`; a question costs 20). The engine's `hint` action points at the first piece of the soul's deciding evidence (its minimal proof, `meta.proof`) that the player hasn't looked at and she hasn't already pointed at, and keeps what she pointed at in the soul's state, so replays and resumes are exact.
+- **A Hint button (and H)** asks Skögul where to look, for 15 seconds of sun (`hint` in the core pack's `sun.yaml` since §63; a question costs 20). The engine's `hint` action points at the first piece of the soul's deciding evidence (its minimal proof, `meta.proof`) that the player hasn't looked at and she hasn't already pointed at, and keeps what she pointed at in the soul's state, so replays and resumes are exact.
 - **She says where, not what**: "Skögul points at the hands", "taps the registry", "hands you the rune-lens", "looks up at the ravens". What she pointed at stays highlighted (the coach's highlights) until the player has looked, with the flip highlighted too when it's on the other side of the body.
 - **Nothing left to show**: once everything that decides the soul has been seen, the button is off and says so, and asking costs nothing. Following her hints to the end always shows enough to decide the soul, given the answers of a liar who confesses when questioned (a property test on Days 1–20).
 - Not offered in Endless (a score with no sun) or the primer (the coach leads it). Shifts without a sun (Story Mode, practice without sun) get hints for free.
@@ -2904,7 +2904,7 @@ Notes on the tables:
   - A night scene's lands on the next day.
   - A morning scene's lands on that day.
   - The day's audit files it with the day (`DayLedger.dawnS`) and clears it. A night scene after the audit starts the next one.
-- **The shift takes it with the day's other sun** (`shiftMods`: upgrades, favours, and now this). The gate always keeps two minutes of sun (`MIN_SUN_S`), whatever a trip takes.
+- **The shift takes it with the day's other sun** (`shiftMods`: upgrades, favours, and now this). The gate always keeps two minutes of sun (the campaign's `minSunS`, in content since §63), whatever a trip takes.
 - **Story Mode has no sun,** so a trip costs nothing there.
 - **The player sees it before choosing, and after:**
   - the option says "(2:00 less sun tomorrow)", or "today" in the morning;
@@ -2953,7 +2953,7 @@ The poem survives only in late paper manuscripts, not the Codex Regius. Wings fo
   - a `# beat` keeps a choice's note with its own part.
 - **Engine (3):**
   - a trip lands on the next shift (the night's tomorrow, the morning's today), is filed by that day's audit, and doesn't carry on;
-  - the gate keeps `MIN_SUN_S`;
+  - the gate keeps `minSunS`;
   - someone at home can be lost: an adult dies, a child goes to relatives.
 - **Scenes and sim (4):**
   - Night 10's options, with the silver sent back;
@@ -3874,6 +3874,105 @@ The brainstorm's version, and what changed:
 - **Anything the game keeps only in localStorage is forgotten at quit.** Today that's only the art style chosen with `?art=`, which the Steam build has no way to set.
 - **macOS isn't built** (§8.1).
 - **The demo's progress doesn't carry over to the full game** (§8.1's nice-to-have).
+
+## 63. The foundation: crash safety, playtest reports read by script, and a tuning workbench
+
+**Why.** From the foundation brainstorm ([`roadmap.md`](roadmap.md)), items 7, 1 and 2.
+- **Crash safety:** an error while drawing a screen went uncaught, so the screen likely froze. The saves were safe, but nothing told the player so.
+- **Reading playtest reports:** the report's table was written so a script could read it, and nothing did.
+- **A tuning workbench:** some tuning numbers still lived in TypeScript. Nothing measured what a change to a number does across many runs.
+
+**When something breaks** (`packages/ui/src/crash.ts`, `crash-ui.tsx`)
+- **An error while drawing a screen** is caught by `CrashGuard`, around the whole app (Preact's `useErrorBoundary`).
+  - A running shift is paused first (`pauseIfPlaying`), and the pause is saved, so the sun stops.
+  - The crash screen:
+    - says what happened and that nothing saved is lost, since the game saves after every move;
+    - has **Reload**, focused. After it, resuming picks the shift up, paused, at the soul the player was on (tested for the Daily);
+    - has **Report the problem**, which opens the GitHub form *Problem report* with the report filled in;
+    - shows the report as text, with a Copy button.
+- **Any other error the game didn't catch** (`error` and `unhandledrejection`) gets a notice at the foot of the screen, with **Report it** and **Dismiss**. The game goes on.
+  - Only the game's own errors count: from its own scripts, or with them in the stack. Known-harmless ones are skipped: the ResizeObserver loop, an aborted request, a refused permission.
+  - Each message is shown once a session, and never over the crash screen.
+- **The report holds:**
+  - the build line;
+  - the time;
+  - the error: its message, at most 300 characters, and the stack's first 12 lines;
+  - where the player was, for example `shift · Daily #41 · day 5 · soul 2 of 8`;
+  - up to five earlier problems this session;
+  - the device: browser, window size, pixel ratio and language.
+
+  Nothing from the saves goes in. Past 7,000 characters, the link keeps four stack lines and drops the earlier problems; the text to copy keeps everything.
+- **The form** is `.github/ISSUE_TEMPLATE/problem-report.yml`. It has the report, then what the player was doing.
+- **A lab hook** tests both paths, in the `dev-full` build only; other builds drop it at build time, as they drop the labs. `cotsCrash('render')` breaks a screen; `cotsCrash('handler')` throws from outside a render.
+  - The second throws from a microtask. Playwright's clock catches errors thrown by timers, so a timer never reached the page's handler.
+
+**Playtest reports, read by script** (`tools/playtest`)
+- **`pnpm playtest:read`** sums up reports: issue bodies saved as files (`gh issue view N --json body -q .body > N.md`), reports pasted on their own, a folder of either, or stdin.
+  - `parse.ts` reads the report as `playtest.ts` writes it: the header, the Days table by its column names, the Mistakes list, and the pleas.
+  - A file can hold several reports. The form's answer to "What did you play on?" is kept.
+  - Columns a build didn't have read as missing.
+- **The report gains a column:** the sun left when the last soul was sent (`grade.spareMs`). The bots' sun left means nothing, since they spend a fixed 25 s a soul, so this only comes from testers.
+- **The summary** is Markdown, to paste into an issue or a note:
+  - the runs side by side: build, slot, day, rings, ending, device, assists;
+  - the rings after each night, beside the bots' median and middle half. Bots: expert, competent and novice, 20 runs each by default, on the same target. The table says how many bot runs were still going on each day;
+  - where each run's last night sits among the bots;
+  - each day's judging: right, wrong, left at dusk, the share judged rightly, grades of sharp or flawless, the median sun left, and assisted days;
+  - wrong stamps by the rule they broke, with skipped steps, bribes, pleas granted and noon decrees counted apart;
+  - pleas and kin.
+- **`pnpm playtest:keep backup.json --name tester`** keeps each campaign slot of a tester's backup as `tests/fixtures/playtests/<tester>-slot<N>.json`.
+  - `kept.test.ts` opens every kept save with the current build (`resumeSave`), writes its report and reads it back.
+  - A change that would break a tester's run fails there before it ships.
+  - A save holds its seed, the actions taken, the souls' generated names and the choices made; nothing about the tester. The file name is whatever `--name` says, and the repository is public.
+  - One bot-made save is kept, so the test has something to open before any tester sends a backup.
+
+**A tuning workbench**
+- **The numbers moved to content, unchanged:**
+  - What the sun costs besides the tools: a wrong compare 10 s, a question 20 s, a hint 15 s, and 60 s of grace at dusk. They were `PENALTY` and `DUSK_GRACE_MS` in `shift.ts`; now they're `content/packs/core/sun.yaml`, read through `sunCosts(content)`.
+  - The least sun a campaign shift has: 120 s. It was `MIN_SUN_S`; now it's `minSunS` in `content/packs/demo/campaign.yaml`.
+  - Exactly one pack must define `sun.yaml`, and the compiler says so otherwise.
+  - The sun's costs apply to the Daily as well. Its checksum guard (§15) covers the souls, not the costs, so a change to them changes how the live Daily plays without tripping the guard. `sun.yaml` says so.
+  - The Question and Hint buttons and the rulebook read the costs from content.
+  - The Daily's checksums and the golden days didn't change.
+- **`pnpm sim compare --set 'path=value' …`** runs the same bots on the same seeds twice: once with the content as built, and once with the changes.
+  - The seeds are those `pnpm sim campaign` uses (`c0`, `c1`, …). Each pair of runs shares one seed, so both meet the same souls and dice until the change sends them apart.
+  - **Paths** name a place in the compiled content: `campaign.minSunS`, `sun.question`, `days[4].economy.wage`, `campaign.shop[up.meadHorn].price`, `days[*].sunS`.
+    - A bracket picks list items by id, by day, by index, or all of them with `*`.
+    - `=` sets, `+=` and `-=` add and take away, and `*=` scales, rounded to whole numbers.
+    - A value must keep its kind: a number stays a number, a list a list. A misspelt path fails and names what is there.
+  - **Options:** `--seeds` (30), `--judging` (expert, competent, novice), `--strategy` (payAll), `--story` (plain), `--pace` and `--nights` (3, 9, 15, 19).
+  - **For each kind of bot, it prints:**
+    - how many pairs changed at all;
+    - for each measure, the two means, the mean change and its 95% interval (±1.96 standard errors of the paired differences). "noise" means the interval holds no change; "same" means every pair came out equal.
+      The measures: rings at the end, lowest rings, demoted, lost family, days played, upgrades, fronts held, the rings after the chosen nights, and souls left at dusk (only when a run has any).
+    - which endings moved.
+  - A measure a run doesn't reach, such as a night after a demotion, compares only the pairs where both runs have it, and says how many.
+  - With no pair changed, it says the bots never met what changed.
+  - **Speed:** about 1 s a run on `dev-full` here. 20 seeds for two kinds of bot took 80 s.
+  - **An example, measured here:** a ring more in wages every day (`days[*].economy.wage+=1`), 20 seeds.
+    - Competent bots had 127 rings more after Night 15, but 0.9 more after Night 19, and 13.5 fewer at the end (both noise).
+    - Novices' demotions fell from 45% to 10% (−35 points, interval −56 to −14). Wolf endings went from 9 to 16.
+    - Where the competent bots' extra went wasn't measured. Arms from Night 13 are the likely sink.
+- **Tests:**
+  - overriding the content's sun costs changes the penalties;
+  - an overridden `minSunS` changes the gate;
+  - the compiler's rule of one `sun.yaml`;
+  - paths: by id, by day, by index and all; errors for missing places, wrong kinds and fractions;
+  - the paired interval, checked against a hand calculation;
+  - a compare where nothing changes;
+  - a compare that moves rings;
+  - a variant that breaks a run, named with the run.
+
+**Known limits**
+- **The bots never compare wrongly, question or ask for a hint,** and they only run out of sun with `--pace`. So `sim compare` can't tune the sun's costs yet. That waits on bots that behave like players (the roadmap's queued item 3), or on the playtests' sun left.
+- **A variant skips the compiler's lints and checks.** A run that throws is named. A variant that is merely odd isn't caught, such as a mix that no longer adds up. To keep a change, edit the YAML and run the tests.
+- **Paths are for the compiled content, not the YAML files.** A day's economy lives in its day file, for example.
+- **The interval is a normal approximation.** It's rough for shares near 0% or 100% with few runs.
+  - Each profile shows about a dozen measures, so one "significant" change in twenty can be luck.
+  - Later nights compare only runs that got there.
+- **Stacks in a report are minified.** Public builds ship no source maps (§3). The build line says which commit to rebuild with source maps to read them.
+- **The crash screen can't catch an error in itself,** or errors in code that catches its own.
+- **The report's format is the reader's contract.** The round-trip test writes a report and reads it back, so a change to one that the other doesn't follow fails.
+- **Kept saves follow the players' saves.** If a change breaks old saves on purpose (a new `ENGINE_MAJOR`), the kept ones go or get migrated with them.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

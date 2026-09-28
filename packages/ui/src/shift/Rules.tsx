@@ -1,4 +1,4 @@
-import { type DayCtx, PENALTY, questionCostMs, ruleText, type ShiftState, toolCost } from '@cots/engine';
+import { type DayCtx, questionCostMs, ruleText, type ShiftState, sunCosts, toolCost } from '@cots/engine';
 import { t } from '../i18n';
 
 /** Decree, Freyja's whim and the rulebook in force: shown at the briefing and on the desk. */
@@ -96,9 +96,9 @@ export function RulesPanel({
         ))}
         <li>
           {t('ui.rules.costs', {
-            bad: PENALTY.badCompare / 1000,
-            q: (state ? questionCostMs(state) : PENALTY.question) / 1000,
-            h: PENALTY.hint / 1000,
+            bad: sunCosts(ctx.content).badCompare / 1000,
+            q: (state ? questionCostMs(state, ctx) : sunCosts(ctx.content).question) / 1000,
+            h: sunCosts(ctx.content).hint / 1000,
           })}
         </li>
       </ul>

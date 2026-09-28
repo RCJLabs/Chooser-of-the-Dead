@@ -23,6 +23,7 @@ import type {
   SpeechSlotDef,
   StandingRule,
   StatePred,
+  SunCosts,
   TallyTemplate,
   TestimonyTemplate,
   ToolDef,
@@ -178,6 +179,14 @@ export const RuleSchema: z.ZodType<RuleDef> = z.strictObject({
 });
 
 export const ToolSchema: z.ZodType<ToolDef> = z.strictObject({ id: ToolIdSchema, since: Day, cost: Int.min(0) });
+
+/** What the sun costs besides the tools, in seconds (`sun.yaml`, docs/tech-spec.md §63). */
+export const SunSchema: z.ZodType<SunCosts> = z.strictObject({
+  badCompare: Int.min(0),
+  question: Int.min(0),
+  hint: Int.min(0),
+  duskGrace: Int.min(0),
+});
 
 export const ProcedureSchema: z.ZodType<ProcedureDef> = z.strictObject({
   id: Id,
@@ -504,6 +513,7 @@ export const CampaignPartSchema = z.strictObject({
   family: z.array(FamilyDefSchema).min(1).optional(),
   draupnir: z.strictObject({ nights: z.array(Day), rings: Int.min(0) }).optional(),
   debtFloor: Int.optional(),
+  minSunS: Int.min(0).optional(),
   care: z.strictObject({ needNights: Int.min(1), sickChance: Percent, sickNights: Int.min(1) }).optional(),
   worthy: Id.optional(),
   standing: z.array(StandingRuleSchema).optional(),

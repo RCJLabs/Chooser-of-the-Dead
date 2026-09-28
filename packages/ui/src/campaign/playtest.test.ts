@@ -97,7 +97,9 @@ describe('the playtest report', () => {
     const g = first?.grade;
     expect(g).toBeDefined();
     const grade = `${g?.grade} (${g?.caught}/${g?.liars} liars)`;
-    expect(rows[0]?.startsWith(`| 1 | ${grade} | ${first?.correct} | 0 | 0 | +${first?.pay} |`)).toBe(true);
+    const spare = Math.round((g?.spareMs ?? 0) / 1000);
+    const sun = `${Math.floor(spare / 60)}:${String(spare % 60).padStart(2, '0')}`;
+    expect(rows[0]?.startsWith(`| 1 | ${grade} | ${first?.correct} | 0 | 0 | ${sun} | +${first?.pay} |`)).toBe(true);
     expect(rows[2]).toContain(`| ${run.ledger[2]?.night?.rings} |`);
     expect(text).toContain('### Mistakes\n\nNone.');
   });

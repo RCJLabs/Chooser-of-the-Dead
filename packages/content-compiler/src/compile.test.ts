@@ -11,11 +11,13 @@ afterEach(() => {
 });
 
 type PackFixture = { yaml?: string; strings?: Record<string, string>; files?: Record<string, string> };
+/** What the sun costs besides the tools: every build needs it, from one pack. */
+const SUN = 'badCompare: 10\nquestion: 20\nhint: 15\nduskGrace: 60\n';
 
 function fixture(overrides: Record<string, PackFixture> = {}) {
   root = mkdtempSync(join(tmpdir(), 'cots-content-'));
   const packs = {
-    core: { yaml: 'id: core\ndependsOn: []\n', strings: { 'core.title': 'Chooser' } },
+    core: { yaml: 'id: core\ndependsOn: []\n', strings: { 'core.title': 'Chooser' }, files: { 'sun.yaml': SUN } },
     daily: { yaml: 'id: daily\ndependsOn: [core]\n', strings: { 'daily.intro': 'Daily' } },
     demo: { yaml: 'id: demo\ndependsOn: [core]\n', strings: { 'demo.days': 'Days 1-3' } },
     campaign: {
@@ -114,6 +116,7 @@ describe('gameplay content lints', () => {
     files: {
       'facts.yaml': '- { id: cause, domain: { enum: [battle, sickness] } }\n',
       'rules.yaml': '- { id: rule.hel, order: 999, since: 1, when: { always: true }, then: HEL, text: rule.hel }\n',
+      'sun.yaml': SUN,
       ...files,
     },
   });
@@ -360,6 +363,22 @@ describe('gameplay content lints', () => {
     expect(() => compile({ core: worded('[{ since: 1, text: rule.hel.2 }]'), demo: day('arch.liar') })).toThrow(
       /rule rule\.hel's later wordings must come in day order, after day 1/,
     );
+  });
+
+  it('takes the sun’s costs from exactly one pack', () => {
+    const plain = core({ 'archetypes.yaml': archetype('') });
+    expect(() => compile({ core: plain, demo: day('arch.liar') })).not.toThrow();
+    const none = {
+      ...plain,
+      files: Object.fromEntries(Object.entries(plain.files ?? {}).filter(([f]) => f !== 'sun.yaml')),
+    };
+    expect(() => compile({ core: none, demo: day('arch.liar') })).toThrow(/No pack defines sun\.yaml/);
+    const twice = day('arch.liar');
+    expect(() => compile({ core: plain, demo: { ...twice, files: { ...twice.files, 'sun.yaml': SUN } } })).toThrow(
+      /Only one pack may define sun\.yaml/,
+    );
+    const odd = core({ 'archetypes.yaml': archetype(''), 'sun.yaml': `${SUN}lunch: 5\n` });
+    expect(() => compile({ core: odd, demo: day('arch.liar') })).toThrow(/sun\.yaml/);
   });
 
   it('requires the last rule in force to always apply', () => {
