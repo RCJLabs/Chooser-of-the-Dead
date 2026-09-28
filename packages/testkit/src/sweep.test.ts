@@ -67,4 +67,7 @@ it('parties are fair: every member checks out with its companions, and the caref
   expect(report.parties).toBeGreaterThan(200);
   expect(report.lies).toBeGreaterThan(100);
   expect(report.decided).toBeGreaterThan(20);
+  // Retinues (docs/tech-spec.md §70): men who go where their jarl goes, some to a hall their own evidence wouldn't.
+  expect(report.retinues.follow).toBeGreaterThan(50);
+  expect(report.retinues.moved).toBeGreaterThan(20);
 }, 120_000);

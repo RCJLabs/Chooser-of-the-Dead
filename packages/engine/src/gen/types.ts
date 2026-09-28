@@ -100,6 +100,11 @@ export interface PartyTag {
   readonly size: number;
   /** How the desk names the party. */
   readonly title: { readonly msg: string; readonly params: Readonly<Record<string, string | number>> };
+  /**
+   * A retinue's (docs/tech-spec.md §70): the jarl's place in the party, and the fact that holds the hall he's bound for
+   * on each of his sworn men.
+   */
+  readonly lord?: { readonly at: number; readonly fact: string };
 }
 
 export interface CaseSpec {

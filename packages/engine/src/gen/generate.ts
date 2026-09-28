@@ -1,7 +1,7 @@
 import type { ArchetypeDef, Destination, Knobs } from '../content/types';
 import { DESTINATIONS } from '../content/types';
 import type { DayCtx } from '../logic/context';
-import { type Judgment, judge } from '../logic/judge';
+import { type Judgment, judge, withOverride } from '../logic/judge';
 import type { Truth } from '../logic/pred';
 import { Rng } from '../rng/rng';
 import { type PlannedLie, pickLies, withLiars } from './lies';
@@ -216,7 +216,13 @@ export function dressForDay(soul: CaseSpec, ctx: DayCtx): CaseSpec | null {
   const arch = ctx.archetypes.get(c.archetype);
   if (!arch) return null;
   const planned: PlannedLie[] = c.lies.filter((l) => l.about === undefined).map(({ field: _, ...lie }) => lie);
-  const truth = withLiars(c.truth, planned, ctx);
+  // What a retinue set on it is over too (docs/tech-spec.md §70): alone, a hearth-man is judged on his own.
+  let own = c.truth;
+  for (const [id, af] of ctx.facts) {
+    if (af.def.fromParty && own[id] !== undefined && own[id] !== af.def.inert)
+      own = withOverride(own, id, af.def.inert, ctx);
+  }
+  const truth = withLiars(own, planned, ctx);
   const expected = judge(truth, ctx);
   for (const tier of ['strict', 'widenBand'] as const) {
     const knobs = tierKnobs(tier, ctx.spec.queue.knobs);

@@ -1,4 +1,4 @@
-import type { Destination, ObservationDef, Value } from '../content/types';
+import { type Destination, type ObservationDef, ruleDest, type Value } from '../content/types';
 import type { DayCtx } from './context';
 import { eval2, type Truth } from './pred';
 
@@ -9,12 +9,17 @@ export interface Judgment {
   readonly procedures?: readonly string[];
 }
 
-/** The correct judgment for a complete truth: the first rule in force that holds, plus any procedures due. */
+/**
+ * The correct judgment for a complete truth: the first rule in force that holds, plus any procedures due. A rule whose
+ * hall is named by a fact (docs/tech-spec.md §70) holds only where the fact names one.
+ */
 export function judge(truth: Truth, ctx: DayCtx): Judgment {
   for (const r of ctx.rules) {
     if (!eval2(r.when, truth, ctx)) continue;
+    const dest = ruleDest(r, (f) => truth[f]);
+    if (dest === undefined) continue;
     const procedures = ctx.procedures.filter((p) => eval2(p.when, truth, ctx)).map((p) => p.id);
-    return { dest: r.then, rule: r.id, ...(procedures.length > 0 ? { procedures } : {}) };
+    return { dest, rule: r.id, ...(procedures.length > 0 ? { procedures } : {}) };
   }
   throw new Error(`The rulebook for day ${ctx.day} has no rule that always applies`);
 }

@@ -74,9 +74,11 @@ import {
   eventDays,
   eventSoulsOn,
   factPathOk,
+  isDestination,
   predPaths,
   reachOf,
   readsBattle,
+  ruleDests,
   STATE_PATHS,
   type StatePred,
   scriptedCase,
@@ -511,7 +513,21 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
     else for (const v of values) key(`obs.${o.key}.${String(v)}`, `observation ${o.key}`);
   }
   for (const tool of content.tools) key(`tool.${tool.id}`, `tool ${tool.id}`);
-  for (const d of new Set(content.rules.map((r) => r.then))) key(`dest.${d}`, `destination ${d}`);
+  for (const d of new Set(content.rules.flatMap((r) => ruleDests(r, content.facts))))
+    key(`dest.${d}`, `destination ${d}`);
+  // A rule whose hall a fact names (docs/tech-spec.md §70): a fact only a party sets, naming halls or nothing.
+  for (const r of content.rules) {
+    if (typeof r.then === 'string') continue;
+    const fd = factById.get(r.then.fact);
+    if (!fd) problems.push(`rule ${r.id} sends souls where unknown fact "${r.then.fact}" says.`);
+    else if (!fd.fromParty) problems.push(`rule ${r.id} sends souls where ${fd.id} says, which no party sets.`);
+    else if (
+      fd.domain.kind !== 'enum' ||
+      isDestination(fd.inert) ||
+      fd.domain.values.some((v) => v !== fd.inert && !isDestination(v))
+    )
+      problems.push(`rule ${r.id} reads ${fd.id}, whose values must be halls, and its inert value none.`);
+  }
   for (const w of content.world) {
     pred(w.if, `world ${w.id}`);
     pred(w.then, `world ${w.id}`);
@@ -647,7 +663,10 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
       }
       if (
         !content.rules.some(
-          (r) => r.then === slot.dest && r.since <= d.day && (r.until === undefined || d.day < r.until),
+          (r) =>
+            ruleDests(r, content.facts).includes(slot.dest) &&
+            r.since <= d.day &&
+            (r.until === undefined || d.day < r.until),
         )
       ) {
         problems.push(`${name} scripts a ${slot.dest} soul, but no rule in force sends anyone there.`);
@@ -696,7 +715,9 @@ function lintTwists(content: Content, strings: Readonly<Record<string, string>>)
     if (!(tw.decree in strings)) problems.push(`${where} uses missing string "${tw.decree}".`);
     if (tw.since > lastDay) problems.push(`${where} starts on day ${tw.since}, after the build's last day.`);
     for (const [dest, range] of Object.entries(tw.mix ?? {})) {
-      if (!content.rules.some((r) => r.then === dest && r.since <= tw.since)) {
+      if (
+        !content.rules.some((r) => ruleDests(r, content.facts).includes(dest as Destination) && r.since <= tw.since)
+      ) {
         problems.push(`${where} asks for ${dest} souls, which no rule sends anywhere by day ${tw.since}.`);
       }
       if (range && range[0] > range[1]) problems.push(`${where} has an empty share for ${dest}.`);
@@ -834,21 +855,37 @@ function lintParties(content: Content, strings: Readonly<Record<string, string>>
     for (const f of Object.keys(k.members)) {
       if (!facts.has(f)) problems.push(`${where}'s members refer to unknown fact "${f}".`);
     }
+    // A retinue (docs/tech-spec.md §70): its men follow the jarl by a fact only a party sets, which a rule reads.
+    if (k.lord !== undefined) {
+      const fd = facts.get(k.lord);
+      const reads = content.rules.filter((r) => typeof r.then !== 'string' && r.then.fact === k.lord);
+      if (!fd?.fromParty)
+        problems.push(`${where}'s men follow their jarl by "${k.lord}", which isn't a fact a party sets.`);
+      else if (reads.length === 0)
+        problems.push(`${where}'s men follow their jarl by ${k.lord}, and no rule reads it.`);
+      else if (!reads.some((r) => r.since <= k.since))
+        problems.push(`${where} comes on day ${k.since}, before the rule that reads ${k.lord}.`);
+    }
     for (const f of k.claims) {
       const fd = facts.get(f);
       if (!fd) {
         problems.push(`${where} speaks of unknown fact "${f}".`);
         continue;
       }
-      for (const v of valuesOf(fd)) {
-        const said = lines.some(
-          (t) =>
-            t.asserts.fact === f &&
-            String(t.asserts.value) === v &&
-            (t.kinds === undefined || t.kinds.includes(k.id)) &&
-            t.personas === undefined,
-        );
-        if (!said) problems.push(`${where} has no line any soul can say that a companion's ${f} is ${v}.`);
+      // In a retinue, of its jarl and of his men alike (docs/tech-spec.md §70).
+      for (const of of k.lord === undefined ? [undefined] : (['lord', 'sworn'] as const)) {
+        for (const v of valuesOf(fd)) {
+          const said = lines.some(
+            (t) =>
+              t.asserts.fact === f &&
+              String(t.asserts.value) === v &&
+              (t.kinds === undefined || t.kinds.includes(k.id)) &&
+              (t.of === undefined || t.of === of) &&
+              t.personas === undefined,
+          );
+          const whom = of === 'lord' ? 'its jarl' : of === 'sworn' ? 'one of his men' : 'a companion';
+          if (!said) problems.push(`${where} has no line any soul can say that ${whom}'s ${f} is ${v}.`);
+        }
       }
     }
   }
@@ -862,6 +899,8 @@ function lintParties(content: Content, strings: Readonly<Record<string, string>>
     else if (!valuesOf(fd).includes(String(t.asserts.value)))
       problems.push(`${where} says ${t.asserts.fact} is ${String(t.asserts.value)}, which it can't be.`);
     for (const k of t.kinds ?? []) if (!kinds.has(k)) problems.push(`${where} is for unknown party kind "${k}".`);
+    if (t.of !== undefined && !(t.kinds ?? []).some((k) => def.kinds.find((x) => x.id === k)?.lord !== undefined))
+      problems.push(`${where} is said of a jarl or his men, in no kind of party that has them.`);
     if (!(t.msg in strings)) problems.push(`${where} uses missing string "${t.msg}".`);
   }
   for (const [kind, w] of Object.entries(def.onQuestion)) {
@@ -881,6 +920,11 @@ function lintParties(content: Content, strings: Readonly<Record<string, string>>
     const n = d.queue.parties?.n ?? [0, 0];
     if (n[0] > n[1]) problems.push(`Day ${d.day}'s parties run backwards.`);
     if (d.day < first) problems.push(`Day ${d.day} forms parties before any kind of party comes.`);
+    const lead = d.queue.parties?.lead;
+    const led = lead === undefined ? undefined : def.kinds.find((k) => k.id === lead);
+    if (lead !== undefined && !led) problems.push(`Day ${d.day} leads with unknown party kind "${lead}".`);
+    else if (led && led.since > d.day)
+      problems.push(`Day ${d.day} leads with ${led.id}, which comes from day ${led.since}.`);
   }
   return problems;
 }

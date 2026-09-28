@@ -48,7 +48,9 @@ export function oracleSolveReference(fields: readonly Field[], ctx: DayCtx): Ora
   );
   const liars = [...ctx.facts].filter(([, af]) => af.def.fromLies && !af.pinned).map(([id]) => id);
 
-  const vars = ctx.sampled.filter((id) => !ctx.facts.get(id)?.pinned);
+  // A fact only a party sets (docs/tech-spec.md §70) is certainly its inert value for a soul judged on its own.
+  const fixed = (id: string) => ctx.facts.get(id)?.pinned || ctx.facts.get(id)?.def.fromParty === true;
+  const vars = ctx.sampled.filter((id) => !fixed(id));
   const domains = vars.map((id) => {
     const all = ctx.facts.get(id)?.values ?? [];
     return direct.has(id) ? all.filter((v) => v === direct.get(id)) : all;
@@ -59,6 +61,7 @@ export function oracleSolveReference(fields: readonly Field[], ctx: DayCtx): Ora
   for (const id of ctx.sampled) {
     const af = ctx.facts.get(id);
     if (af?.pinned) base[id] = af.values[0] as Value;
+    else if (af?.def.fromParty) base[id] = af.def.inert;
   }
   const visit = (i: number): void => {
     if (i === vars.length) {

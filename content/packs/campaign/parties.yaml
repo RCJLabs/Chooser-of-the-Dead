@@ -26,3 +26,14 @@ kinds:
     members: { cause: { in: [drowned, battle] } }
     claims: [cause, grip]
     weight: 2
+  # A jarl and his sworn hearth-men, fallen in one fight (docs/tech-spec.md §70). The first is the jarl; each of the others
+  # goes where he goes if he stood by him to the end (rule.retinue). The men speak of their jarl, and he of one of them.
+  - id: party.retinue
+    since: 9
+    title: party.retinue.title
+    words: { place: pool.places, foe: pool.foes }
+    size: [2, 3]
+    members: { cause: { is: battle } }
+    claims: [fled, grip]
+    weight: 2
+    lord: lordHall

@@ -64,6 +64,11 @@ export interface FactDef {
    */
   readonly fromLies?: true;
   /**
+   * Never sampled: set only by the party that brings the soul (docs/tech-spec.md §70), as a retinue sets the hall its
+   * jarl is bound for on each of his sworn men. Certain for every soul: `inert`, unless its party says otherwise.
+   */
+  readonly fromParty?: true;
+  /**
    * Words a soul's lines must use when it has this value, or claims it: `{ ulfberht: { pool.weapons: sword } }`
    * (an Ulfberht is a sword, so its owner never calls it an axe). Keyed by String(value), then pool id.
    */
@@ -141,13 +146,19 @@ export interface NamedPredicate {
   readonly versions: readonly { readonly since: number; readonly is: Pred }[];
 }
 
+/**
+ * Where a rule sends a soul: a hall, or the hall a fact names (docs/tech-spec.md §70: a hearth-man goes where his jarl
+ * goes, the hall his retinue sets on him).
+ */
+export type RuleThen = Destination | { readonly fact: string };
+
 export interface RuleDef {
   readonly id: string;
   readonly order: number;
   readonly since: number;
   readonly until?: number;
   readonly when: Pred;
-  readonly then: Destination;
+  readonly then: RuleThen;
   readonly text: string;
   /**
    * Later wordings of the same rule: from `since` on, the rulebook says `text` instead, as a later day's
@@ -156,6 +167,26 @@ export interface RuleDef {
   readonly texts?: readonly { readonly since: number; readonly text: string }[];
   /** Read at another place than its own, by the run's weave (docs/tech-spec.md §53). Never set in content. */
   readonly woven?: true;
+}
+
+export const isDestination = (v: unknown): v is Destination => DESTINATIONS.includes(v as Destination);
+
+/**
+ * The halls a rule can send a soul to: its own, or every hall the fact it reads can name (in the fact's order), for
+ * the day's stamps and the content's checks.
+ */
+export function ruleDests(rule: RuleDef, facts: readonly FactDef[]): Destination[] {
+  if (typeof rule.then === 'string') return [rule.then];
+  const fact = (rule.then as { readonly fact: string }).fact;
+  const def = facts.find((f) => f.id === fact);
+  return def?.domain.kind === 'enum' ? def.domain.values.filter(isDestination) : [];
+}
+
+/** Where a rule sends a soul whose facts are `factOf`: its hall, or the hall its fact names (undefined if none). */
+export function ruleDest(rule: RuleDef, factOf: (fact: string) => Value | undefined): Destination | undefined {
+  if (typeof rule.then === 'string') return rule.then;
+  const v = factOf(rule.then.fact);
+  return isDestination(v) ? v : undefined;
 }
 
 /** How the rulebook words a rule on `day`: its latest wording by then. */
@@ -562,9 +593,10 @@ export interface DaySpec {
     readonly archetypes: readonly { readonly id: string; readonly w: number }[];
     /**
      * How many parties the day's line forms (docs/tech-spec.md §69): souls from one fight or one ship's crew, brought
-     * together at the desk. Fewer when the line has too few souls of a kind. Never on the Daily.
+     * together at the desk. Fewer when the line has too few souls of a kind. Never on the Daily. `lead`: a kind the
+     * day's first party is of, when its souls allow (the day a retinue's rule is new, one comes: docs/tech-spec.md §70).
      */
-    readonly parties?: { readonly n: readonly [number, number] };
+    readonly parties?: { readonly n: readonly [number, number]; readonly lead?: string };
     /** Percent [min, max] share of the queue per destination. */
     readonly mix: Readonly<Partial<Record<Destination, readonly [number, number]>>>;
     readonly knobs: Knobs;
@@ -1133,6 +1165,11 @@ export interface PartyKindDef {
   /** The facts a member may speak of about a companion. */
   readonly claims: readonly string[];
   readonly weight: number;
+  /**
+   * A retinue (docs/tech-spec.md §70): the first member is the jarl, and each of the others is sworn to him, with this
+   * fact (a `fromParty` one) set to the hall the jarl is bound for. The men speak of the jarl, and he of one of them.
+   */
+  readonly lord?: string;
 }
 
 /** Parties (`parties.yaml`, docs/tech-spec.md §69). */
@@ -1150,6 +1187,8 @@ export interface PartyLineTemplate {
   readonly asserts: { readonly fact: string; readonly value: Value };
   /** Only in parties of these kinds; any when absent. */
   readonly kinds?: readonly string[];
+  /** In a retinue (docs/tech-spec.md §70), only said of its jarl (`lord`) or of one of his men (`sworn`); either when absent. */
+  readonly of?: 'lord' | 'sworn';
   readonly personas?: readonly string[];
   readonly msg: string;
   readonly weight: number;

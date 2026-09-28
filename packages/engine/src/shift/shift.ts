@@ -2,10 +2,10 @@ import type { Content, Destination, ToolId, Value } from '../content/types';
 import { DESTINATIONS } from '../content/types';
 import { companionShows, memberField, parseMemberField } from '../gen/companions';
 import { generateDay } from '../gen/generate';
-import { linkParties, partyAt } from '../gen/party';
+import { linkParties, lordGiven, partyAt } from '../gen/party';
 import type { CaseSpec, Field } from '../gen/types';
 import { createDayContext, type DayCtx, soulCtx } from '../logic/context';
-import { isPerceivable, solve } from '../logic/solver';
+import { type Given, isPerceivable, solve } from '../logic/solver';
 import { type PressAnswer, pressAnswer, saidFrom } from '../narrative/press';
 import { type QuestionResponse, questionResponse } from '../narrative/questions';
 import { fnv1a32 } from '../rng/hash';
@@ -333,6 +333,23 @@ export function retractedOf(c: CaseSpec, soul: SoulState): Map<string, { fact: s
   );
 }
 
+/**
+ * What the retinue at the desk settles about member `k` (docs/tech-spec.md §70): the hall his jarl is bound for, as far
+ * as what the player has seen of the jarl (with what was caught against him, and what he owned up to) decides it.
+ * Undefined for the jarl himself, and for a soul no retinue brings.
+ */
+export function givenAtDesk(state: ShiftState, k: number, ctx: DayCtx): Given[] | undefined {
+  const members = atDesk(state);
+  const lord = members[k]?.party?.lord;
+  if (!state.party || !lord || k === lord.at) return undefined;
+  const jarl = members[lord.at];
+  const soul = memberSoul(state, lord.at);
+  if (!jarl || !soul) return undefined;
+  const seen = soulFieldsOf(jarl, soul).filter((f) => soul.seen.includes(f.id));
+  const opts = { crossCaught: crossFlagged(soul), retracted: retractedOf(jarl, soul) };
+  return lordGiven(jarl, seen, lord.fact, ctx, opts, []);
+}
+
 /** The lies about companions the player has shown false: each claim, and the companion's field it was compared with. */
 export function crossFlagged(soul: SoulState): Map<string, string[]> {
   return new Map(soul.flagged.filter((f) => parseMemberField(f.with) !== null).map((f) => [f.lie, [f.with]]));
@@ -380,7 +397,14 @@ export function ruledOut(state: ShiftState, ctx: DayCtx): string[] {
   // What the soul gave up, questioned or pressed: a confession is the truth whatever else has been seen. What it said
   // of a companion, shown false, is a lie caught (docs/tech-spec.md §69).
   const retracted = retractedOf(c, soul);
-  return solve(seen, soulCtx(ctx, c), { retracted, certainOnly: true, crossCaught: crossFlagged(soul) })
+  // A sworn man's jarl's hall, as far as the jarl has been seen (docs/tech-spec.md §70).
+  const given = givenAtDesk(state, turnedTo(state), ctx);
+  return solve(seen, soulCtx(ctx, c), {
+    retracted,
+    certainOnly: true,
+    crossCaught: crossFlagged(soul),
+    ...(given ? { given } : {}),
+  })
     .rules.filter((r) => r.result === 'F')
     .map((r) => r.rule);
 }

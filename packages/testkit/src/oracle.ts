@@ -73,6 +73,8 @@ export function oracleSolve(fields: readonly Field[], ctx: DayCtx): OracleResult
     const af = ctx.facts.get(id);
     if (!af) continue;
     if (af.pinned) base[id] = af.values[0] as Value;
+    // A fact only a party sets (docs/tech-spec.md §70) is certainly its inert value for a soul judged on its own.
+    else if (af.def.fromParty) base[id] = af.def.inert;
     else domain.set(id, direct.has(id) ? af.values.filter((v) => v === direct.get(id)) : af.values.slice());
   }
 
@@ -92,6 +94,7 @@ export function oracleSolve(fields: readonly Field[], ctx: DayCtx): OracleResult
     if (!af) impossible = true;
     else if (af.def.derived) checks.push({ on: roots(fact), holds: (t) => allowed.includes(t[fact] as Value) });
     else if (af.pinned) impossible ||= !allowed.includes(af.values[0] as Value);
+    else if (af.def.fromParty) impossible ||= !allowed.includes(af.def.inert);
     else
       domain.set(
         fact,

@@ -8,6 +8,8 @@ import {
   type DayCtx,
   decisiveFacts,
   generateDay,
+  givenAt,
+  givenAtDesk,
   inspectable,
   linkParties,
   memberField,
@@ -50,6 +52,11 @@ export interface PartySweepReport {
   readonly lies: number;
   /** Members whose judgment rests on a lie about a companion being caught (Day 16 on). */
   readonly decided: number;
+  /**
+   * Retinues (docs/tech-spec.md §70): how many formed, the jarls' sworn men, the men who go where their jarl goes, and
+   * those whose hall that changed.
+   */
+  readonly retinues: { readonly n: number; readonly men: number; readonly follow: number; readonly moved: number };
   /** Members that fail F1-F8 with their companions, and why (should be none). */
   readonly invalid: readonly string[];
   /** A true word about a companion that looks false, or a lie about one that nothing shows false (none). */
@@ -123,9 +130,12 @@ function playDay(content: Content, seed: string, ctx: DayCtx, line: readonly Cas
     desk.forEach((c, k) => {
       turn(k);
       const cx = soulCtx(ctx, c);
+      // A sworn man goes where his jarl goes, as far as what's been seen of the jarl decides it (docs/tech-spec.md §70).
+      const given = givenAtDesk(state, k, ctx);
       const j = solve(seenOf(state, c, k), cx, {
         crossCaught: crossFlagged(state.soul),
         retracted: retractedOf(c, state.soul),
+        ...(given ? { given } : {}),
       }).judgment;
       for (const id of c.expect.procedures ?? []) {
         const tool = cx.procedures.find((p) => p.id === id)?.tool;
@@ -151,6 +161,7 @@ export function partySweep(opts: PartySweepOptions): PartySweepReport {
   let claims = 0;
   let lies = 0;
   let decided = 0;
+  const retinues = { n: 0, men: 0, follow: 0, moved: 0 };
   let correct = 0;
   let total = 0;
   let caught = 0;
@@ -169,8 +180,15 @@ export function partySweep(opts: PartySweepOptions): PartySweepReport {
         parties++;
         const party = line.slice(i, i + span.size);
         const companions = new Map(party.map((c, k) => [k, { case: c, ctx: soulCtx(ctx, c) }]));
-        for (const c of party) {
+        if (party[0]?.party?.lord) retinues.n++;
+        for (const [k, c] of party.entries()) {
           members++;
+          const lord = c.party?.lord;
+          if (lord && k !== lord.at) {
+            retinues.men++;
+            if (typeof ctx.rules.find((r) => r.id === c.expect.rule)?.then === 'object') retinues.follow++;
+            if (plain.find((p) => p.id === c.id)?.expect.dest !== c.expect.dest) retinues.moved++;
+          }
           const cx = soulCtx(ctx, c);
           if (c.meta.crossProof) decided++;
           for (const f of c.evidence.fields) {
@@ -191,6 +209,7 @@ export function partySweep(opts: PartySweepOptions): PartySweepReport {
             cx,
             tierKnobs(c.meta.tier, cx.spec.queue.knobs),
             companions,
+            givenAt(line, i + k, ctx),
           );
           if (!v.ok) invalid.push(`day ${day} ${seed} ${c.id}: ${v.code} ${v.detail}`);
         }
@@ -209,6 +228,7 @@ export function partySweep(opts: PartySweepOptions): PartySweepReport {
     claims,
     lies,
     decided,
+    retinues,
     invalid,
     unfair,
     ideal: { correct, total, caught },
@@ -224,6 +244,7 @@ export const MAX_LINK_MS_P99 = 60;
 export function checkPartyThresholds(r: PartySweepReport, opts: { timing: boolean } = { timing: true }): string[] {
   const out: string[] = [];
   if (r.parties === 0) out.push('no parties formed');
+  if (r.retinues.n === 0) out.push('no retinues formed');
   for (const x of r.invalid.slice(0, 5)) out.push(`invalid member: ${x}`);
   for (const x of r.unfair.slice(0, 5)) out.push(`unfair word about a companion: ${x}`);
   if (r.ideal.correct !== r.ideal.total) out.push(`careful bot at the desk ${r.ideal.correct}/${r.ideal.total}`);

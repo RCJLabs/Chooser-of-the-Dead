@@ -3,7 +3,7 @@ import { fc, test } from '@fast-check/vitest';
 import { describe, expect, it } from 'vitest';
 import type { AppealsDef, CampaignDef, Content, Destination, Effect, Faction, ScriptedCaseDef } from '../content/types';
 import { generateDay, tierKnobs } from '../gen/generate';
-import { companionsAt, crossCaughtAt, partyAt, partyOf } from '../gen/party';
+import { companionsAt, crossCaughtAt, givenAt, partyAt, partyOf } from '../gen/party';
 import { scriptedCase } from '../gen/scripted';
 import type { CaseSpec } from '../gen/types';
 import { revealsOf, validateCase } from '../gen/validate';
@@ -1747,8 +1747,10 @@ describe('a noon decree (docs/tech-spec.md §45)', () => {
           const cx = soulCtx(ctx, c);
           expect(c.expect).toEqual(judge(c.truth, cx));
           const companions = companionsAt(queue, i, ctx);
+          // A sworn man's jarl's hall, from the jarl's own evidence (§70).
+          const given = givenAt(queue, i, ctx);
           expect(
-            validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs(cx), companions).ok,
+            validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs(cx), companions, given).ok,
           ).toBe(true);
           if (c.noon && judge(c.truth, ctx).dest !== c.expect.dest) changed++;
         });
@@ -2968,11 +2970,27 @@ describe('the Norns’ weave (docs/tech-spec.md §53)', () => {
           line.forEach((c, i) => {
             const cx = soulCtx(ctx, c);
             const crossCaught = crossCaughtAt(line, i, ctx);
-            const j = solve(c.evidence.fields, cx, { reveals: revealsOf(c.lies), crossCaught }).judgment;
+            // A sworn man goes where his jarl goes, as the jarl's own evidence decides (§70).
+            const given = givenAt(line, i, ctx);
+            const j = solve(c.evidence.fields, cx, {
+              reveals: revealsOf(c.lies),
+              crossCaught,
+              ...(given ? { given } : {}),
+            }).judgment;
             expect(j.kind === 'determined' && j.dest, `${id} day ${day} ${c.id}`).toBe(c.expect.dest);
             const knobs = tierKnobs(c.meta.tier, cx.spec.queue.knobs);
             const companions = companionsAt(line, i, ctx);
-            const valid = validateCase(c.evidence, c.truth, c.lies, c.expect, c.meta.decisive, cx, knobs, companions);
+            const valid = validateCase(
+              c.evidence,
+              c.truth,
+              c.lies,
+              c.expect,
+              c.meta.decisive,
+              cx,
+              knobs,
+              companions,
+              given,
+            );
             expect(valid.ok, `${id} day ${day} ${c.id}`).toBe(true);
           });
         }
