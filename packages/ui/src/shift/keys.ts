@@ -1,6 +1,17 @@
 import { nextHint, stampsFor } from '@cots/engine';
 import { campaignUi } from '../campaign/lazy';
-import { act, answer, citation, comparing, drawerTab, screen, session, stampSheet } from '../store';
+import {
+  act,
+  answer,
+  citation,
+  closeReview,
+  comparing,
+  drawerTab,
+  review,
+  screen,
+  session,
+  stampSheet,
+} from '../store';
 import { hintsAllowed } from './hint';
 import { questionable, toggleCompare } from './Shift';
 
@@ -25,6 +36,14 @@ export function onShiftKey(e: KeyboardEvent): void {
   if (target?.closest('input, textarea, select')) return;
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
+  // A soul looked at again (docs/tech-spec.md §67) holds the sun until it's put away.
+  if (review.peek()) {
+    if (key === 'Escape') {
+      closeReview();
+      e.preventDefault();
+    }
+    return;
+  }
   if (s.state.clock.pausedAt !== null) {
     if (key === 'Escape' || key === 'p') {
       act({ t: 'resume' });

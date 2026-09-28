@@ -29,6 +29,7 @@ const SETTINGS: Settings = {
   noFines: false,
   coach: true,
   coached: [],
+  tips: [],
   reduceMotion: false,
   deskPapers: {},
   achievements: {},
@@ -150,6 +151,7 @@ describe('restoring a backup', () => {
         endlessBest: 12,
         endingsSeen: ['ending.b', 'ending.a'],
         coached: [1, 2],
+        tips: ['press'],
         endlessToday: { n: 91, date: '2027-03-01', preview: false, g: 1, judged: 9, round: 1, day: 2 },
       },
     });
@@ -160,6 +162,7 @@ describe('restoring a backup', () => {
       endlessBest: 20,
       endingsSeen: ['ending.a', 'ending.b'],
       coached: [1, 2],
+      tips: ['press'],
       endlessToday: theirs.settings.endlessToday,
     });
     expect(report.records).toBe(true);

@@ -3,28 +3,36 @@ import { fc, test } from '@fast-check/vitest';
 import { describe, expect, it } from 'vitest';
 import { dailySeed } from '../calendar';
 import { DESTINATIONS, type Destination } from '../content/types';
+import type { CaseSpec } from '../gen/types';
 import { revealsOf } from '../gen/validate';
-import type { DayCtx } from '../logic/context';
+import { type DayCtx, soulCtx } from '../logic/context';
 import { sameJudgment } from '../logic/judge';
 import { solve } from '../logic/solver';
+import { type PressAnswer, pressAnswer } from '../narrative/press';
 import { Rng } from '../rng/rng';
 import {
   assistNotes,
+  currentCase,
   freeQuestion,
   inspectable,
   nextHint,
+  patienceLeft,
+  pressable,
+  pressTaught,
   ruledOut,
   type ShiftAction,
   type ShiftEvent,
   type ShiftState,
   shareText,
   shiftScore,
+  soulFields,
   startShift,
   stepShift,
   sunCosts,
   sunElapsed,
   sunLeft,
 } from './shift';
+import { traceShift } from './trace';
 
 const daily = loadDailyContent();
 const demo = loadContent('web-demo');
@@ -564,4 +572,230 @@ describe('robustness', () => {
       for (const id of s.soul.seen) expect(s.cases[s.cursor]?.evidence.fields.some((f) => f.id === id)).toBe(true);
     }
   });
+});
+
+describe('pressing a soul on what it said (docs/tech-spec.md §66)', () => {
+  const press = full.press;
+  if (!press) throw new Error('the full build has no press.yaml');
+  const cost = press.cost * 1000;
+
+  const begun = (seed: string, day = press.since) => {
+    const { state, ctx } = startShift(full, { mode: 'practice', seed, day });
+    return { s: stepShift(state, { t: 'begin', at: 0 }, ctx).state, ctx };
+  };
+  /** The soul at the gate with everything it said heard (and all else on its front looked at). */
+  const heard = (s: ShiftState, ctx: DayCtx) =>
+    stepShift(s, { t: 'inspect', fields: inspectable(s, ctx).map((f) => f.id), at: 0 }, ctx).state;
+
+  /** The first soul, over some practice shifts, one of whose claims answers as `want` says when pressed. */
+  function find(want: (a: PressAnswer, c: CaseSpec) => boolean, atLeast = 1) {
+    for (let n = 0; n < 300; n++) {
+      let { s, ctx } = begun(`press${n}`);
+      while (s.phase === 'shift') {
+        const h = heard(s, ctx);
+        const c = currentCase(h);
+        const claims = pressable(h, ctx);
+        if (c && claims.length >= atLeast) {
+          for (const field of claims) {
+            const a = pressAnswer(c, field, soulCtx(ctx, c), h.recentQ);
+            if (a && want(a, c)) return { s: h, ctx, c, field, a };
+          }
+        }
+        s = run(s, ctx, playSoul(s, ctx, 0)).state;
+      }
+    }
+    throw new Error('no such soul in 300 shifts');
+  }
+
+  it('is taught from its day, and never in the Daily or the primer', () => {
+    const { state, ctx } = startDaily(1);
+    const d = heard(stepShift(state, { t: 'begin', at: 0 }, ctx).state, ctx);
+    const said = d.cases[0]?.evidence.fields.find((f) => f.item === 'testimony' && d.soul.seen.includes(f.id));
+    expect(pressTaught(d, ctx)).toBe(false);
+    expect(pressable(d, ctx)).toEqual([]);
+    if (said) {
+      expect(stepShift(d, { t: 'press', field: said.id, at: 0 }, ctx).events).toEqual([
+        { e: 'rejected', reason: 'souls are not pressed today' },
+      ]);
+    }
+    const primer = demo.primer;
+    if (!primer) throw new Error('no primer');
+    const p = startShift(demo, { mode: 'primer', seed: 'p', day: primer.day, untimed: true });
+    expect(pressTaught(p.state, p.ctx)).toBe(false);
+    const early = begun('early', press.since - 1);
+    const onTime = begun('on time');
+    expect(pressTaught(early.s, early.ctx)).toBe(false);
+    expect(pressTaught(onTime.s, onTime.ctx)).toBe(true);
+  });
+
+  it('costs its sun, takes only claims heard, and each soul takes only so many', () => {
+    const { s, ctx, c } = find(() => true, press.patience + 1);
+    expect(patienceLeft(s, ctx)).toBe(press.patience);
+    const unheard = { ...s, soul: { ...s.soul, seen: [] } };
+    const [first] = pressable(s, ctx);
+    if (!first) throw new Error('nothing to press');
+    expect(stepShift(unheard, { t: 'press', field: first, at: 0 }, ctx).events[0]).toMatchObject({ e: 'rejected' });
+    const body = c.evidence.fields.find((f) => f.item === 'body' && s.soul.seen.includes(f.id));
+    if (body) {
+      expect(stepShift(s, { t: 'press', field: body.id, at: 0 }, ctx).events[0]).toMatchObject({
+        e: 'rejected',
+        reason: 'press a claim you have heard',
+      });
+    }
+    let p = s;
+    for (let i = 0; i < press.patience; i++) {
+      const field = pressable(p, ctx)[0];
+      if (!field) throw new Error('ran out of claims');
+      const r = stepShift(p, { t: 'press', field, at: 0 }, ctx);
+      expect(r.events[0]).toMatchObject({ e: 'pressed', field, penaltyMs: cost });
+      expect(sunElapsed(r.state, 0)).toBe(sunElapsed(p, 0) + cost);
+      // A claim is pressed once.
+      expect(pressable(r.state, ctx)).not.toContain(field);
+      p = r.state;
+    }
+    expect(patienceLeft(p, ctx)).toBe(0);
+    expect(pressable(p, ctx)).toEqual([]);
+    const left = c.evidence.fields.find((f) => f.item === 'testimony' && !(p.soul.pressed ?? []).includes(f.id));
+    if (left) {
+      expect(stepShift(p, { t: 'press', field: left.id, at: 0 }, ctx).events).toEqual([
+        { e: 'rejected', reason: 'the soul will say no more' },
+      ]);
+    }
+    // The next soul starts with its patience whole.
+    const next = run(p, ctx, [
+      { t: 'stamp', dest: c.expect.dest, at: 0 },
+      { t: 'send', at: 0 },
+    ]).state;
+    if (next.phase === 'shift') expect(patienceLeft(next, ctx)).toBe(press.patience);
+  });
+
+  it('a lie that gives way is caught, and answered as if caught and questioned', () => {
+    const { s, ctx, c, field } = find((a) => a.gave);
+    const lie = c.lies.find((l) => l.field === field);
+    const r = stepShift(s, { t: 'press', field, at: 0 }, ctx);
+    const e = r.events[0];
+    if (e?.e !== 'pressed') throw new Error('not pressed');
+    expect(e.answer).toMatchObject({ gave: true, kind: lie?.onQuestion });
+    expect(r.state.soul.gave).toEqual([field]);
+    expect(r.state.soul.questioned).toContain(field);
+    expect(r.state.recentQ).toEqual([...s.recentQ, e.answer.template]);
+    // Nothing more to ask it about that claim.
+    expect(stepShift(r.state, { t: 'question', lie: field, at: 0 }, ctx).events[0]).toMatchObject({ e: 'rejected' });
+    // The rule tracker takes a confession as the truth, and never rules out the rule that applies.
+    expect(ruledOut(r.state, ctx)).not.toContain(c.expect.rule);
+    for (const rule of ruledOut(s, ctx)) expect(ruledOut(r.state, ctx)).toContain(rule);
+    const sent = run(r.state, ctx, [
+      { t: 'stamp', dest: c.expect.dest, at: 0 },
+      { t: 'send', at: 0 },
+    ]).state;
+    expect(sent.verdicts.at(-1)).toMatchObject({ correct: true, caught: 1 });
+  });
+
+  it('what slips out is heard, shown false against the evidence, and questioned gives way on the claim held to', () => {
+    const { s, ctx, c, field } = find((a, c) => {
+      const said = a.said?.says;
+      return !a.gave && said !== undefined && c.truth[said.fact] !== said.value;
+    });
+    const r = stepShift(s, { t: 'press', field, at: 0 }, ctx);
+    const said = r.state.soul.said?.[0];
+    if (!said) throw new Error('nothing said');
+    expect(said.id).toBe(`said.${field}`);
+    expect(r.state.soul.seen).toContain(said.id);
+    expect(soulFields(r.state, c).map((f) => f.id)).toContain(said.id);
+    // Shown false by something the player can see: look at it all, then compare.
+    let p = r.state;
+    if (ctx.tools.has('flip')) p = run(p, ctx, [{ t: 'flip', at: 0 }]).state;
+    p = heard(p, ctx);
+    const cx = soulCtx(ctx, c);
+    const seen = soulFields(p, c).filter((f) => p.soul.seen.includes(f.id));
+    const x = solve(seen, cx).contradictions.find((y) => y.lie === said.id);
+    const other = x?.against.find((id) => p.soul.seen.includes(id));
+    if (!other) throw new Error('the slip is not shown false');
+    const caught = stepShift(p, { t: 'compare', a: other, b: said.id, at: 0 }, ctx);
+    expect(caught.events[0]).toMatchObject({ e: 'contradiction', lie: said.id, with: other });
+    const asked = stepShift(caught.state, { t: 'question', lie: said.id, at: 0 }, ctx);
+    const e = asked.events[0];
+    if (e?.e !== 'answer') throw new Error('no answer');
+    expect(e.response.kind).toBe(c.lies.find((l) => l.field === field)?.onQuestion);
+    expect(asked.state.soul.questioned).toEqual(expect.arrayContaining([said.id, field]));
+    expect(stepShift(asked.state, { t: 'question', lie: said.id, at: 0 }, ctx).events[0]).toMatchObject({
+      e: 'rejected',
+    });
+    // One lie caught, however many ways it was shown false.
+    const sent = run(asked.state, ctx, [
+      { t: 'stamp', dest: c.expect.dest, at: 0 },
+      { t: 'send', at: 0 },
+    ]).state;
+    expect(sent.verdicts.at(-1)).toMatchObject({ correct: true, caught: 1 });
+  });
+
+  it('something true it adds shows nothing false when compared', () => {
+    const { s, ctx, c, field } = find((a, c) => {
+      const said = a.said?.says;
+      return said !== undefined && c.truth[said.fact] === said.value && said.fact !== 'cause';
+    });
+    const r = stepShift(s, { t: 'press', field, at: 0 }, ctx);
+    const said = r.state.soul.said?.[0];
+    const fact = said?.says?.fact;
+    const body = c.evidence.fields.find((f) => f.id === `body.front.${fact}`);
+    if (!said || !body) throw new Error('nothing to compare with');
+    expect(stepShift(r.state, { t: 'compare', a: said.id, b: body.id, at: 0 }, ctx).events[0]).toMatchObject({
+      e: 'noConflict',
+    });
+  });
+
+  it('a replayed shift traces what was pressed, and what gave way as caught', () => {
+    const { s, ctx, field } = find((a) => a.gave);
+    const { state: initial } = startShift(full, s.config, s.cases);
+    // The careful play of the souls before it, then this soul heard and pressed.
+    const actions: ShiftAction[] = [{ t: 'begin', at: 0 }];
+    let replay = stepShift(initial, { t: 'begin', at: 0 }, ctx).state;
+    while (replay.cursor < s.cursor) {
+      const souls = playSoul(replay, ctx, 0);
+      actions.push(...souls);
+      replay = run(replay, ctx, souls).state;
+    }
+    actions.push({ t: 'inspect', fields: inspectable(replay, ctx).map((f) => f.id), at: 0 });
+    actions.push({ t: 'press', field, at: 0 });
+    const t = traceShift(initial, actions, ctx).souls[s.cursor];
+    expect(t?.pressed).toEqual([field]);
+    expect(t?.caught).toEqual([field]);
+    expect(t?.penaltyMs).toBe(cost);
+  });
+
+  test.prop([fc.nat(500), fc.array(fc.tuple(fc.nat(12), fc.nat(3)), { maxLength: 80 })], { numRuns: 40 })(
+    'any sequence of presses, compares and questions keeps the soul consistent',
+    (n, steps) => {
+      let { s, ctx } = begun(`press-robust${n}`, 3 + (n % 18));
+      for (const [pick, kind] of steps) {
+        const c = currentCase(s);
+        if (!c) break;
+        const ids = [...soulFields(s, c).map((f) => f.id), 'testimony.99'];
+        const id = ids[pick % ids.length] ?? '';
+        const other = ids[(pick * 7 + 3) % ids.length] ?? '';
+        const a: ShiftAction =
+          kind === 0
+            ? { t: 'inspect', fields: inspectable(s, ctx).map((f) => f.id), at: 0 }
+            : kind === 1
+              ? { t: 'press', field: id, at: 0 }
+              : kind === 2
+                ? { t: 'compare', a: id, b: other, at: 0 }
+                : { t: 'question', lie: id, at: 0 };
+        s = stepShift(s, a, ctx).state;
+        const soul = s.soul;
+        expect((soul.pressed ?? []).length).toBeLessThanOrEqual(press.patience);
+        for (const seen of soul.seen) expect(soulFields(s, c).some((f) => f.id === seen)).toBe(true);
+        expect(new Set(soul.pressed).size).toBe((soul.pressed ?? []).length);
+        for (const g of soul.gave ?? []) expect(c.lies.some((l) => l.field === g)).toBe(true);
+      }
+      const c = currentCase(s);
+      if (!c) return;
+      const sent = run(s, ctx, [
+        { t: 'stamp', dest: c.expect.dest, at: 0 },
+        { t: 'send', at: 0 },
+      ]).state;
+      const v = sent.verdicts.at(-1);
+      expect(v?.caught).toBeLessThanOrEqual(c.lies.length);
+    },
+  );
 });

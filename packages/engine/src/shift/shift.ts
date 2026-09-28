@@ -2,9 +2,9 @@ import type { Content, Destination, ToolId } from '../content/types';
 import { DESTINATIONS } from '../content/types';
 import { generateDay } from '../gen/generate';
 import type { CaseSpec, Field } from '../gen/types';
-import { revealsOf } from '../gen/validate';
 import { createDayContext, type DayCtx, soulCtx } from '../logic/context';
 import { isPerceivable, solve } from '../logic/solver';
+import { type PressAnswer, pressAnswer, saidFrom } from '../narrative/press';
 import { type QuestionResponse, questionResponse } from '../narrative/questions';
 import { fnv1a32 } from '../rng/hash';
 
@@ -88,6 +88,12 @@ export interface SoulState {
   /** Contradictions the player called out: the lying field and the field it was compared with. */
   readonly flagged: readonly { readonly lie: string; readonly fact: string; readonly with: string }[];
   readonly questioned: readonly string[];
+  /** Claims the player pressed the soul on (docs/tech-spec.md §66), in order; absent before the first. */
+  readonly pressed?: readonly string[];
+  /** Lies that gave way when pressed: caught, and answered as if questioned. */
+  readonly gave?: readonly string[];
+  /** What the soul added, holding to a claim it was pressed on: claims like any other, heard as they're said. */
+  readonly said?: readonly Field[];
   /** Evidence Skögul has pointed at, in order (absent in states from before hints). */
   readonly hinted?: readonly string[];
   readonly stamp: Destination | null;
@@ -106,6 +112,9 @@ export interface Verdict {
   readonly skipped?: readonly string[];
   readonly caught: number;
   readonly lies: number;
+  /** Claims pressed (docs/tech-spec.md §66), and lies given up when pressed; absent when none. */
+  readonly pressed?: number;
+  readonly gave?: number;
   readonly atMs: number;
 }
 
@@ -141,6 +150,7 @@ export type ShiftAction =
   | { readonly t: 'tool'; readonly tool: ToolId; readonly at: number }
   | { readonly t: 'compare'; readonly a: string; readonly b: string; readonly at: number }
   | { readonly t: 'question'; readonly lie: string; readonly at: number }
+  | { readonly t: 'press'; readonly field: string; readonly at: number }
   | { readonly t: 'hint'; readonly at: number }
   | { readonly t: 'stamp'; readonly dest: Destination; readonly at: number }
   | { readonly t: 'send'; readonly at: number }
@@ -156,6 +166,7 @@ export type ShiftEvent =
   | { readonly e: 'contradiction'; readonly lie: string; readonly fact: string; readonly with: string }
   | { readonly e: 'noConflict'; readonly a: string; readonly b: string; readonly penaltyMs: number }
   | { readonly e: 'answer'; readonly lie: string; readonly response: QuestionResponse; readonly penaltyMs: number }
+  | { readonly e: 'pressed'; readonly field: string; readonly answer: PressAnswer; readonly penaltyMs: number }
   | { readonly e: 'hint'; readonly field: string; readonly penaltyMs: number }
   | { readonly e: 'stamped'; readonly dest: Destination }
   | { readonly e: 'judged'; readonly verdict: Verdict }
@@ -270,9 +281,15 @@ export function inspectable(state: ShiftState, ctx: DayCtx): Field[] {
 export function ruledOut(state: ShiftState, ctx: DayCtx): string[] {
   const c = currentCase(state);
   if (!c) return [];
-  const seen = c.evidence.fields.filter((f) => state.soul.seen.includes(f.id));
-  const reveals = new Map([...revealsOf(c.lies)].filter(([lie]) => state.soul.questioned.includes(lie)));
-  return solve(seen, soulCtx(ctx, c), { reveals, certainOnly: true })
+  const { soul } = state;
+  const seen = soulFields(state, c).filter((f) => soul.seen.includes(f.id));
+  // What the soul gave up, questioned or pressed: a confession is the truth whatever else has been seen.
+  const retracted = new Map(
+    c.lies
+      .filter((l) => soul.questioned.includes(l.field))
+      .map((l) => [l.field, l.onQuestion === 'confess' ? { fact: l.fact, value: l.truth } : null]),
+  );
+  return solve(seen, soulCtx(ctx, c), { retracted, certainOnly: true })
     .rules.filter((r) => r.result === 'F')
     .map((r) => r.rule);
 }
@@ -310,6 +327,58 @@ export function questionCostMs(state: ShiftState, ctx: DayCtx): number {
 /** Whether the next question is one of the day's free ones (a god's favour, docs/tech-spec.md §43). */
 export const freeQuestion = (state: ShiftState): boolean =>
   (state.freeAsked ?? 0) < (state.config.mods?.freeQuestions ?? 0);
+
+/** The soul's evidence and what it has added, pressed on its claims (docs/tech-spec.md §66). */
+export function soulFields(state: ShiftState, c: CaseSpec): Field[] {
+  return [...c.evidence.fields, ...(state.soul.said ?? [])];
+}
+
+/**
+ * Whether souls can be pressed on what they say in this shift (docs/tech-spec.md §66): from the content's day, and
+ * never in the Daily or the primer, which play as they always have.
+ */
+export function pressTaught(state: ShiftState, ctx: DayCtx): boolean {
+  const press = ctx.content.press;
+  return (
+    press !== undefined && state.config.mode !== 'daily' && state.config.mode !== 'primer' && ctx.day >= press.since
+  );
+}
+
+/** How many more times the soul at the gate will be pressed. */
+export function patienceLeft(state: ShiftState, ctx: DayCtx): number {
+  const press = ctx.content.press;
+  return press ? Math.max(0, press.patience - (state.soul.pressed?.length ?? 0)) : 0;
+}
+
+/** The claims the soul at the gate can be pressed on now: heard, and not yet caught, questioned or pressed. */
+export function pressable(state: ShiftState, ctx: DayCtx): string[] {
+  const c = currentCase(state);
+  if (!c || !pressTaught(state, ctx) || patienceLeft(state, ctx) === 0) return [];
+  const { soul } = state;
+  return c.evidence.fields
+    .filter(
+      (f) =>
+        f.item === 'testimony' &&
+        f.says !== undefined &&
+        f.says.value !== null &&
+        soul.seen.includes(f.id) &&
+        !soul.flagged.some((x) => x.lie === f.id) &&
+        !soul.questioned.includes(f.id) &&
+        !(soul.pressed ?? []).includes(f.id),
+    )
+    .map((f) => f.id);
+}
+
+/** What a press costs, in sun-ms. */
+export const pressCostMs = (ctx: DayCtx): number => (ctx.content.press?.cost ?? 0) * 1000;
+
+/**
+ * How many of the soul's lies the player caught: shown false (directly, or through what it added holding to one),
+ * or given up when pressed. Never more than it told.
+ */
+export function caughtLies(soul: SoulState): number {
+  return new Set([...soul.flagged.map((f) => saidFrom(f.lie) ?? f.lie), ...(soul.gave ?? [])]).size;
+}
 
 function reject(state: ShiftState, reason: string): { state: ShiftState; events: ShiftEvent[] } {
   return { state, events: [{ e: 'rejected', reason }] };
@@ -445,7 +514,7 @@ export function stepShift(
       if (a === b || !s.soul.seen.includes(a) || !s.soul.seen.includes(b)) {
         return withSun(reject(s, 'compare two things you have looked at'));
       }
-      const seenFields = c.evidence.fields.filter((f) => s.soul.seen.includes(f.id));
+      const seenFields = soulFields(s, c).filter((f) => s.soul.seen.includes(f.id));
       const found = solve(seenFields, ctx).contradictions.find(
         (x) => (x.lie === a && x.against.includes(b)) || (x.lie === b && x.against.includes(a)),
       );
@@ -465,15 +534,40 @@ export function stepShift(
       if (!s.soul.flagged.some((f) => f.lie === action.lie))
         return withSun(reject(s, 'call out a contradiction first'));
       if (s.soul.questioned.includes(action.lie)) return withSun(reject(s, 'already questioned'));
-      const response = questionResponse(c, action.lie, ctx.content, s.recentQ);
+      // Caught in what it added, pressed on a claim, a soul gives way on the claim it was holding to.
+      const held = saidFrom(action.lie);
+      if (held !== null && s.soul.questioned.includes(held)) return withSun(reject(s, 'already questioned'));
+      const response = questionResponse(c, held ?? action.lie, ctx.content, s.recentQ);
       if (!response) return withSun(reject(s, 'this soul has nothing to say'));
       const recentQ = [...s.recentQ, response.template].slice(-20);
       const free = freeQuestion(s);
       const cost = free ? 0 : questionCostMs(s, day);
-      const asked = { ...s, recentQ, soul: { ...s.soul, questioned: [...s.soul.questioned, action.lie] } };
+      const questioned = [...s.soul.questioned, action.lie, ...(held !== null ? [held] : [])];
+      const asked = { ...s, recentQ, soul: { ...s.soul, questioned } };
       return withSun({
         state: penalize(free ? { ...asked, freeAsked: (s.freeAsked ?? 0) + 1 } : asked, cost),
         events: [{ e: 'answer', lie: action.lie, response, penaltyMs: cost }],
+      });
+    }
+    case 'press': {
+      if (!pressTaught(s, day)) return withSun(reject(s, 'souls are not pressed today'));
+      if (patienceLeft(s, day) === 0) return withSun(reject(s, 'the soul will say no more'));
+      if (!pressable(s, day).includes(action.field)) return withSun(reject(s, 'press a claim you have heard'));
+      const answer = pressAnswer(c, action.field, ctx, s.recentQ);
+      if (!answer) return withSun(reject(s, 'this soul has nothing to say'));
+      const penaltyMs = pressCostMs(day);
+      const soul: SoulState = {
+        ...s.soul,
+        pressed: [...(s.soul.pressed ?? []), action.field],
+        ...(answer.gave
+          ? { gave: [...(s.soul.gave ?? []), action.field], questioned: [...s.soul.questioned, action.field] }
+          : {}),
+        ...(answer.said ? { said: [...(s.soul.said ?? []), answer.said], seen: [...s.soul.seen, answer.said.id] } : {}),
+      };
+      const recentQ = [...s.recentQ, answer.template, ...(answer.saidTemplate ? [answer.saidTemplate] : [])].slice(-20);
+      return withSun({
+        state: penalize({ ...s, recentQ, soul }, penaltyMs),
+        events: [{ e: 'pressed', field: action.field, answer, penaltyMs }],
       });
     }
     case 'hint': {
@@ -506,8 +600,10 @@ export function stepShift(
         correct: stamped === c.expect.dest && skipped.length === 0,
         missed: c.meta.proof.filter((id) => !s.soul.seen.includes(id)),
         ...(skipped.length > 0 ? { skipped } : {}),
-        caught: s.soul.flagged.length,
+        caught: caughtLies(s.soul),
         lies: c.lies.length,
+        ...(s.soul.pressed?.length ? { pressed: s.soul.pressed.length } : {}),
+        ...(s.soul.gave?.length ? { gave: s.soul.gave.length } : {}),
         atMs: sunElapsed(s, action.at),
       };
       const events: ShiftEvent[] = [{ e: 'judged', verdict }];

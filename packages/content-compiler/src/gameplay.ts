@@ -13,6 +13,8 @@ import {
   NamedPredicateSchema,
   ObservationSchema,
   PoolsSchema,
+  PressSchema,
+  PressTemplateSchema,
   ProcedureSchema,
   QuestionTemplateSchema,
   RavenTemplateSchema,
@@ -41,6 +43,8 @@ import type {
   NamedPredicate,
   ObservationDef,
   Pred,
+  PressDef,
+  PressTemplate,
   ProcedureDef,
   QuestionTemplate,
   RavenTemplate,
@@ -52,6 +56,7 @@ import type {
   TallyTemplate,
   TestimonyTemplate,
   ToolDef,
+  Value,
   WorldConstraint,
 } from '@cots/engine';
 import {
@@ -107,6 +112,10 @@ export interface PackContent {
   achievements: AchievementDef[];
   /** What the sun costs besides the tools (`sun.yaml`); the core pack has it. */
   sun?: SunCosts;
+  /** Pressing a soul on what it said (`press.yaml`, docs/tech-spec.md §66); the core pack has it. */
+  press?: PressDef;
+  /** What pressed souls say (`templates/press.yaml`). */
+  pressLines: PressTemplate[];
 }
 
 type Parse = <T>(schema: z.ZodType<T, unknown>, value: unknown, file: string) => T;
@@ -123,6 +132,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
   const primerFile = join(dir, 'primer.yaml');
   const campaignFile = join(dir, 'campaign.yaml');
   const sunFile = join(dir, 'sun.yaml');
+  const pressFile = join(dir, 'press.yaml');
   const each = <T>(sub: string, schema: z.ZodType<T, unknown>): T[] => {
     const folder = join(dir, sub);
     return existsSync(folder)
@@ -148,6 +158,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     testimony: list('templates/testimony.yaml', TestimonyTemplateSchema),
     ravens: list('templates/ravens.yaml', RavenTemplateSchema),
     questions: list('templates/questions.yaml', QuestionTemplateSchema),
+    pressLines: list('templates/press.yaml', PressTemplateSchema),
     pools: existsSync(poolsFile) ? parse(PoolsSchema, readYaml(poolsFile) ?? {}, poolsFile) : {},
     days,
     scripted: each('cases', ScriptedCaseSchema),
@@ -159,6 +170,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     ...(existsSync(primerFile) ? { primer: parse(DaySpecSchema, readYaml(primerFile), primerFile) } : {}),
     ...(existsSync(campaignFile) ? { campaign: parse(CampaignPartSchema, readYaml(campaignFile), campaignFile) } : {}),
     ...(existsSync(sunFile) ? { sun: parse(SunSchema, readYaml(sunFile), sunFile) } : {}),
+    ...(existsSync(pressFile) ? { press: parse(PressSchema, readYaml(pressFile), pressFile) } : {}),
   };
 }
 
@@ -243,6 +255,7 @@ export function emptyPackContent(): PackContent {
     testimony: [],
     ravens: [],
     questions: [],
+    pressLines: [],
     pools: {},
     days: [],
     scripted: [],
@@ -255,8 +268,9 @@ export function emptyPackContent(): PackContent {
 
 /** Merges packs in dependency order into one engine Content. */
 export function mergeContent(parts: readonly PackContent[], genVersion: number): Content {
-  const cat = <K extends Exclude<keyof PackContent, 'pools' | 'daily' | 'primer' | 'sun'>>(k: K): PackContent[K] =>
-    parts.flatMap((p) => p[k] as unknown[]) as PackContent[K];
+  const cat = <K extends Exclude<keyof PackContent, 'pools' | 'daily' | 'primer' | 'sun' | 'press'>>(
+    k: K,
+  ): PackContent[K] => parts.flatMap((p) => p[k] as unknown[]) as PackContent[K];
   const one = (k: 'daily' | 'primer'): DaySpec | undefined => {
     const specs = parts.flatMap((p) => (p[k] ? [p[k]] : []));
     if (specs.length > 1) throw new Error(`Only one pack may define ${k}.yaml.`);
@@ -269,6 +283,11 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
   if (suns.length > 1) throw new Error('Only one pack may define sun.yaml.');
   const sun = suns[0];
   if (!sun) throw new Error('No pack defines sun.yaml (the core pack should).');
+  // Pressing a soul (docs/tech-spec.md §66): one pack says, the core one.
+  const presses = parts.flatMap((p) => (p.press ? [p.press] : []));
+  if (presses.length > 1) throw new Error('Only one pack may define press.yaml.');
+  const press = presses[0];
+  const pressLines = cat('pressLines');
   const campaign = mergeCampaign(parts.flatMap((p) => (p.campaign ? [p.campaign] : [])));
   const scripted = cat('scripted');
   const procedures = cat('procedures');
@@ -302,6 +321,8 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
     ...(tallies.length > 0 ? { tallies } : {}),
     ...(twists.length > 0 ? { twists } : {}),
     ...(achievements.length > 0 ? { achievements } : {}),
+    ...(press ? { press } : {}),
+    ...(pressLines.length > 0 ? { pressLines } : {}),
   };
 }
 
@@ -318,6 +339,7 @@ export function idsOf(c: PackContent): string[] {
     ...c.testimony.map((x) => x.id),
     ...c.ravens.map((x) => x.id),
     ...c.questions.map((x) => x.id),
+    ...c.pressLines.map((x) => x.id),
     ...c.twists.map((x) => x.id),
     ...Object.keys(c.pools),
     ...Object.values(c.daily?.params ?? {}).flatMap((p) => p.pool.map((x) => x.id)),
@@ -395,7 +417,7 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
   );
   dupes(
     'template',
-    [...content.testimony, ...content.ravens, ...content.questions].map((t) => t.id),
+    [...content.testimony, ...content.ravens, ...content.questions, ...(content.pressLines ?? [])].map((t) => t.id),
   );
   dupes(
     'day',
@@ -563,6 +585,7 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
   problems.push(...lintLessons(content, strings));
   problems.push(...lintTwists(content, strings));
   problems.push(...lintAchievements(content, strings));
+  problems.push(...lintPress(content, strings));
 
   const specs = content.days.map((d) => ({ d, name: `day ${d.day}` }));
   if (content.daily) specs.push({ d: content.daily, name: `the Daily (day ${content.daily.day} mechanics)` });
@@ -642,6 +665,57 @@ function lintTwists(content: Content, strings: Readonly<Record<string, string>>)
       }
       if (range && range[0] > range[1]) problems.push(`${where} has an empty share for ${dest}.`);
     }
+  }
+  return problems;
+}
+
+/**
+ * Pressing a soul (docs/tech-spec.md §66): odds for every way a soul can talk, details about facts that can be told
+ * apart, a line for each, a hold line for any claim, and the strings they say.
+ */
+function lintPress(content: Content, strings: Readonly<Record<string, string>>): string[] {
+  const problems: string[] = [];
+  const press = content.press;
+  const lines = content.pressLines ?? [];
+  if (!press) {
+    if (lines.length > 0) problems.push('Press lines with no press.yaml to say them.');
+    return problems;
+  }
+  const facts = new Map(content.facts.map((f) => [f.id, f]));
+  for (const p of new Set(content.archetypes.flatMap((a) => a.personas))) {
+    if (press.gives[p] === undefined) problems.push(`press.yaml gives no odds for a ${p} soul giving way.`);
+  }
+  const can = (fact: string, value: Value, where: string): boolean => {
+    const f = facts.get(fact);
+    if (!f) problems.push(`${where} refers to unknown fact "${fact}".`);
+    else if (!valuesOf(f).includes(String(value)))
+      problems.push(`${where} says ${fact} is ${String(value)}, which it can't be.`);
+    return f !== undefined;
+  };
+  press.details.forEach((d, i) => {
+    const where = `press.yaml detail ${i + 1}`;
+    can(d.on.fact, d.on.claimed, where);
+    if (!can(d.says.fact, d.says.value, where)) return;
+    if (d.says.fact === d.on.fact) problems.push(`${where} adds to what it says of ${d.on.fact} with ${d.on.fact}.`);
+    if (facts.get(d.says.fact)?.derived) problems.push(`${where} adds a derived fact (${d.says.fact}).`);
+    const said = lines.some(
+      (t) => t.on.kind === 'detail' && t.on.fact === d.says.fact && (t.on.value ?? d.says.value) === d.says.value,
+    );
+    if (!said) problems.push(`${where} has no line to say ${d.says.fact} is ${String(d.says.value)} with.`);
+  });
+  if (!lines.some((t) => t.on.kind === 'hold' && t.on.fact === '*' && t.on.value === undefined && !t.on.persona)) {
+    problems.push('No fallback press line for a soul holding to any claim.');
+  }
+  for (const t of lines) {
+    const where = `press line ${t.id}`;
+    if (t.on.fact !== '*') {
+      if (t.on.value !== undefined) can(t.on.fact, t.on.value, where);
+      else if (!facts.has(t.on.fact)) problems.push(`${where} refers to unknown fact "${t.on.fact}".`);
+    }
+    if (t.on.kind === 'detail' && (t.on.fact === '*' || t.msgs.length !== 1)) {
+      problems.push(`${where} adds to a claim, so it says one line about one fact.`);
+    }
+    for (const m of t.msgs) if (!(m in strings)) problems.push(`${where} uses missing string "${m}".`);
   }
   return problems;
 }

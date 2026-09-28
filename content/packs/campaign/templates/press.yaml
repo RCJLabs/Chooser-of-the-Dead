@@ -1,0 +1,8 @@
+# What a pressed soul says about the campaign's claims (docs/tech-spec.md §66): by the claim and the voice, never by
+# whether it's true. Loki holds in the words of whoever's face he wears.
+- { id: p.hold.oath, on: { kind: hold, fact: outlaw, value: false }, msgs: [p.hold.oath.1] }
+- { id: p.hold.owner, on: { kind: hold, fact: weaponOwner, value: self }, msgs: [p.hold.owner.1] }
+- { id: p.hold.blade, on: { kind: hold, fact: blade, value: ulfberht }, msgs: [p.hold.blade.1] }
+- { id: p.hold.creed.heathen, on: { kind: hold, fact: faith, value: heathen }, msgs: [p.hold.creed.heathen.1] }
+- { id: p.hold.creed.baptized, on: { kind: hold, fact: faith, value: baptized }, msgs: [p.hold.creed.baptized.1] }
+- { id: p.hold.guise, on: { kind: hold, fact: trickster, value: false }, msgs: [p.hold.guise.1] }

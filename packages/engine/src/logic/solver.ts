@@ -51,6 +51,11 @@ export interface SolveOptions {
    * (it may be forged, with the sign not yet seen). Lies caught against it still count.
    */
   readonly certainOnly?: boolean;
+  /**
+   * Claims the soul gave up, questioned or pressed (docs/tech-spec.md §66): each is a caught lie whatever else is
+   * seen, and a confession (a value, not null) establishes the truth like a raven (trust 4).
+   */
+  readonly retracted?: ReadonlyMap<string, { readonly fact: string; readonly value: Value } | null>;
 }
 
 export function isPerceivable(f: Field, ctx: DayCtx): boolean {
@@ -192,6 +197,8 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
       state(f.says.fact, f.says.value, 4, [f.id]);
     }
   }
+  // What the soul confessed.
+  for (const [id, r] of opts.retracted ?? []) if (r) state(r.fact, r.value, 4, [`q:${id}`]);
   if (opts.trustTestimony) {
     // The trusting bot believes what the soul says and what its tally says.
     for (const f of perceived) {
@@ -266,6 +273,13 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
       if (b.level >= 3 && !b.values.includes(f.says.value)) {
         contradictions.push({ lie: f.id, fact: f.says.fact, against: b.support });
       }
+    }
+  }
+  // A claim taken back is caught even when nothing seen shows it false.
+  for (const id of opts.retracted?.keys() ?? []) {
+    const f = perceived.find((x) => x.id === id);
+    if (f?.says && f.says.value !== null && !contradictions.some((x) => x.lie === id)) {
+      contradictions.push({ lie: id, fact: f.says.fact, against: [`q:${id}`] });
     }
   }
 

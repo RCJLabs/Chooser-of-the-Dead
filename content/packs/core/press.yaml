@@ -1,0 +1,21 @@
+# Pressing a soul on what it said, before anything shows it false (docs/tech-spec.md §66): a faster, riskier way to
+# a lie than finding what shows it false, and never the only way. Never in the Daily or the primer, which play as
+# they always have; in practice, Endless and the campaign from `since`.
+since: 3
+# Sun-seconds each press costs.
+cost: 10
+# How many times a soul will be pressed before it says no more.
+patience: 2
+# Out of 100, by how the soul talks: how often a soul pressed on its lie gives way, with the answer it would give if
+# caught and questioned. Pressed on something true it always holds, and holding sounds the same either way. Loki,
+# who deflects, never gives way.
+gives: { confused: 70, coward: 60, honest: 50, veteran: 25, braggart: 15 }
+# What a soul holding to a claim may add about another fact it hasn't spoken of. If it's true it's said as it is
+# (never where a forged tally could seem to say otherwise). If the claim was a lie and what it adds is false, it
+# slips out only where the body or the ravens show it false, so it can be caught. Otherwise it adds nothing.
+# The first that can be said, in this order.
+details:
+  - { on: { fact: cause, claimed: battle }, says: { fact: woundsFront, value: 1 } }
+  - { on: { fact: cause, claimed: battle }, says: { fact: grip, value: weapon } }
+  - { on: { fact: grip, claimed: weapon }, says: { fact: cause, value: battle } }
+  - { on: { fact: fled, claimed: false }, says: { fact: woundsFront, value: 1 } }

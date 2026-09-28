@@ -14,6 +14,8 @@ import type {
   ObservationDef,
   ObsPattern,
   Pred,
+  PressDef,
+  PressTemplate,
   ProcedureDef,
   QuestionTemplate,
   RavenTemplate,
@@ -277,6 +279,34 @@ export const QuestionTemplateSchema: z.ZodType<QuestionTemplate> = z.strictObjec
     persona: z.array(Id).min(1).optional(),
     kind: QuestionKindSchema,
     via: z.literal('tally').optional(),
+  }),
+  msgs: z.array(Key).min(1),
+  weight: Weight.default(1),
+});
+
+/** Pressing a soul on what it said (`press.yaml`, docs/tech-spec.md §66). */
+export const PressSchema: z.ZodType<PressDef> = z.strictObject({
+  since: Day,
+  cost: Int.min(0),
+  patience: Int.min(1),
+  gives: z.record(Id, Percent),
+  details: z
+    .array(
+      z.strictObject({
+        on: z.strictObject({ fact: z.string(), claimed: ValueSchema }),
+        says: z.strictObject({ fact: z.string(), value: ValueSchema }),
+      }),
+    )
+    .default([]),
+});
+
+export const PressTemplateSchema: z.ZodType<PressTemplate> = z.strictObject({
+  id: Id,
+  on: z.strictObject({
+    kind: z.enum(['hold', 'detail']),
+    fact: z.string(),
+    value: ValueSchema.optional(),
+    persona: z.array(Id).min(1).optional(),
   }),
   msgs: z.array(Key).min(1),
   weight: Weight.default(1),

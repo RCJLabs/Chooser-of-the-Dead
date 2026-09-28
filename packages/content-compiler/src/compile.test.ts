@@ -381,6 +381,52 @@ describe('gameplay content lints', () => {
     expect(() => compile({ core: odd, demo: day('arch.liar') })).toThrow(/sun\.yaml/);
   });
 
+  it('lints pressing a soul (docs/tech-spec.md §66), from one pack', () => {
+    const press = [
+      'since: 3',
+      'cost: 10',
+      'patience: 2',
+      'gives: { braggart: 15 }',
+      'details:',
+      '  - { on: { fact: cause, claimed: battle }, says: { fact: grip, value: weapon } }',
+    ].join('\n');
+    const hold = "- { id: p.hold, on: { kind: hold, fact: '*' }, msgs: [p.hold.1] }";
+    const detail = '- { id: p.grip, on: { kind: detail, fact: grip, value: weapon }, msgs: [p.grip.1] }';
+    const lines = `${hold}\n${detail}\n`;
+    const said = { 'p.hold.1': 'Held.', 'p.grip.1': 'Gripped.' };
+    const facts =
+      '- { id: cause, domain: { enum: [battle, sickness] } }\n- { id: grip, domain: { enum: [weapon, none] } }\n';
+    const pressed = (yaml: string, templates = lines, strings: Record<string, string> = said) =>
+      core(
+        {
+          'archetypes.yaml': archetype(''),
+          'facts.yaml': facts,
+          'press.yaml': yaml,
+          'templates/press.yaml': templates,
+        },
+        strings,
+      );
+    const build = (c: PackFixture) => () => compile({ core: c, demo: day('arch.liar') });
+    expect(build(pressed(press))).not.toThrow();
+    const content = JSON.parse(readFileSync(join(root, 'generated', 'web-demo', 'content.json'), 'utf8'));
+    expect(content.press).toMatchObject({ since: 3, cost: 10, patience: 2, gives: { braggart: 15 } });
+    expect(content.pressLines.map((t: { id: string }) => t.id)).toEqual(['p.hold', 'p.grip']);
+    // Odds for every way a soul can talk.
+    expect(build(pressed(press.replace('braggart: 15', 'veteran: 25')))).toThrow(/no odds for a braggart soul/);
+    // What a soul adds needs a line, a fact the build has, a value it can take, and another fact than the claim's.
+    expect(build(pressed(press, `${hold}\n`))).toThrow(/detail 1 has no line to say grip is weapon/);
+    expect(build(pressed(press.replace('value: weapon', 'value: sword')))).toThrow(/grip is sword, which it can't/);
+    expect(build(pressed(press.replace('fact: grip', 'fact: cause')))).toThrow(/of cause with cause/);
+    expect(build(pressed(press.replace('fact: grip', 'fact: lips')))).toThrow(/unknown fact "lips"/);
+    // A line for any claim held to, and the strings they say.
+    expect(build(pressed(press, `${detail}\n`))).toThrow(/No fallback press line/);
+    expect(build(pressed(press, lines, { 'p.hold.1': 'Held.' }))).toThrow(/press line p.grip uses missing string/);
+    const twice = day('arch.liar');
+    expect(() =>
+      compile({ core: pressed(press), demo: { ...twice, files: { ...twice.files, 'press.yaml': press } } }),
+    ).toThrow(/Only one pack may define press\.yaml/);
+  });
+
   it('requires the last rule in force to always apply', () => {
     const partial = core({
       'rules.yaml':

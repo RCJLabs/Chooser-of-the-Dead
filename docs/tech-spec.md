@@ -4039,6 +4039,105 @@ The brainstorm's version, and what changed:
 - **The demo's worker covers `/full/` too, by scope.** It doesn't answer those pages, because its fallback skips `/full/`, and once the whole game's worker is installed, the narrower scope wins.
 - **Installing doesn't make the game private.** It stays unlisted, not protected.
 
+## 66. Pressing a soul on what it said (game phase 1)
+
+**Why.** Game phase 1 in [`roadmap.md`](roadmap.md). Question only followed Compare: a lie had to be shown false before the soul could be asked about it. There was no way to lean on a soul, and nothing to read in how it took it.
+
+**What it does** (`packages/engine/src/narrative/press.ts`, the `press` action in `shift.ts`)
+- **Press** questions a soul about one of its claims before anything shows the claim false. A claim is a testimony line that states a fact, and the player must have heard it. It costs 10 s of sun.
+- **Pressed on a lie, a soul may give way.** The odds depend on how it talks, out of 100: confused 70, coward 60, honest 50, veteran 25, braggart 15.
+  - Giving way plays the answer planned for the lie when the case was made, as if it had been caught and questioned. A confession reveals the truth.
+  - The lie counts as caught, for the bonus ring and the day's grade.
+  - Loki, who deflects, never gives way.
+- **Otherwise the soul holds.** Its words are chosen by the claim and how it talks, never by whether the claim is true, so holding says nothing by itself. The lines avoid the last 20 used, as questions' do.
+- **Holding, it may add something about another fact it hasn't spoken of.** These are `press.yaml`'s details, the first that can be said:
+  - a claimed battle death adds "one wound, in the chest", else "a weapon in hand";
+  - a claimed weapon in hand adds "died fighting";
+  - "never fled" adds "one wound, in the chest".
+  - **If what it adds is true,** it's said only where nothing on the soul could seem to show it false. So never on a soul with a forged tally, which is believed until refuted (§3.4).
+  - **If it's false (a slip),** it comes only from a soul holding to a lie, and only where the body or the ravens show it false. So Compare catches it. Questioned on the slip, the soul gives way on the claim it was holding to.
+  - What it adds is heard as a claim of its own (`said.<field>`). It's listed under the claim it came from, marked "Said when pressed", and can be compared like any other.
+- **Patience:** each soul takes two presses. A claim is pressed once, and not after it's been caught or questioned.
+- **Where:**
+  - practice, Endless and the campaign, from Day 3 (the demo's last day);
+  - **never in the Daily or the primer**, which play as they always have.
+- **Deterministic:** a claim's outcome comes from the soul's seed, whatever order claims are pressed in. Replays and Endless of the day come out the same for everyone.
+- **The rule tracker** now takes a confession as the truth whether or not anything seen contradicts the claim (`retracted` in the solver). Until now a confession could only follow a caught lie, so it made no difference.
+- **At the desk:**
+  - a Press button beside each claim that can be pressed;
+  - the soul's patience under its words;
+  - badges: "Held to it" is quiet, and "Gave way" is marked like a caught lie;
+  - the answer dialog, with anything added and a note that it can be checked;
+  - a one-time tip with the soul's words, the first time a soul can be pressed and no lesson is being taught. Once put away it's kept in the settings (`tips`) and in backups.
+- **The playtest report** counts claims pressed and lies that gave way each day (the Pressed column), and the summary adds them up by day.
+
+**Measured** over Days 3–20, 10 practice seeds each: 2,356 souls, 6,135 claims. `press.test.ts` checks the same sweep with 4 seeds.
+- 1,127 claims are lies. Pressed, 263 give way (23%): braggarts 16%, veterans 25%, cowards 46%, the confused 40%. Loki's lies never give way, and he plays every voice.
+- Of the 864 lies that hold, 259 let something slip (30%).
+- Of the 1,606 things added, 16% are slips. Checking what a soul adds pays some of the time, not always.
+
+**Fairness, checked over every claim of every soul on Days 3–20** (`press.test.ts`)
+- Only a lie gives way, and only with the answer planned for it.
+- The same claim from a soul that isn't lying about it holds in the same words.
+- Something true that a soul adds is never shown false by anything the player can see.
+- A slip is always shown false by the body or the ravens, with the tally left out.
+- The Daily's checksums and the golden days are unchanged.
+
+**Tests**
+- **The engine:**
+  - pressing is taught from Day 3 and never in the Daily or the primer;
+  - its cost, patience, and the claims that can be pressed;
+  - a lie that gives way is caught, and the tracker keeps its confession;
+  - a slip is caught with Compare, and questioned gives way on the claim it held to, counted once;
+  - something true that a soul adds finds nothing when compared;
+  - traces count presses;
+  - random presses, compares and questions keep the soul consistent.
+- **The compiler's lints:** odds for every voice, details' facts and values, a line for each detail, a fallback hold line, and one pack for `press.yaml`.
+- **The playtest report:** the Pressed column's round trip, and the summary's sums.
+- **e2e** (`press.spec.ts`, phone and desktop): the tip, a hold with a slip caught against the chest and questioned, a lie that gives way, patience, and no pressing in the Daily.
+
+**Known limits**
+- **The numbers are guesses.** The odds, the cost and the patience were set by reckoning, not play. The bots never press, so `sim compare` can't weigh them. The report's Pressed column is how testers' runs will tell.
+- **Most claims have no slip to let.** Oaths, weapons' owners, Ulfberhts, faith and Loki's guise have no detail the body or ravens could show false. Pressed, those souls only give way or hold.
+  - A cross at the neck doesn't say "no Thor's hammer" under any law, so "I wear Thor's hammer" couldn't be caught, and isn't offered.
+- **Whether a soul adds anything isn't independent of the truth.** The words are the same either way. But a true addition needs its fact to be true, and a slip needs a liar, so how often each comes differs from soul to soul. Pressing says a little by what's added, never by how the soul holds.
+- **A press that finds nothing still costs its sun,** and a true claim can only hold. Pressing an honest soul is a waste by design.
+- **No key for Press.** P pauses, and a press needs a claim. Keyboard and controller players reach the Press buttons through the focus order.
+
+## 67. Showing the mistake (game phase 2)
+
+**Why.** Game phase 2 in [`roadmap.md`](roadmap.md). A citation named the missed signs as text, then the soul was gone. There was no seeing it again, and no trying it again.
+
+**Look again** (`ReviewDialog` in `packages/ui/src/shift/Shift.tsx`) opens a soul stamped wrong. It shows:
+- what it was stamped and where it belonged, or the step it needed;
+- the rule that decided it;
+- its front and back, drawn with every tool's reading. The signs that decided it are outlined, and those never looked at are ringed in dashed red;
+- "What decided it": the soul's minimal proof, each sign marked "You didn't look" if it wasn't seen;
+- "Where they lied".
+
+**Where it opens**
+- **From the citation,** while souls still wait: the sun is held with a `pause`, saved like any other. The review covers the desk, so the next soul can't be studied for free. Back or Escape gives the sun back.
+- **From the summary** (the Daily and practice) and **the campaign's audit,** beside each wrong verdict.
+
+**Try this soul again** (`tryAgain`, a session of kind `again`), once the shift is over:
+- the same soul, under the same rules and upgrades, on its own, with no sun;
+- it earns nothing and counts for nothing: no achievements, no telemetry, no change to the run or the Daily's result;
+- a toast says how it went ("Right this time: Valhalla."), then it's back to the screen it came from;
+- not under the oath (§49), which allows no replays, nor in the primer, nor for an appeal.
+
+**Tests** (e2e, `review.spec.ts`, phone and desktop)
+- In practice:
+  - the summary opens a wrong soul with its rule, its missed signs and their marks on the body;
+  - trying it again shows the banner, and a right stamp returns to an unchanged summary.
+- Mid-shift, the citation's Look again holds the sun and offers no try again. Escape gives the sun back, and the next soul is at the desk.
+- The campaign's audit opens Day 1's mistake, and trying it again leaves the purse and the verdict as they were.
+
+**Known limits**
+- **It shows the case as it was made,** not what the player did with it: their looks, questions and presses on that soul aren't replayed.
+- **It shows the minimal proof,** not every way to settle the soul.
+- **Endless moves on to its next round at once,** so a soul from an earlier round can be looked at again only from its citation.
+- **Trying again changes nothing on the record.** A Daily's result, a day's grade and the day's best stay as they were, by design.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

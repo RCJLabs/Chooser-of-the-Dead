@@ -72,9 +72,9 @@ import { CopyBox } from '../saves-ui';
 import { toTop, toTopOf } from '../scroll';
 import { skippedText } from '../shift/evidence';
 import { Decree } from '../shift/Rules';
-import { ReportDialog, useAutoFocus } from '../shift/Shift';
+import { ReportDialog, ReviewDialog, useAutoFocus } from '../shift/Shift';
 import { campaignPlace, useStoryText } from '../sound/place';
-import { act, currentAssists, type Screen, session, settings, storageKept, toTitle } from '../store';
+import { act, currentAssists, lookAgain, type Screen, session, settings, storageKept, toTitle } from '../store';
 import { PlaytestButton, PlaytestDialog } from './playtest-ui';
 import {
   active,
@@ -1796,6 +1796,18 @@ function Audit() {
                     </span>
                   ))
                 : null}{' '}
+              {/* A mistake can be looked at again, and tried again except under the oath (docs/tech-spec.md §67). */}
+              {s && v.stamped !== null && !v.correct ? (
+                <button
+                  type="button"
+                  class="btn btn--small"
+                  data-testid="look-again"
+                  aria-label={t('ui.review.openLabel', { name })}
+                  onClick={() => lookAgain(v.index)}
+                >
+                  {t('ui.review.open')}
+                </button>
+              ) : null}{' '}
               {s ? (
                 <button
                   type="button"
@@ -1817,6 +1829,7 @@ function Audit() {
         </button>
       </div>
       <ReportDialog />
+      <ReviewDialog />
     </main>
   );
 }

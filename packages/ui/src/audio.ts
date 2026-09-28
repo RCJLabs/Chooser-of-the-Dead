@@ -46,6 +46,9 @@ export function soundFor(e: ShiftEvent): Sound | null {
       return 'miss';
     case 'answer':
       return 'answer';
+    // A soul that gives way when pressed is a lie caught; one that holds just answers.
+    case 'pressed':
+      return e.answer.gave ? 'found' : 'answer';
     case 'citation':
       return 'citation';
     case 'dusk':

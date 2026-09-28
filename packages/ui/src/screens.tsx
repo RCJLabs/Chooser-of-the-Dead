@@ -15,7 +15,7 @@ import { openReport } from './report';
 import { SavesSettings } from './saves-ui';
 import { skippedText } from './shift/evidence';
 import { Decree, RulesPanel } from './shift/Rules';
-import { modeTitle, ReportDialog, useAutoFocus } from './shift/Shift';
+import { modeTitle, ReportDialog, ReviewDialog, useAutoFocus } from './shift/Shift';
 import { hasBeds } from './sound/driver';
 import {
   applyUpdate,
@@ -30,6 +30,7 @@ import {
   endlessResultBody,
   epochText,
   isoDate,
+  lookAgain,
   resumeEndless,
   type Settings,
   session,
@@ -711,6 +712,18 @@ export function Summary() {
               ) : (
                 <span class="muted"> ({t('ui.summary.you', { dest: t(`dest.${v.stamped}`) })})</span>
               )}{' '}
+              {/* A mistake can be looked at again, and tried again (docs/tech-spec.md §67). */}
+              {v.stamped !== null && !v.correct ? (
+                <button
+                  type="button"
+                  class="btn btn--small"
+                  data-testid="look-again"
+                  aria-label={t('ui.review.openLabel', { name })}
+                  onClick={() => lookAgain(v.index)}
+                >
+                  {t('ui.review.open')}
+                </button>
+              ) : null}{' '}
               <button
                 type="button"
                 class="btn btn--quiet btn--small"
@@ -747,6 +760,7 @@ export function Summary() {
         ) : null}
       </div>
       <ReportDialog />
+      <ReviewDialog />
     </main>
   );
 }

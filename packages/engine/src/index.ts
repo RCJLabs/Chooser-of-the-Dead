@@ -31,6 +31,7 @@ export * from './logic/context';
 export * from './logic/judge';
 export * from './logic/pred';
 export * from './logic/solver';
+export * from './narrative/press';
 export * from './narrative/questions';
 export { fnv1a32, hashParts } from './rng/hash';
 export { Rng } from './rng/rng';

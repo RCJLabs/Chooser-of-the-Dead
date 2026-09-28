@@ -916,6 +916,9 @@ function audit(
   const requests = settleRequests(run, shift);
   const favours = granted.map((f) => f.id);
   const event = eventOn(run, env.content, run.day);
+  // Claims pressed at the gate, and lies that gave way (docs/tech-spec.md §66), for a playtest's report.
+  const pressed = shift.verdicts.reduce((n, v) => n + (v.pressed ?? 0), 0);
+  const gave = shift.verdicts.reduce((n, v) => n + (v.gave ?? 0), 0);
   const ledger: DayLedger = {
     day: run.day,
     correct,
@@ -929,6 +932,7 @@ function audit(
     standing,
     ...(assists ? { assists } : {}),
     ...(mistakes.length > 0 ? { mistakes } : {}),
+    ...(pressed > 0 ? { pressed: { n: pressed, gave } } : {}),
     // Kept, even empty, where the campaign has pleas or kin, so a day nobody asked differs from a day not counted.
     ...(campaign.pleas || campaign.kin ? { pleas } : {}),
     ...(run.appealHeard ? { appeal: run.appealHeard } : {}),

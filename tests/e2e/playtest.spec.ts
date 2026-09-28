@@ -93,10 +93,10 @@ test("a run's playtest report: the day in figures, the soul sent wrong and why, 
   expect(text).toContain('- **Build:** web-playtest · local · content ');
   expect(text).toContain('- **Now:** Day 2, morning');
   // Day 1 with one soul sent wrong: its grade (docs/tech-spec.md §49), then the figures, with the sun left
-  // when the last soul was sent (§63).
+  // when the last soul was sent (§63) and the claims pressed (none, §66).
   expect(text).toMatch(
     new RegExp(
-      `^\\| 1 \\| steady \\(\\d+/\\d+ liars\\) \\| ${rest.length} \\| 1 \\| 0 \\| \\d+:\\d\\d \\| \\+${5 * rest.length} \\|`,
+      `^\\| 1 \\| steady \\(\\d+/\\d+ liars\\) \\| ${rest.length} \\| 1 \\| 0 \\| \\d+:\\d\\d \\| 0 \\| \\+${5 * rest.length} \\|`,
       'm',
     ),
   );

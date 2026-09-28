@@ -2,7 +2,7 @@
  * Reading the campaign playtest report (packages/ui/src/campaign/playtest.ts, docs/tech-spec.md §38, §63) back
  * into numbers. A report is Markdown: a header of bullets, a Days table in plain ASCII, and lists. It's read from
  * whatever a tester sent: the issue's body (its form headings around the report), or the report on its own. Older
- * builds' reports lack some columns (Sun left, Arms, Nails); those read as absent.
+ * builds' reports lack some columns (Sun left, Pressed, Arms, Nails); those read as absent.
  */
 
 export interface ReportDay {
@@ -16,6 +16,8 @@ export interface ReportDay {
   readonly unjudged: number;
   /** Sun left when the last soul was sent, in seconds (absent before builds that report it). */
   readonly sunLeftS?: number;
+  /** Claims pressed, and lies that gave way (docs/tech-spec.md §66); absent before builds that report it. */
+  readonly pressed?: { readonly n: number; readonly gave: number };
   readonly pay: number;
   readonly bonus: number;
   /** Negative, as the table signs it. */
@@ -134,6 +136,7 @@ function parseDays(lines: readonly string[]): ReportDay[] {
     const g = /^(\w+) \((\d+)\/(\d+) liars\)(, assisted)?$/.exec(col('Grade', cells) ?? '');
     const rings = /^(-?\d+)(?: \(reprieve ([+-]?\d+)\))?$/.exec(col('Rings after the night', cells) ?? '');
     const sun = clock(col('Sun left', cells));
+    const pressed = /^(\d+)(?: \((\d+) gave way\))?$/.exec(col('Pressed', cells) ?? '');
     return [
       {
         day,
@@ -143,6 +146,7 @@ function parseDays(lines: readonly string[]): ReportDay[] {
         wrong: num(col('Wrong', cells)) ?? 0,
         unjudged: num(col('Unjudged', cells)) ?? 0,
         ...(sun !== undefined ? { sunLeftS: sun } : {}),
+        ...(pressed?.[1] !== undefined ? { pressed: { n: Number(pressed[1]), gave: Number(pressed[2] ?? 0) } } : {}),
         pay: num(col('Pay', cells)) ?? 0,
         bonus: num(col('Bonus', cells)) ?? 0,
         fines: num(col('Fines', cells)) ?? 0,

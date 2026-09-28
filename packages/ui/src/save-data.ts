@@ -204,6 +204,10 @@ function mergeSettings(here: Settings, theirs: unknown): { settings: Settings; r
     listOf(theirs.endingsSeen, (x) => typeof x === 'string'),
   );
   const coached = union(here.coached, listOf(theirs.coached, isCount));
+  const tips = union(
+    here.tips,
+    listOf(theirs.tips, (x) => typeof x === 'string'),
+  );
   const primerDone = here.primerDone || theirs.primerDone === true;
   const endlessToday = later(here.endlessToday, isEndlessResult(theirs.endlessToday) ? theirs.endlessToday : null);
   const achievements = earliest(here.achievements, theirs.achievements);
@@ -212,13 +216,24 @@ function mergeSettings(here: Settings, theirs: unknown): { settings: Settings; r
     best !== here.endlessBest ||
     endingsSeen.length !== here.endingsSeen.length ||
     coached.length !== here.coached.length ||
+    tips.length !== here.tips.length ||
     primerDone !== here.primerDone ||
     endlessToday !== here.endlessToday ||
     achievements !== here.achievements ||
     dayBests !== here.dayBests;
   if (!records) return { settings: here, records };
   return {
-    settings: { ...here, endlessBest: best, endingsSeen, coached, primerDone, endlessToday, achievements, dayBests },
+    settings: {
+      ...here,
+      endlessBest: best,
+      endingsSeen,
+      coached,
+      tips,
+      primerDone,
+      endlessToday,
+      achievements,
+      dayBests,
+    },
     records,
   };
 }

@@ -11,15 +11,22 @@ import {
   kinRelation,
   type Lesson,
   nextHint,
+  patienceLeft,
   pleaOf,
+  pressable,
+  pressCostMs,
+  pressTaught,
   questionCostMs,
   ruledOut,
   ruleText,
+  SAID,
+  type SoulState,
   soulCtx,
   stampsFor,
   storyOffer,
   sunCosts,
   sunLeft,
+  toolsFor,
   type Verdict,
 } from '@cots/engine';
 import { copyText } from '@cots/platform';
@@ -33,10 +40,13 @@ import { clockText, listText, t } from '../i18n';
 import { openReport, reportFor, reportTitle, reportUrl, type SoulReport } from '../report';
 import { toTop } from '../scroll';
 import {
+  type Answer,
   act,
   answer,
+  canTryAgain,
   citation,
   clock,
+  closeReview,
   coachAcks,
   coachState,
   compareFirst,
@@ -44,20 +54,24 @@ import {
   departed,
   drawerTab,
   effectiveLayout,
+  lookAgain,
   noteCoached,
+  noteTip,
   now,
   quitToSlots,
+  review,
   type Session,
   session,
   settings,
   stampSheet,
   toast,
   toTitle,
+  tryAgain,
   updateSettings,
 } from '../store';
-import { activeLesson, coachStep } from './coach';
+import { activeLesson, coachStep, tipStep } from './coach';
 import { dragging, grab, place, spotOf, tidyDesk } from './desk';
-import { fieldText, regionFields, regionSeen, registryEntry, sceneFor, skippedText } from './evidence';
+import { fieldText, regionFields, regionSeen, registryEntry, sceneFor, signKey, skippedText } from './evidence';
 import { hintsAllowed, pendingHintFocus } from './hint';
 import { walkOff } from './motion';
 import type { PaperId, PaperSpot } from './papers';
@@ -108,6 +122,7 @@ export function modeTitle(s: Session): string {
   if (s.mode.kind === 'primer') return t('primer.title');
   if (s.mode.kind === 'campaign') return t('ui.campaign.day', { n: s.mode.day });
   if (s.mode.kind === 'appeal') return t('ui.appeal.desk', { n: s.mode.day, dest: t(`dest.${s.mode.stamped}`) });
+  if (s.mode.kind === 'again') return t('ui.again.desk', { name: s.mode.name });
   if (s.mode.archive) return t('ui.briefing.archive', { n: s.mode.n, date: s.mode.date });
   return s.mode.preview ? t('ui.briefing.preview') : t('ui.briefing.daily', { n: s.mode.n });
 }
@@ -264,10 +279,18 @@ function BodyStage({ s, c }: { s: Session; c: CaseSpec }) {
 
 function Evidence({ s, c, f, variant }: { s: Session; c: CaseSpec; f: Field; variant: 'chip' | 'line' }) {
   const selected = comparing.value && compareFirst.value === f.id;
-  const flag = s.state.soul.flagged.find((x) => x.lie === f.id);
-  const questioned = s.state.soul.questioned.includes(f.id);
+  const { soul } = s.state;
+  const flag = soul.flagged.find((x) => x.lie === f.id);
+  const questioned = soul.questioned.includes(f.id);
+  // Pressing a soul on what it said (docs/tech-spec.md §66): how it took it, and what it added.
+  const gave = soul.gave?.includes(f.id) ?? false;
+  const held = !gave && (soul.pressed?.includes(f.id) ?? false);
+  const canPress = variant === 'line' && pressable(s.state, s.ctx).includes(f.id);
+  const badge = flag ? 'ui.contradicted' : gave ? 'ui.press.badge.gave' : held ? 'ui.press.badge.held' : null;
   return (
-    <span class={`evidence evidence--${variant}${flag ? ' is-lie' : ''}`}>
+    <span
+      class={`evidence evidence--${variant}${flag || gave ? ' is-lie' : ''}${f.id.startsWith(SAID) ? ' is-said' : ''}`}
+    >
       <button
         type="button"
         class={`evidence__pick${selected ? ' is-selected' : ''}`}
@@ -277,7 +300,11 @@ function Evidence({ s, c, f, variant }: { s: Session; c: CaseSpec; f: Field; var
       >
         {fieldText(f, c)}
       </button>
-      {flag ? <span class="evidence__badge">{t('ui.contradicted')}</span> : null}
+      {/* Holding to a claim says nothing about whether it's true: its badge is quiet, not a lie's. */}
+      {badge ? <span class={`evidence__badge${held ? ' evidence__badge--quiet' : ''}`}>{t(badge)}</span> : null}
+      {f.id.startsWith(SAID) ? (
+        <span class="evidence__badge evidence__badge--quiet">{t('ui.press.badge.said')}</span>
+      ) : null}
       {flag && !questioned ? (
         <button
           type="button"
@@ -289,6 +316,17 @@ function Evidence({ s, c, f, variant }: { s: Session; c: CaseSpec; f: Field; var
           {freeQuestion(s.state)
             ? t('ui.questionFree')
             : t('ui.question', { s: questionCostMs(s.state, s.ctx) / 1000 })}
+        </button>
+      ) : null}
+      {canPress ? (
+        <button
+          type="button"
+          class="btn btn--small"
+          data-testid="press"
+          aria-label={t('ui.press.aria', { line: fieldText(f, c), s: pressCostMs(s.ctx) / 1000 })}
+          onClick={() => act({ t: 'press', field: f.id })}
+        >
+          {t('ui.press', { s: pressCostMs(s.ctx) / 1000 })}
         </button>
       ) : null}
     </span>
@@ -352,13 +390,32 @@ function Lines({ s, c, items, empty }: { s: Session; c: CaseSpec; items: readonl
 }
 
 function Words({ s, c }: { s: Session; c: CaseSpec }) {
-  const items = c.evidence.fields.filter((f) => f.item === 'testimony');
+  // What a soul added when pressed comes right after the claim it was holding to (docs/tech-spec.md §66).
+  const said = s.state.soul.said ?? [];
+  const items = c.evidence.fields
+    .filter((f) => f.item === 'testimony')
+    .flatMap((f) => [f, ...said.filter((x) => x.id === `${SAID}${f.id}`)]);
+  // The one-time tip for pressing (docs/tech-spec.md §66), beside the claims it's about.
+  const tip = tipStep(s, coachState());
   return (
     <div class="words">
       <p class="words__who">
         {c.evidence.look.name} {c.evidence.look.patronym}
       </p>
+      {tip ? (
+        <div class="words__tip" data-testid="press-tip" role="note">
+          <p>{t(tip.step.text)}</p>
+          <button type="button" class="btn btn--small" data-testid="press-tip-ok" onClick={() => noteTip('press')}>
+            {t('ui.coach.gotIt')}
+          </button>
+        </div>
+      ) : null}
       <Lines s={s} c={c} items={items} empty={t('ui.words.none')} />
+      {pressTaught(s.state, s.ctx) && items.length > 0 ? (
+        <p class="muted words__patience" data-testid="patience">
+          {t('ui.press.patience', { n: patienceLeft(s.state, s.ctx) })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -807,12 +864,12 @@ function AnswerDialog() {
   return a ? <AnswerBox a={a} /> : null;
 }
 
-function AnswerBox({ a }: { a: { readonly name: string; readonly lines: readonly string[] } }) {
+function AnswerBox({ a }: { a: Answer }) {
   const focus = useAutoFocus<HTMLButtonElement>();
   return (
     <div class="overlay" role="dialog" aria-modal="true" aria-labelledby="answer-title" aria-describedby="answer-lines">
       <div class="dialog dialog--answer">
-        <h2 id="answer-title">{t('ui.answer.title', { name: a.name })}</h2>
+        <h2 id="answer-title">{a.title ?? t('ui.answer.title', { name: a.name })}</h2>
         {/* Read out with the dialog: the answer is the point of asking. */}
         <div id="answer-lines">
           {a.lines.map((l) => (
@@ -820,6 +877,14 @@ function AnswerBox({ a }: { a: { readonly name: string; readonly lines: readonly
               {l}
             </p>
           ))}
+          {a.added ? (
+            <>
+              <p class="dialog__line" data-testid="answer-added">
+                {a.added}
+              </p>
+              <p class="muted">{t('ui.press.added')}</p>
+            </>
+          ) : null}
         </div>
         <button
           type="button"
@@ -885,6 +950,11 @@ function CitationBox({ s, v }: { s: Session; v: Verdict }) {
           >
             {t('ui.citation.close')}
           </button>
+          {v.stamped !== null ? (
+            <button type="button" class="btn" data-testid="citation-look" onClick={() => lookAgain(v.index)}>
+              {t('ui.review.open')}
+            </button>
+          ) : null}
           <button
             type="button"
             class="btn btn--quiet"
@@ -892,6 +962,170 @@ function CitationBox({ s, v }: { s: Session; v: Verdict }) {
             onClick={() => openReport(s, v.index)}
           >
             {t('ui.report.dispute')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- a judged soul, looked at again (docs/tech-spec.md §67) ----------
+
+/** How a judged soul is drawn to look at again: turned whichever way, with every tool's reading on it. */
+const REVIEW_SOUL: SoulState = {
+  seen: [],
+  view: 'front',
+  flipped: true,
+  tools: [],
+  flagged: [],
+  questioned: [],
+  stamp: null,
+};
+
+/** One side of a judged soul: its signs that decided it outlined, and the ones never looked at marked. */
+function ReviewStage({
+  c,
+  view,
+  marks,
+}: {
+  c: CaseSpec;
+  view: 'front' | 'back';
+  marks: ReadonlyMap<string, 'missed' | 'proof'>;
+}) {
+  const provider = art.value;
+  const scene = sceneFor(c, { ...REVIEW_SOUL, view, tools: toolsFor(c.evidence.fields) });
+  const svg = useMemo(() => provider.draw(scene), [provider, c.id, view]);
+  const { w, h } = provider.frame;
+  const stage = useRef<HTMLElement>(null);
+  const pixelSize = usePixelFrame(stage, provider.frame);
+  return (
+    <figure class="stage stage--review" data-art={provider.id} data-view={view} ref={stage}>
+      <div class="stage__frame" style={pixelSize}>
+        <div
+          class="stage__art"
+          role="img"
+          aria-label={t(view === 'front' ? 'ui.body.front' : 'ui.body.back')}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+        {provider.hotspots(scene).map((spot) => {
+          const kinds = c.evidence.fields
+            .filter((f) => f.item === 'body' && (f.view ?? 'front') === view && spot.keys.includes(signKey(f) ?? ''))
+            .map((f) => marks.get(f.id));
+          const mark = kinds.includes('missed') ? 'missed' : kinds.includes('proof') ? 'proof' : null;
+          if (!mark) return null;
+          return (
+            <span
+              key={spot.id}
+              class={`review__mark is-${mark}`}
+              data-region={spot.id}
+              aria-hidden="true"
+              style={{
+                left: pctOf(spot.x, w),
+                top: pctOf(spot.y, h),
+                width: pctOf(spot.w, w),
+                height: pctOf(spot.h, h),
+              }}
+            />
+          );
+        })}
+      </div>
+    </figure>
+  );
+}
+
+/** A judged soul looked at again, from its citation, the day's summary or the audit. */
+export function ReviewDialog() {
+  const r = review.value;
+  const s = session.value;
+  const c = r && s ? s.state.cases[r.index] : undefined;
+  const v = r && s ? s.state.verdicts[r.index] : undefined;
+  return s && c && v ? <ReviewBox key={c.id} s={s} c={c} v={v} held={r?.held === true} /> : null;
+}
+
+function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; held: boolean }) {
+  const focus = useAutoFocus<HTMLButtonElement>();
+  const ctx = soulCtx(s.ctx, c);
+  const rule = ctx.rules.find((x) => x.id === v.rule);
+  const byId = new Map(c.evidence.fields.map((f) => [f.id, f]));
+  const proof = c.meta.proof.flatMap((id) => {
+    const f = byId.get(id);
+    return f ? [f] : [];
+  });
+  const missed = new Set(v.missed);
+  const lies = c.lies.flatMap((l) => {
+    const f = byId.get(l.field);
+    return f ? [f] : [];
+  });
+  const marks = new Map(proof.map((f) => [f.id, missed.has(f.id) ? ('missed' as const) : ('proof' as const)]));
+  const name = `${c.evidence.look.name} ${c.evidence.look.patronym}`;
+  const expected = t(`dest.${v.expected}`);
+  const skipped = skippedText(v.skipped, ctx);
+  const again = canTryAgain(s);
+  return (
+    <div
+      class="overlay overlay--review"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="review-title"
+      data-testid="review"
+    >
+      <div class="dialog dialog--review">
+        <h2 id="review-title">{t('ui.review.title', { name })}</h2>
+        <p>
+          {v.stamped === v.expected
+            ? t('ui.review.skipped', { dest: expected, procs: listText(skipped) })
+            : t('ui.review.sent', { stamped: t(`dest.${v.stamped}`), expected })}
+        </p>
+        {rule ? (
+          <>
+            <h3>{t('ui.review.rule')}</h3>
+            <p class="dialog__rule">{t(ruleText(rule, ctx.day))}</p>
+          </>
+        ) : null}
+        <div class="review__stages">
+          {(['front', 'back'] as const)
+            .filter((view) => view === 'front' || ctx.tools.has('flip'))
+            .map((view) => (
+              <ReviewStage key={view} c={c} view={view} marks={marks} />
+            ))}
+        </div>
+        <h3>{t('ui.review.proof')}</h3>
+        <ul class="lines review__list" data-testid="review-proof">
+          {proof.map((f) => (
+            <li key={f.id} data-field={f.id} class={missed.has(f.id) ? 'is-missed' : undefined}>
+              {fieldText(f, c)} {missed.has(f.id) ? <span class="evidence__badge">{t('ui.review.missed')}</span> : null}
+            </li>
+          ))}
+        </ul>
+        {v.missed.length === 0 && v.stamped !== v.expected ? <p class="muted">{t('ui.review.allSeen')}</p> : null}
+        {lies.length > 0 ? (
+          <>
+            <h3>{t('ui.review.lies')}</h3>
+            <ul class="lines review__list" data-testid="review-lies">
+              {lies.map((f) => (
+                <li key={f.id}>
+                  {fieldText(f, c)} <span class="evidence__badge">{t('ui.review.lie')}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+        {held ? <p class="muted">{t('ui.review.held')}</p> : null}
+        <div class="row">
+          {again ? (
+            <button type="button" class="btn btn--primary" data-testid="review-again" onClick={() => tryAgain(v.index)}>
+              {t('ui.review.again')}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            class={again ? 'btn' : 'btn btn--primary'}
+            data-testid="review-close"
+            data-back
+            ref={focus}
+            onClick={closeReview}
+          >
+            {t('ui.review.close')}
           </button>
         </div>
       </div>
@@ -1127,8 +1361,14 @@ export function ShiftScreen() {
   // Someone at the desk (docs/tech-spec.md §46): a campaign scene between souls, with the sun held.
   const campaign = s.mode.kind === 'campaign' ? campaignUi.value : null;
   const visit = campaign?.deskDue() ?? null;
+  const reviewing = review.value !== null;
   const blocked =
-    paused || visit !== null || answer.value !== null || citation.value !== null || reportFor.value !== null;
+    paused ||
+    visit !== null ||
+    answer.value !== null ||
+    citation.value !== null ||
+    reportFor.value !== null ||
+    reviewing;
   const c = currentCase(s.state);
   const lesson = activeLesson(s, coachState());
   const coach = coachStep(s, coachAcks.value, lesson);
@@ -1143,8 +1383,8 @@ export function ShiftScreen() {
       <div class="shift__desk" inert={blocked}>
         <Sky s={s} />
         <SunBar s={s} />
-        {s.mode.kind === 'appeal' ? (
-          <p class="shift__appeal" data-testid="appeal-banner">
+        {s.mode.kind === 'appeal' || s.mode.kind === 'again' ? (
+          <p class="shift__appeal" data-testid={`${s.mode.kind}-banner`}>
             {modeTitle(s)}
           </p>
         ) : null}
@@ -1179,7 +1419,14 @@ export function ShiftScreen() {
         <CoachBar s={s} lesson={lesson} />
         {c ? <SoulDesk key={c.id} s={s} c={c} layout={layout} /> : null}
       </div>
-      {visit && campaign ? <campaign.DeskVisitDialog id={visit} /> : paused ? <PauseOverlay /> : null}
+      {/* A soul looked at again holds the sun, and covers the desk instead of the pause (docs/tech-spec.md §67). */}
+      {visit && campaign ? (
+        <campaign.DeskVisitDialog id={visit} />
+      ) : reviewing ? (
+        <ReviewDialog />
+      ) : paused ? (
+        <PauseOverlay />
+      ) : null}
       <AnswerDialog />
       <CitationSlip s={s} />
       <ReportDialog />
