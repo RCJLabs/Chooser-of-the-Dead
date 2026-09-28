@@ -12,7 +12,33 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 - **The repository's new name.** The Pages site moved with the rename, and the demo went blank. It's now built for the path Pages reports, and each deploy checks that the live pages load ([`tech-spec.md`](tech-spec.md) §64).
 - **2. A tuning workbench.** The sun's costs and the minimum sun are content now, with their values unchanged. `pnpm sim compare` runs the same seeds on the content as built and on a variant, and prints what moved with 95% intervals.
 
-## Queued: doable in a cloud session
+## Game phases: gameplay and depth
+
+From the gameplay brainstorm, in the order agreed.
+- **In progress:** 1 and 2, together.
+- **Next:** 4, then 3.
+- **Held:** 5–8. They're heavy on writing, so they wait for your story sign-off and go into the rewrite rather than being redone after it.
+
+1. **Interrogation with teeth** (in progress).
+   - Today Question is never needed to judge a soul. Every lie that changes the verdict already shows as a contradiction you can find by comparing, and Question only works after you've found it: a 20-second confirmation.
+   - The change: question a soul before catching anything. Its answers become testimony you can check, with slips a sharp player catches, and each soul's patience runs out.
+   - It becomes a faster, riskier route, never a required one.
+2. **Show the mistake** (in progress). The citation and the audit reopen the soul, with the sign you missed and the rule that decided it, and you can replay that soul.
+3. **Linked souls.**
+   - Souls from one battle or shipwreck arrive in the same shift, and their stories must agree ("I died beside my brother Ketil", while Ketil says he fell alone).
+   - A jarl's retinue is judged as a group.
+   - It's the cross-checking between souls the desk doesn't have yet, and the biggest engine job here.
+4. **Endless as a run.** Between rounds, pick one of three boons, or take a curse for a higher score.
+5. **The forger's trail.** The Day 11 forger, Loki's disguised agents and Muninn's gaps leave marks at the desk. Pin them to a board across days, and accuse on set nights.
+6. **Valkyrie origins.** Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, a different household and a few scenes of its own.
+7. **Mercy has memory.** Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.
+8. **The household as people.** Your family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
+
+**Two rules for all of them:**
+- **The live Daily doesn't change.** Anything that changes how souls are generated (1 and 3) starts in the campaign and Endless, or waits for a planned change to how Dailies are generated.
+- **Perks never change what can be solved,** only speed or money, as with upgrades.
+
+## Queued: build and platform work
 
 In this order:
 
@@ -35,11 +61,11 @@ In this order:
    - Render every sign at the smallest body each layout allows, and fail CI below a minimum for each level of subtlety.
    - This replaces the one-off check of the 160 px floor (tech-spec §61, Known limits). Today nothing checks on-screen sign sizes; it's done by eye on the art sheet (`pnpm art:sheet`, §17).
    - The commissioned woodcut will have to pass it.
-5. **Show the mistake** (brainstorm 5). The citation, and the audit, reopen the soul with the missed sign highlighted and the rule that applied.
-6. **WebKit and Firefox in CI** (brainstorm 8). Run the Daily checksum test and a quick smoke test in both, since iPhone browsers run WebKit.
-7. **Rich presence** (optional, after the first real Steam test): "Day 7 – judging the fallen".
+5. **WebKit and Firefox in CI** (brainstorm 8). Run the Daily checksum test and a quick smoke test in both, since iPhone browsers run WebKit.
+6. **Rich presence** (optional, after the first real Steam test): "Day 7 – judging the fallen".
    - It can only be tested here against a fake Steam.
    - It needs a localization file uploaded in Steamworks.
+7. **GitHub Actions on their Node 24 versions.** Every deploy log warns that the actions in use are built for Node 20, which GitHub is retiring, and forces them onto Node 24. Check which versions to move to, then bump them.
 
 ## Held
 
