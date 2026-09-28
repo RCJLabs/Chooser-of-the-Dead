@@ -4,7 +4,7 @@
  */
 
 const ALLOWED: readonly { readonly origin: string; readonly path: string }[] = [
-  { origin: 'https://github.com', path: '/rcjlabs/vikings-r-us' },
+  { origin: 'https://github.com', path: '/rcjlabs/chooser-of-the-dead' },
   { origin: 'https://store.steampowered.com', path: '' },
 ];
 

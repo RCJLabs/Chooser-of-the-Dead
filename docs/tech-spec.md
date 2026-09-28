@@ -5,7 +5,7 @@ This is the detailed design behind [`build-plan.md`](build-plan.md). When the tw
 ## 0. Environment notes and review corrections (checked 2026-09-23)
 
 **Repo and local tools**
-- `RCJLabs/Vikings-R-Us` is **public, by decision** (see §8.4).
+- `RCJLabs/Chooser-of-the-Dead` (named `Vikings-R-Us` until September 2026, §64) is **public, by decision** (see §8.4).
 - Local tools: Node 22.22, pnpm 10.33, JDK 21, no Android SDK.
 - `/opt/pw-browsers/chromium-1194` matches **Playwright 1.56.x**; 1.57 ships chromium-1200. Pin `@playwright/test@1.56.1` and set `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`.
 
@@ -37,7 +37,7 @@ This is the detailed design behind [`build-plan.md`](build-plan.md). When the tw
 ## 1. Repo and package layout
 
 ```
-Vikings-R-Us/                         (public; see §8.4 for license)
+Chooser-of-the-Dead/                  (public; see §8.4 for license)
 ├─ package.json  pnpm-workspace.yaml  tsconfig.*.json  biome.json
 ├─ packages/
 │  ├─ engine/            pure TS; tsconfig lib ES2023 with no DOM. rng/ logic/ gen/ sim/ narrative/ save/ runes/
@@ -68,7 +68,7 @@ Vikings-R-Us/                         (public; see §8.4 for license)
 
 | Target | Packs | @platform | PWA | base | Ships to |
 |---|---|---|---|---|---|
-| web-demo | core, daily, demo | web | yes | `/Vikings-R-Us/` (or a custom domain) | GitHub Pages |
+| web-demo | core, daily, demo | web | yes | `/Chooser-of-the-Dead/` (the path Pages reports, §64) | GitHub Pages |
 | web-itch | core, daily, demo | itch (web without service worker) | no | `./` | itch.io zip via butler |
 | electron-demo | core, daily, demo | electron | no | `./` | Steam demo app (its own appId) |
 | electron-full | all | electron | no | `./` | Steam |
@@ -2728,7 +2728,7 @@ Notes on the table:
   - the demo must not contain the campaign;
   - the playtest build must.
 
-  It then publishes the demo at the site's root, as before, and the playtest build beside it at `/full/` (`PAGES_FULL` in `targets.ts`): https://rcjlabs.github.io/Vikings-R-Us/full/.
+  It then publishes the demo at the site's root, as before, and the playtest build beside it at `/full/` (`PAGES_FULL` in `targets.ts`): https://rcjlabs.github.io/Chooser-of-the-Dead/full/ (`/Vikings-R-Us/full/` before the rename, §64).
 - **Why that build suits the subfolder:**
   - its paths are relative, so it runs from any folder;
   - it registers no service worker;
@@ -3973,6 +3973,33 @@ The brainstorm's version, and what changed:
 - **The crash screen can't catch an error in itself,** or errors in code that catches its own.
 - **The report's format is the reader's contract.** The round-trip test writes a report and reads it back, so a change to one that the other doesn't follow fails.
 - **Kept saves follow the players' saves.** If a change breaks old saves on purpose (a new `ENGINE_MAJOR`), the kept ones go or get migrated with them.
+
+## 64. The repository renamed: the Pages site follows it
+
+**What happened.** The repository was renamed from `Vikings-R-Us` to `Chooser-of-the-Dead` in September 2026.
+- GitHub moved the Pages site with it, to https://rcjlabs.github.io/Chooser-of-the-Dead/. It redirects the old repository's URLs, but not its Pages.
+- The demo's paths are absolute, and it was built for `/Vikings-R-Us/`. So the page at the new address asked for its scripts at the old one: four 404s and a white screen.
+- `/full/` still loaded: its paths are relative.
+
+**The fix**
+- `PAGES_BASE` is `/Chooser-of-the-Dead/`. The game's GitHub links (`links.ts`) and the Steam shell's allowed links (§62) name the new repository.
+- The Pages workflow no longer relies on `PAGES_BASE`. `configure-pages` runs first, and the demo is built with the path it reports (`COTS_BASE`). A rename, or a custom domain, then moves the build with the site.
+- After each deploy, the workflow fetches each page and the first script it loads, and fails if either doesn't load.
+  - The pages are the demo and `/full/`, each fetched past the cache.
+  - A white screen now turns the deploy red.
+
+**Checked** by serving the assembled site under `/Chooser-of-the-Dead/` in Chromium, before and after.
+- Before: the demo loaded nothing (the four 404s), and the workflow's check failed.
+- After: the title screen, no failed requests, and the check passed. The same for `/full/`.
+
+**Known limits**
+- **The old address is gone.** Links to `…/Vikings-R-Us/` that were already shared now 404; the Daily's share text carries the site's address.
+  - GitHub doesn't redirect Pages after a rename.
+  - A repository created under the old name could serve redirects, but it would also end GitHub's redirects for the old repository's links.
+- **A browser that installed the demo from the old address probably keeps its old copy there.** Its service worker serves the cached game and can't fetch an update.
+  - Saves are kept per origin, not per path, so the same saves show up at the new address.
+- **The check fetches one script per page, not every file.** It catches a wrong path, not a chunk missing further in.
+- **Local builds and the tests use `PAGES_BASE`.** After another rename, the deploy follows by itself. `PAGES_BASE` has to be changed by hand, or the tests describe a site that isn't there.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

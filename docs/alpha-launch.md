@@ -7,7 +7,7 @@ repository owner can do. Steps 1 and 5 are required; the rest can wait.
 
 1. Merge `claude/vikings-game-concepts-69zso3` into `main`.
 2. **Settings → Pages → Source: GitHub Actions.** The *Deploy web demo* workflow
-   then publishes every push to `main` at <https://rcjlabs.github.io/Vikings-R-Us/>.
+   then publishes every push to `main` at <https://rcjlabs.github.io/Chooser-of-the-Dead/>.
 3. **Settings → Branches:** protect `main` and require the *CI* check.
 
 The Pages build is a PWA. Players get an "Update now" prompt on the title

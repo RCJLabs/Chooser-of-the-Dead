@@ -51,7 +51,7 @@ test('web demo ships a PWA manifest', async ({ request }) => {
   expect(res.ok()).toBe(true);
   const manifest = await res.json();
   expect(manifest.short_name).toBe('Chooser');
-  expect(manifest.scope).toBe('/Vikings-R-Us/');
+  expect(manifest.scope).toBe('/Chooser-of-the-Dead/');
 });
 
 test('web demo registers its service worker (updates wait for the title screen)', async ({ page }) => {
@@ -69,7 +69,7 @@ test('web demo registers its service worker (updates wait for the title screen)'
     }
     return null;
   });
-  expect(script).toBe('http://localhost:4173/Vikings-R-Us/sw.js');
+  expect(script).toBe('http://localhost:4173/Chooser-of-the-Dead/sw.js');
 });
 
 test('a practice shift can be left from the pause screen', async ({ page }) => {
