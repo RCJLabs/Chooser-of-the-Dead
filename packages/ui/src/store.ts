@@ -101,6 +101,8 @@ export interface Settings {
   /** The coach's lessons for each day's new rule or tool (docs/tech-spec.md §25), and the days taught here. */
   readonly coach: boolean;
   readonly coached: readonly number[];
+  /** One-time tips put away on this device: `press`, pressing a soul on what it said (docs/tech-spec.md §66). */
+  readonly tips: readonly string[];
   /** Leave out the desk's decorative movement (docs/tech-spec.md §33), whatever the device says. */
   readonly reduceMotion: boolean;
   /** Papers moved on the desk layout, and where they lie (docs/tech-spec.md §33). Empty: all in their places. */
@@ -141,6 +143,7 @@ export const DEFAULT_SETTINGS: Settings = {
   noFines: false,
   coach: true,
   coached: [],
+  tips: [],
   reduceMotion: false,
   deskPapers: {},
   achievements: {},
@@ -170,12 +173,17 @@ export function currentAssists(campaign = false, untimed = false): Assists {
 /** Who still needs a lesson (reactive when read in a component). */
 export function coachState(): CoachState {
   const s = settings.value;
-  return { coached: s.coached, primerDone: s.primerDone, on: s.coach };
+  return { coached: s.coached, primerDone: s.primerDone, on: s.coach, tips: s.tips };
 }
 
 /** Remembers that a day's lesson has been taught (or skipped) on this device. */
 export function noteCoached(day: number): void {
   if (!settings.peek().coached.includes(day)) updateSettings({ coached: [...settings.peek().coached, day] });
+}
+
+/** Remembers that a one-time tip has been read on this device. */
+export function noteTip(id: string): void {
+  if (!settings.peek().tips.includes(id)) updateSettings({ tips: [...settings.peek().tips, id] });
 }
 
 /** Remembers that a campaign ending was reached here (for the endings gallery). */
@@ -194,7 +202,7 @@ export const unannounced = signal<readonly string[]>([]);
 /** How a session is played, as achievements see it: only the day's Daily played for the record is `daily`. */
 export function playMode(mode: Mode): PlayMode | null {
   // An appeal re-hears one soul already judged: it earns nothing on its own (docs/tech-spec.md §40).
-  if (mode.kind === 'appeal') return null;
+  if (mode.kind === 'appeal' || mode.kind === 'again') return null;
   return mode.kind === 'daily' ? (mode.ranked ? 'daily' : 'archive') : mode.kind;
 }
 
@@ -580,7 +588,9 @@ export type Mode =
       readonly requests?: readonly DayRequest[];
     }
   /** A soul from an earlier campaign day judged again at the desk (docs/tech-spec.md §40). */
-  | { readonly kind: 'appeal'; readonly day: number; readonly stamped: Destination };
+  | { readonly kind: 'appeal'; readonly day: number; readonly stamped: Destination }
+  /** A judged soul tried again on its own, with no sun, for nothing (docs/tech-spec.md §67). */
+  | { readonly kind: 'again'; readonly day: number; readonly name: string };
 
 /** Endless (docs/m7-design.md): rounds of five souls on each day's rules in turn, until three strikes. */
 export interface EndlessMode {
@@ -665,7 +675,78 @@ export interface Toast {
   readonly tone: 'good' | 'bad' | 'info';
 }
 export const toast = signal<Toast | null>(null);
-export const answer = signal<{ readonly name: string; readonly lines: readonly string[] } | null>(null);
+/** What a soul said when questioned or pressed: its lines, and anything it added to its words (a press's). */
+export interface Answer {
+  readonly name: string;
+  /** Instead of "{name} answers": how a pressed soul took it. */
+  readonly title?: string;
+  readonly lines: readonly string[];
+  readonly added?: string;
+}
+
+export const answer = signal<Answer | null>(null);
+
+/** A judged soul looked at again (docs/tech-spec.md §67): which, and whether the sun was held for it. */
+export const review = signal<{ readonly index: number; readonly held: boolean } | null>(null);
+
+/**
+ * Opens a judged soul again (docs/tech-spec.md §67). While souls still wait at the gate the sun is held, and the
+ * review covers the desk, so it's never time to think about the next soul for free.
+ */
+export function lookAgain(index: number): void {
+  const s = session.peek();
+  if (!s?.state.verdicts[index]) return;
+  citation.value = null;
+  const held = s.state.phase === 'shift' && !s.state.config.untimed && s.state.clock.pausedAt === null;
+  if (held) act({ t: 'pause' });
+  review.value = { index, held };
+}
+
+export function closeReview(): void {
+  const r = review.peek();
+  review.value = null;
+  if (r?.held) act({ t: 'resume' });
+}
+
+/** Whether a judged soul can be tried again: once its shift is over, and never under the oath. */
+export function canTryAgain(s: Session): boolean {
+  const kind = s.mode.kind;
+  return s.state.phase === 'done' && !s.state.config.oath && kind !== 'again' && kind !== 'appeal' && kind !== 'primer';
+}
+
+/**
+ * Plays a judged soul again on its own (docs/tech-spec.md §67): the same soul under the same rules, with no sun and
+ * nothing kept. Its stamp is told like any other; then it's back to the screen it was opened from.
+ */
+export function tryAgain(index: number): void {
+  const s = session.peek();
+  const c = s?.state.cases[index];
+  if (!s || !c || !canTryAgain(s)) return;
+  const from = screen.peek();
+  const { state } = startShift(s.content, { ...s.state.config, untimed: true }, [c], s.ctx);
+  const begin: ShiftAction = { t: 'begin', at: clock() };
+  const back = () => {
+    batch(() => {
+      session.value = s;
+      screen.value = from;
+    });
+  };
+  resetSoulUi();
+  batch(() => {
+    review.value = null;
+    session.value = {
+      mode: { kind: 'again', day: s.ctx.day, name: c.evidence.look.name },
+      content: s.content,
+      ctx: s.ctx,
+      initial: state,
+      state: stepShift(state, begin, s.ctx).state,
+      actions: [begin],
+      done: back,
+      leave: back,
+    };
+    screen.value = 'shift';
+  });
+}
 export const citation = signal<Verdict | null>(null);
 /** The soul just sent, and its stamp: the desk shows it walking off that way (shift/motion.ts). */
 export const departed = signal<{ readonly caseId: string; readonly dest: Destination } | null>(null);
@@ -690,6 +771,7 @@ export function resetSoulUi(): void {
     compareFirst.value = null;
     stampSheet.value = false;
     drawerTab.value = 'words';
+    review.value = null;
   });
 }
 
@@ -748,11 +830,27 @@ function onEvent(e: ShiftEvent, s: Session): void {
       };
       break;
     }
+    case 'pressed': {
+      const name = cases[s.state.cursor]?.evidence.look.name ?? '';
+      const added = e.answer.said?.text;
+      answer.value = {
+        name,
+        title: t(e.answer.gave ? 'ui.press.gave' : 'ui.press.held', { name }),
+        lines: e.answer.lines.map((l) => t(l.msg, l.params)),
+        ...(added ? { added: t(added.msg, added.params) } : {}),
+      };
+      break;
+    }
     case 'judged': {
       const sent = cases[e.verdict.index];
       departed.value = sent && e.verdict.stamped ? { caseId: sent.id, dest: e.verdict.stamped } : null;
       const dest = t(`dest.${e.verdict.stamped}`);
-      say(t(e.verdict.correct ? 'ui.verdict.right' : 'ui.verdict.wrong', { dest }), e.verdict.correct ? 'good' : 'bad');
+      // A soul tried again gets no citation: the toast says how it went (docs/tech-spec.md §67).
+      const again = s.mode.kind === 'again';
+      const told = e.verdict.correct
+        ? t(again ? 'ui.again.right' : 'ui.verdict.right', { dest })
+        : t(again ? 'ui.again.wrong' : 'ui.verdict.wrong', { dest, expected: t(`dest.${e.verdict.expected}`) });
+      say(told, e.verdict.correct ? 'good' : 'bad');
       resetSoulUi();
       if (s.mode.kind === 'endless') countEndless(e.verdict.correct);
       break;
@@ -803,8 +901,8 @@ function finish(s: Session): void {
     if (m?.kind === 'endless' && m.strikes < ENDLESS_STRIKES) startEndlessRound({ ...m, round: m.round + 1 });
     return;
   }
-  // An appeal is its campaign's business (its `done` has it), never telemetry's.
-  if (s.mode.kind === 'appeal') return;
+  // An appeal is its campaign's business (its `done` has it), never telemetry's; nor is a soul tried again.
+  if (s.mode.kind === 'appeal' || s.mode.kind === 'again') return;
   const telemetry = telemetryBase();
   // Assisted shifts stay home until the telemetry schema can say so; the alpha's numbers stay comparable.
   if (telemetry && settings.peek().telemetry && !s.state.config.assists) {

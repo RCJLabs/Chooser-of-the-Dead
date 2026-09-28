@@ -130,6 +130,7 @@ const DAY_HEADS = [
   'Wrong',
   'Unjudged',
   'Sun left',
+  'Pressed',
   'Pay',
   'Bonus',
   'Nails',
@@ -145,12 +146,15 @@ const DAY_HEADS = [
 
 /**
  * Each finished day's accounts, one row a day; a day whose night is still to come has its night cells empty. The arms
- * column is there only in a build that sells them, and the nails column (rings a favour paid for nails left uncut,
- * docs/tech-spec.md §57) only in one with such a favour.
+ * column is there only in a build that sells them, the nails column (rings a favour paid for nails left uncut,
+ * docs/tech-spec.md §57) only in one with such a favour, and the pressed column (claims pressed, and lies that gave
+ * way, docs/tech-spec.md §66) only in one where souls can be pressed.
  */
-function days(ledger: readonly DayLedger[], has: { arms: boolean; nails: boolean }): string[] {
+function days(ledger: readonly DayLedger[], has: { arms: boolean; nails: boolean; press: boolean }): string[] {
   if (ledger.length === 0) return ['### Days', '', 'No day finished yet.'];
-  const heads = DAY_HEADS.filter((h) => (has.arms || h !== 'Arms') && (has.nails || h !== 'Nails'));
+  const heads = DAY_HEADS.filter(
+    (h) => (has.arms || h !== 'Arms') && (has.nails || h !== 'Nails') && (has.press || h !== 'Pressed'),
+  );
   const rows = ledger.map((l) => {
     const n = l.night;
     // The day's grade (docs/tech-spec.md §49), with the liars caught before their stamp.
@@ -164,6 +168,7 @@ function days(ledger: readonly DayLedger[], has: { arms: boolean; nails: boolean
       // Sun left when the last soul was sent (docs/tech-spec.md §49), 0:00 when it set on the line; the grade keeps
       // it, so a day without one (Story Mode, older saves) has the cell empty.
       g ? clock(Math.round(g.spareMs / 1000)) : '',
+      ...(has.press ? [`${l.pressed?.n ?? 0}${l.pressed?.gave ? ` (${l.pressed.gave} gave way)` : ''}`] : []),
       signed(l.pay),
       signed(l.bonus),
       ...(has.nails ? [signed(l.nails ?? 0)] : []),
@@ -471,6 +476,7 @@ export function playtestReport(p: PlaytestInput): string {
     ...days(p.run.ledger, {
       arms: campaignOf(p.content).arms !== undefined,
       nails: (campaignOf(p.content).favours ?? []).some((f) => 'nailRings' in f.effect),
+      press: p.content.press !== undefined,
     }),
     '',
     ...mistakes(p),

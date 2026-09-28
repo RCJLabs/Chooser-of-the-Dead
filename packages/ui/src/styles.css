@@ -825,6 +825,36 @@ select {
   font-weight: 700;
 }
 
+/* What a pressed soul added (docs/tech-spec.md §66): its own line, marked as said when pressed. */
+.evidence.is-said .evidence__pick {
+  font-style: italic;
+}
+
+.evidence__badge--quiet {
+  background: #5b5040;
+}
+
+.words__tip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 2px solid #4d6b47;
+  border-radius: 8px;
+}
+
+.words__tip p {
+  margin: 0;
+  flex: 1 1 14rem;
+}
+
+.words__patience {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+}
+
 .comparebar {
   display: flex;
   gap: 0.75rem;
@@ -1380,6 +1410,61 @@ select {
 
 .dialog--citation {
   border-top: 8px solid var(--bad);
+}
+
+/* A judged soul looked at again (docs/tech-spec.md §67). It covers the desk, so the next soul waits unseen. */
+.overlay--review {
+  background: var(--bg);
+  align-items: start;
+  overflow-y: auto;
+}
+
+.dialog--review {
+  max-width: 44rem;
+  border-top: 8px solid var(--bad);
+}
+
+.dialog--review h3 {
+  margin: 1rem 0 0.35rem;
+  font-size: 1rem;
+  color: #6b4a1c;
+}
+
+.review__stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.stage--review {
+  height: auto;
+  aspect-ratio: 300 / 420;
+  max-height: 22rem;
+  border-radius: 8px;
+}
+
+.stage--review .stage__frame {
+  animation: none;
+}
+
+.review__mark {
+  position: absolute;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.review__mark.is-proof {
+  border: 2px solid #4d6b47;
+}
+
+.review__mark.is-missed {
+  border: 3px dashed var(--bad);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.6);
+}
+
+.review__list li.is-missed {
+  font-weight: 700;
 }
 
 .toast-region {

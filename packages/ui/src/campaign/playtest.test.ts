@@ -99,7 +99,10 @@ describe('the playtest report', () => {
     const grade = `${g?.grade} (${g?.caught}/${g?.liars} liars)`;
     const spare = Math.round((g?.spareMs ?? 0) / 1000);
     const sun = `${Math.floor(spare / 60)}:${String(spare % 60).padStart(2, '0')}`;
-    expect(rows[0]?.startsWith(`| 1 | ${grade} | ${first?.correct} | 0 | 0 | ${sun} | +${first?.pay} |`)).toBe(true);
+    // Then the claims pressed (docs/tech-spec.md §66): none, by a player who never pressed.
+    expect(rows[0]?.startsWith(`| 1 | ${grade} | ${first?.correct} | 0 | 0 | ${sun} | 0 | +${first?.pay} |`)).toBe(
+      true,
+    );
     expect(rows[2]).toContain(`| ${run.ledger[2]?.night?.rings} |`);
     expect(text).toContain('### Mistakes\n\nNone.');
   });

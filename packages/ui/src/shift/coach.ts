@@ -1,5 +1,5 @@
 import { type HotspotId, REGION_KEYS } from '@cots/art';
-import { currentCase, type Lesson, type LessonStep, solve } from '@cots/engine';
+import { currentCase, type Lesson, type LessonStep, pressable, solve } from '@cots/engine';
 import type { Session } from '../store';
 
 /**
@@ -39,6 +39,8 @@ export interface CoachState {
   readonly coached: readonly number[];
   readonly primerDone: boolean;
   readonly on: boolean;
+  /** One-time tips already read here. */
+  readonly tips?: readonly string[];
 }
 
 /**
@@ -122,4 +124,18 @@ export function coachStep(
   const steps = s.mode.kind === 'primer' ? (PRIMER_STEPS[s.state.cursor] ?? []) : (lesson?.steps ?? []);
   const step = steps.filter((st) => possible(st, s)).find((st) => !done(st, s, acks));
   return step ? { step, focus: focusOf(step, s) } : null;
+}
+
+/** The one-time tip for pressing a soul on what it said (docs/tech-spec.md §66). */
+export const PRESS_TIP: LessonStep = { id: 'tip.press', text: 'coach.press', focus: 'words', next: true };
+
+/**
+ * A one-time tip, shown with the soul's words rather than in the coach's bar: the first time the soul at the gate
+ * can be pressed on what it said, on a device that hasn't read it. Put away, it never comes back.
+ */
+export function tipStep(s: Session, c: CoachState): { readonly step: LessonStep; readonly focus: string } | null {
+  if (!c.on || s.state.phase !== 'shift' || s.mode.kind === 'primer' || c.tips?.includes('press')) return null;
+  // Never over a lesson: one thing to learn at a time.
+  if (activeLesson(s, c)) return null;
+  return pressable(s.state, s.ctx).length > 0 ? { step: PRESS_TIP, focus: PRESS_TIP.focus } : null;
 }

@@ -32,6 +32,7 @@ function testerSave(): { save: RunSave; ledger: DayLedger[] } {
       wrong: 3,
       assists: { sunPct: 75 },
       grade: { ...d2.grade, grade: 'rough', spareMs: 83_000, assisted: true },
+      pressed: { n: 4, gave: 1 },
       mistakes: [
         { rule, expected: 'VALHALLA', stamped: 'HEL', noon: true },
         { rule, expected: 'VALHALLA', stamped: 'HEL', paid: 30 },
@@ -68,6 +69,9 @@ describe('reading a playtest report back', () => {
       expect(d.sunLeftS).toBe(Math.round((l?.grade?.spareMs ?? 0) / 1000));
     }
     expect(r?.days[1]).toMatchObject({ grade: 'rough', assistedGrade: true, assists: 'sun 75%', sunLeftS: 83 });
+    // Claims pressed, and lies that gave way (docs/tech-spec.md §66): none is a count of none, in a build with pressing.
+    expect(r?.days[1]?.pressed).toEqual({ n: 4, gave: 1 });
+    expect(r?.days[0]?.pressed).toEqual({ n: 0, gave: 0 });
     expect(r?.days[2]).toMatchObject({ rings: -4, reprieve: 20 });
     expect(r?.mistakes).toEqual([
       expect.objectContaining({ day: 2, kind: 'wrong', stamped: 'dest.HEL', expected: 'dest.VALHALLA', noon: true }),
@@ -145,8 +149,8 @@ describe('summing up reports', () => {
     expect(text).toMatch(/\| 2 \| -?\d+\* \| -?\d+ \| 40 \(35 to 45\) \| 0 \(-5 to 5\), 14 runs \|/);
     expect(text).toContain('- alice: -4 rings after Night 3, below the novice bots.');
     // Judging: both runs on Day 1, only alice's Day 2 had mistakes.
-    // The sun left is the median of both runs' Day 2, each at least alice's 1:23.
-    expect(text).toMatch(/\| 2 \| 2 \| \d+ \| 3 \| 0 \| \d+% \| 1 of 2 \| \d+:\d\d \(2\) \| 1 \|/);
+    // The sun left is the median of both runs' Day 2, each at least alice's 1:23; alice pressed 4, and 1 gave way.
+    expect(text).toMatch(/\| 2 \| 2 \| \d+ \| 3 \| 0 \| \d+% \| 1 of 2 \| \d+:\d\d \(2\) \| 4 \(1\) \| 1 \|/);
     // Mistakes by rule, the most first; the skipped step and the bribe counted apart.
     expect(text).toMatch(/\| rule\.[^|]+ \| 2 \| 1 \| 2 \|/);
     expect(text).toContain('Right stamp, a step skipped: 1.');

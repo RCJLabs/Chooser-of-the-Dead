@@ -112,6 +112,9 @@ export interface Verdict {
   readonly skipped?: readonly string[];
   readonly caught: number;
   readonly lies: number;
+  /** Claims pressed (docs/tech-spec.md §66), and lies given up when pressed; absent when none. */
+  readonly pressed?: number;
+  readonly gave?: number;
   readonly atMs: number;
 }
 
@@ -599,6 +602,8 @@ export function stepShift(
         ...(skipped.length > 0 ? { skipped } : {}),
         caught: caughtLies(s.soul),
         lies: c.lies.length,
+        ...(s.soul.pressed?.length ? { pressed: s.soul.pressed.length } : {}),
+        ...(s.soul.gave?.length ? { gave: s.soul.gave.length } : {}),
         atMs: sunElapsed(s, action.at),
       };
       const events: ShiftEvent[] = [{ e: 'judged', verdict }];

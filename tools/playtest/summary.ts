@@ -137,8 +137,8 @@ function judgingTable(reports: readonly Report[]): string[] {
   const days = [...new Set(reports.flatMap((r) => r.days.map((d) => d.day)))].sort((a, b) => a - b);
   if (days.length === 0) return ['No day finished in any run yet.'];
   return [
-    '| Day | Runs | Right | Wrong | Left at dusk | Judged rightly | Sharp or flawless | Sun left (median) | Assisted |',
-    '|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
+    '| Day | Runs | Right | Wrong | Left at dusk | Judged rightly | Sharp or flawless | Sun left (median) | Pressed (gave way) | Assisted |',
+    '|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
     ...days.map((day) => {
       const ds = reports.flatMap((r) => r.days.filter((d) => d.day === day));
       const sum = (f: (d: (typeof ds)[number]) => number) => ds.reduce((n, d) => n + f(d), 0);
@@ -147,6 +147,8 @@ function judgingTable(reports: readonly Report[]): string[] {
       const good = ds.filter((d) => d.grade === 'sharp' || d.grade === 'flawless').length;
       const graded = ds.filter((d) => d.grade !== undefined).length;
       const suns = ds.flatMap((d) => (d.sunLeftS === undefined ? [] : [d.sunLeftS]));
+      // Claims pressed and lies that gave way (docs/tech-spec.md §66), from builds that report them.
+      const pressed = ds.flatMap((d) => (d.pressed ? [d.pressed] : []));
       return `| ${[
         day,
         ds.length,
@@ -156,6 +158,9 @@ function judgingTable(reports: readonly Report[]): string[] {
         pct(right, all),
         graded > 0 ? `${good} of ${graded}` : '–',
         suns.length > 0 ? `${clock(quantile(suns, 0.5))} (${suns.length})` : '–',
+        pressed.length > 0
+          ? `${pressed.reduce((n, p) => n + p.n, 0)} (${pressed.reduce((n, p) => n + p.gave, 0)})`
+          : '–',
         ds.filter((d) => d.assists !== '').length,
       ].join(' | ')} |`;
     }),

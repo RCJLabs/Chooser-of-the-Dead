@@ -186,6 +186,11 @@ export interface DayLedger {
   /** Each soul sent wrong (absent when none, and in saves from before they were kept): a playtest's report. */
   readonly mistakes?: readonly DayMistake[];
   /**
+   * Claims pressed at the gate today, and lies that gave way (docs/tech-spec.md §66): absent on a day with none,
+   * for a playtest's report.
+   */
+  readonly pressed?: { readonly n: number; readonly gave: number };
+  /**
    * The souls judged today who asked for another hall, and kin who came (docs/tech-spec.md §60): kept in a build whose
    * campaign has pleas or kin, empty on a day nobody asked, and absent in saves from before they were kept.
    */

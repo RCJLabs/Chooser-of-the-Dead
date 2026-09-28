@@ -74,6 +74,7 @@ I couldn't open itch.io from here, so check steps 1, 2 and 6 against the dashboa
 - **Reports arrive as issues** titled *Campaign playtest: Day N* (with ", an ending" for a finished run), labelled `playtest` and `campaign` once the labels exist.
 - **The Days table is plain Markdown with ASCII signs,** so a script can read it as easily as a person.
 - **The Grade column** reads, for example, "sharp (3/4 liars)": every soul judged rightly, and three of the day's four liars caught in a lie before the stamp (§49 of the tech spec). ", assisted" means a slower or faster sun, or the rule tracker.
+- **The Pressed column** reads, for example, "4 (1 gave way)": claims the tester pressed that day, and lies that gave way (§66 of the tech spec). Pressing's odds, cost and patience are guesses until these come in.
 - **The Mistakes list shows the rule and what each wrong soul was stamped,** not what the soul looked like.
   - To see the souls themselves, ask for a backup (Settings, on the title screen). Restored in `pnpm dev`, the tester's slots can be continued, or replayed from any day with the same seed. That gives the same souls, unless the generator has changed since their build.
 - **Choices are read back by replaying each scene with the choices made.** A scene rewritten since the tester played it shows "(the scene has changed since; options 1, 2)" instead of the words.
@@ -87,11 +88,11 @@ I couldn't open itch.io from here, so check steps 1, 2 and 6 against the dashboa
   - The summary sets the runs side by side:
     - the rings after each night, beside the bots' median and middle half (expert, competent and novice, 20 runs each; `--bots 0` skips them);
     - where each run's last night sits among the bots;
-    - how each day was judged, and the sun left when its last soul was sent;
+    - how each day was judged, the sun left when its last soul was sent, and the claims pressed;
     - the rules the souls sent wrong broke;
     - the pleas and kin.
   - A few runs give leads, not measurements. The summary says how many runs each number comes from.
-  - Reports from builds before the Sun left column read without it.
+  - Reports from builds before the Sun left or Pressed columns read without them.
 - **Keep a tester's saves as tests** with `pnpm playtest:keep backup.json --name <tester>`, from a backup they send (Settings, on the title screen).
   - Each campaign slot becomes `tests/fixtures/playtests/<tester>-slot<N>.json`, and `pnpm test` opens every one with the current build. A change that would break a tester's run fails before it ships.
   - A save holds its seed, the actions taken, the souls' generated names and the choices made; nothing about the tester. The file is named after `--name`, and the repository is public, so use a handle they're happy with.

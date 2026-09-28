@@ -1,8 +1,13 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–65.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–67.
 
 ## Done lately
+
+Game phases 1 and 2 (below), in one pull request:
+
+- **1. Interrogation with teeth** ([`tech-spec.md`](tech-spec.md) §66). Press a soul on a claim before anything shows it false, for 10 s of sun. A liar may give way, at odds set by how it talks. The rest hold in the same words whether the claim is true or not, and may add something you can check: true, or a slip the body shows false. Each soul takes two presses. From Day 3, never in the Daily or the primer.
+- **2. Show the mistake** ([`tech-spec.md`](tech-spec.md) §67). Look again at a soul stamped wrong: the rule, what decided it, what you never looked at (marked on the body) and where it lied. From its citation (the sun waits), the summary or the audit. Try it again on its own, for nothing, once the shift is over.
 
 From the foundation brainstorm (numbers are its items), in one pull request ([`tech-spec.md`](tech-spec.md) §63):
 
@@ -15,15 +20,12 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **In progress:** 1 and 2, together.
+- **Done:** 1 and 2 (above).
 - **Next:** 4, then 3.
 - **Held:** 5–8. They're heavy on writing, so they wait for your story sign-off and go into the rewrite rather than being redone after it.
 
-1. **Interrogation with teeth** (in progress).
-   - Today Question is never needed to judge a soul. Every lie that changes the verdict already shows as a contradiction you can find by comparing, and Question only works after you've found it: a 20-second confirmation.
-   - The change: question a soul before catching anything. Its answers become testimony you can check, with slips a sharp player catches, and each soul's patience runs out.
-   - It becomes a faster, riskier route, never a required one.
-2. **Show the mistake** (in progress). The citation and the audit reopen the soul, with the sign you missed and the rule that decided it, and you can replay that soul.
+1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
+2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
 3. **Linked souls.**
    - Souls from one battle or shipwreck arrive in the same shift, and their stories must agree ("I died beside my brother Ketil", while Ketil says he fell alone).
    - A jarl's retinue is judged as a group.
