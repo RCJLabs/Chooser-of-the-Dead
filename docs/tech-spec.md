@@ -70,6 +70,8 @@ Chooser-of-the-Dead/                  (public; see §8.4 for license)
 |---|---|---|---|---|---|
 | web-demo | core, daily, demo | web | yes | `/Chooser-of-the-Dead/` (the path Pages reports, §64) | GitHub Pages |
 | web-itch | core, daily, demo | itch (web without service worker) | no | `./` | itch.io zip via butler |
+| web-playtest | all | itch | no | `./` | a restricted itch.io page (§38) |
+| web-full | all | web | yes | `./` | GitHub Pages at `/full/`, installable (§65) |
 | electron-demo | core, daily, demo | electron | no | `./` | Steam demo app (its own appId) |
 | electron-full | all | electron | no | `./` | Steam |
 | android-full | all | android | no | `./` | Play (Capacitor) |
@@ -2724,7 +2726,7 @@ Notes on the table:
 **Why.** The owner wants to play the whole campaign in a browser now (25 September 2026). The playtest build's itch page (§38) was never set up, and the public web demo stops at Day 3. This is the owner's call: the build plan kept the campaign off every public URL, since it's the paid game.
 
 **What changed**
-- **The Pages deploy builds two targets.** `deploy-web.yml` builds `web-demo` and `web-playtest`, and runs the leak check on each:
+- **The Pages deploy builds two targets.** `deploy-web.yml` builds `web-demo` and `web-playtest` (`web-full` since §65), and runs the leak check on each:
   - the demo must not contain the campaign;
   - the playtest build must.
 
@@ -2753,7 +2755,7 @@ Notes on the table:
   - the demo then offers the update;
   - after it, `/full/` shows the whole game.
 
-**To take it down:** remove the `web-playtest` steps from `deploy-web.yml`, and upload `dist/web-demo` again.
+**To take it down:** remove the `web-full` steps (§65) from `deploy-web.yml`, and upload `dist/web-demo` again.
 
 ## 49. After M7: mastery: a mark for each day, the day's best, and the oath (gameplay brainstorm, item 10)
 
@@ -4000,6 +4002,42 @@ The brainstorm's version, and what changed:
   - Saves are kept per origin, not per path, so the same saves show up at the new address.
 - **The check fetches one script per page, not every file.** It catches a wrong path, not a chunk missing further in.
 - **Local builds and the tests use `PAGES_BASE`.** After another rename, the deploy follows by itself. `PAGES_BASE` has to be changed by hand, or the tests describe a site that isn't there.
+
+## 65. The whole game installs from Pages
+
+**Why.** The whole game at `/full/` couldn't be installed. The Pages copy was the itch build (`web-playtest`), so it had no manifest and no service worker. The demo beside it installed.
+
+**What changed**
+- **The Pages copy has its own target, `web-full`.** It's `web-playtest` with the web adapter and a PWA.
+  - It has the same packs, playtest note and report.
+  - It has the same storage: `cots.playtest.*` keys and the `chooser-of-the-slain.playtest` database. A tester who played `/full/` before keeps their saves.
+  - Its manifest ("Chooser of the Slain (Playtest)", with "Chooser Full" under the icon) and service worker use relative paths. They're scoped to `/full/`, so it installs as its own app beside the demo, whatever the repository is called.
+  - Its shares carry no link, as before, since the address is unlisted.
+  - Updates wait for **Update now** on the title and night screens, as the demo's do.
+- **`web-playtest` is unchanged.** The itch page still gets no service worker.
+- **The Pages workflow builds `web-full`** for `/full/`, instead of `web-playtest`.
+- **Both service workers now also cache the rune font,** so runes and inscriptions read offline.
+- **Each app's name comes from its target** (`app` in `targets.ts`). The demo's is unchanged.
+
+**Checked**
+- **The assembled site under `/Chooser-of-the-Dead/`, in Chromium:**
+  - both pages are installable, with no installability errors;
+  - each page is controlled by its own worker; the whole game's is `/full/sw.js`;
+  - with the network off, `/full/` reloads with its title and playtest note.
+- **e2e on the real `web-full` build** (port 4177, phone and desktop) covers:
+  - the manifest;
+  - its own worker;
+  - a campaign saved under the playtest build's keys and database;
+  - a reload with the network off.
+
+  Control: the same offline steps on `web-playtest`, which has no worker, fail.
+- **A unit test** pins `web-full`'s storage to `web-playtest`'s, and keeps the two apps' short names apart.
+
+**Known limits**
+- **An installed copy runs the build it has** until the tester taps Update now. Its reports name that build, so a stale one shows.
+- **iPhone and iPad keep a Home Screen app's storage apart from Safari's.** Saves made in Safari don't appear in the installed app; a backup (Settings) moves them.
+- **The demo's worker covers `/full/` too, by scope.** It doesn't answer those pages, because its fallback skips `/full/`, and once the whole game's worker is installed, the narrower scope wins.
+- **Installing doesn't make the game private.** It stays unlisted, not protected.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

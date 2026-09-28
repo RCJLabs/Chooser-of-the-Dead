@@ -1,20 +1,25 @@
 # Playtest builds: the whole game for invited testers
 
-The public builds stop at Day 3, and the campaign's economy has only been tuned against bots. The `web-playtest` build is the whole game, on its own restricted itch.io page, for the people you invite. It's also on GitHub Pages, unlisted, beside the demo (below). Each save slot turns its run into a report for the playtest form. The technical side is in [`tech-spec.md`](tech-spec.md) §38 and §48.
+The public builds stop at Day 3, and the campaign's economy has only been tuned against bots. The `web-playtest` build is the whole game, on its own restricted itch.io page, for the people you invite. It's also on GitHub Pages, unlisted, beside the demo, where it installs as its own app (`web-full`, below). Each save slot turns its run into a report for the playtest form. The technical side is in [`tech-spec.md`](tech-spec.md) §38, §48 and §65.
 
 ## On GitHub Pages, unlisted
 
-Since 25 September 2026, the Pages deploy carries the same build at `/full/`: **https://rcjlabs.github.io/Chooser-of-the-Dead/full/**. It was at `/Vikings-R-Us/full/` until the repository was renamed; that address is gone ([tech-spec §64](tech-spec.md)).
+Since 25 September 2026, the Pages deploy carries the whole game at `/full/`: **https://rcjlabs.github.io/Chooser-of-the-Dead/full/**. It was at `/Vikings-R-Us/full/` until the repository was renamed; that address is gone ([tech-spec §64](tech-spec.md)).
 - **Nothing links to it.** The demo doesn't mention it, and the page asks search engines not to list it (`noindex`). It isn't private, though: anyone with the link can play the whole campaign.
 - **It follows `main`.** Every merge redeploys it with the demo, and its title screen names the commit.
 - **Its saves are its own,** as on itch: nothing it keeps touches the demo's.
-- **A browser that has played the demo needs the demo's update once.** Until then the demo's offline copy answers `/full/` and shows the demo. Open the demo, tap **Update now** on its title screen, then open `/full/`. A private window works straight away.
-- **To take it down,** remove the three `web-playtest` steps from `.github/workflows/deploy-web.yml` and upload `dist/web-demo` again, as before.
+- **It installs as its own app** ("Chooser of the Slain (Playtest)", with "Chooser Full" under its icon), beside the demo, and plays offline once visited ([tech-spec §65](tech-spec.md)).
+  - On a computer, in Chrome or Edge: the install button in the address bar, or Install in the menu.
+  - On Android: the browser's menu, then Install app.
+  - On an iPhone or iPad: Safari's Share button, then Add to Home Screen. The installed app keeps its saves apart from Safari's, so a tester who already played in Safari moves their run with a backup (Settings).
+  - Updates wait for **Update now** on its title screen, as the demo's do. Until then an installed copy runs the build it has; its reports say which.
+- **The itch.io page doesn't install:** itch gets no service worker.
+- **To take it down,** remove the three `web-full` steps from `.github/workflows/deploy-web.yml` and upload `dist/web-demo` again, as before.
 
 ## What testers get
 
 - **The whole campaign,** Days 1–20 with every ending, plus the Daily and Endless. There's no Case Lab.
-- **A note on the title screen** saying it's a playtest build and which one. For example, `web-playtest · 3f2a9c1 · content ca5b2592` gives the target, the commit and the content.
+- **A note on the title screen** saying it's a playtest build and which one. For example, `web-playtest · 3f2a9c1 · content ca5b2592` gives the target (`web-full` on Pages), the commit and the content.
 - **A Playtest report button on each save slot.** It opens the report, which covers:
   - the run so far: the day, the rings, the family, standing with the powers met, whether it's under oath, and its weave if it's woven; the arms bought for the last battle, by front, and the night Skögul's reprieve paid the debt, if it did;
   - one row per day: the day's grade and the liars caught, the souls judged rightly and wrongly, pay, bonus, fines, bills, shop (net of anything sold back), arms (in the full game), story, Draupnir, and the rings after the night, with what the reprieve paid beside them;

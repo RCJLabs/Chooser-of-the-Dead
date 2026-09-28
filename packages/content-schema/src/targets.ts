@@ -36,6 +36,8 @@ export interface TargetDef {
    * keeps apart from the public demo, which would find a playtester's saves unreadable and offer to clear them.
    */
   storage: string | null;
+  /** What a build with a PWA installs as: the app's name, the short name under its icon, and what it is. */
+  app?: { readonly name: string; readonly shortName: string; readonly description: string };
 }
 
 const DEMO_PACKS = ['core', 'daily', 'demo'] as const satisfies readonly PackId[];
@@ -51,6 +53,11 @@ export const TARGETS = {
     lab: false,
     playtest: false,
     storage: null,
+    app: {
+      name: 'Chooser of the Slain (Demo)',
+      shortName: 'Chooser',
+      description: 'Judge the fallen before dusk. Free demo: the Daily Shift and the first three days.',
+    },
   },
   'web-itch': {
     edition: 'demo',
@@ -72,6 +79,24 @@ export const TARGETS = {
     lab: false,
     playtest: true,
     storage: 'playtest',
+  },
+  // The same game on Pages, unlisted at /full/ beside the demo (docs/tech-spec.md §48, §65): installable as its own
+  // app, and playable offline. It keeps what web-playtest keeps, so a tester who played /full/ before keeps their
+  // saves. Its paths are relative, so it doesn't care what the repository is called.
+  'web-full': {
+    edition: 'full',
+    packs: ALL_PACKS,
+    platform: 'web',
+    pwa: true,
+    base: 'relative',
+    lab: false,
+    playtest: true,
+    storage: 'playtest',
+    app: {
+      name: 'Chooser of the Slain (Playtest)',
+      shortName: 'Chooser Full',
+      description: 'The whole game, for invited playtesters.',
+    },
   },
   'electron-demo': {
     edition: 'demo',
@@ -130,7 +155,7 @@ export function isTargetId(value: string): value is TargetId {
 export const PAGES_BASE = '/Chooser-of-the-Dead/';
 
 /**
- * Where the Pages site carries the whole game (the playtest build), unlisted, beside the demo (docs/tech-spec.md
- * §48). The Pages workflow copies it there; the demo's service worker leaves it alone.
+ * Where the Pages site carries the whole game (web-full), unlisted, beside the demo (docs/tech-spec.md §48, §65). The
+ * Pages workflow copies it there; the demo's service worker leaves it alone, and it has one of its own.
  */
 export const PAGES_FULL = 'full/';

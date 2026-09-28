@@ -4,3 +4,5 @@ export const BASE = 'http://localhost:4173/Chooser-of-the-Dead/';
 export const FULL = 'http://localhost:4174/';
 /** The build for invited playtesters (web-playtest), as itch.io serves it: tests opt in with `test.use({ baseURL: PLAYTEST })`. */
 export const PLAYTEST = 'http://localhost:4176/';
+/** The whole game as Pages serves it at /full/ (web-full), installable: tests opt in with `test.use({ baseURL: FULL_APP })`. */
+export const FULL_APP = 'http://localhost:4177/';
