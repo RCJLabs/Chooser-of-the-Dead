@@ -48,7 +48,9 @@ export function scriptedCase(def: ScriptedCaseDef, ctx: DayCtx, runSeed: string,
       why = `it would go to ${expected.dest}`;
       continue;
     }
-    const dressed = dressCase(arch, truth, expected, planned, def.look, def.lines ?? [], ctx, knobs, rng);
+    // A carver of the forger's trail wears the face the run gives him (docs/tech-spec.md §71).
+    const look = (def.lookOf && ctx.trail?.looks[def.lookOf]) || def.look;
+    const dressed = dressCase(arch, truth, expected, planned, look, def.lines ?? [], ctx, knobs, rng);
     if ('code' in dressed) {
       why = `${dressed.code}: ${dressed.detail}`;
       continue;

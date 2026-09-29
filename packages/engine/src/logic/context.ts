@@ -15,7 +15,7 @@ import type {
   Value,
 } from '../content/types';
 import { ruleDests } from '../content/types';
-import type { CaseSpec } from '../gen/types';
+import type { CaseSpec, ForgeryTell, Look } from '../gen/types';
 import { Rng } from '../rng/rng';
 
 export interface ActiveFact {
@@ -60,6 +60,16 @@ export interface DayCtx extends PredCtx {
   readonly destinations: ReadonlySet<Destination>;
   /** The day's noon decree, when it has one: the day as the decree leaves it, for the souls after it. */
   readonly noon?: NoonCtx;
+  /** The forger's trail on a campaign day it runs (docs/tech-spec.md §71). */
+  readonly trail?: TrailCtx;
+}
+
+/** The forger's trail on a day (docs/tech-spec.md §71). */
+export interface TrailCtx {
+  /** The two habits every forged tally cut for the day shows one of: the carver's. */
+  readonly hands: readonly ForgeryTell[];
+  /** The faces the trail's story souls wear: the carver's, and the man named for it, once one is. */
+  readonly looks: { readonly culprit: Look; readonly named?: Look };
 }
 
 /** A noon decree in force (docs/tech-spec.md §45). */

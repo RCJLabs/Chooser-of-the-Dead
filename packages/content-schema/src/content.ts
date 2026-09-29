@@ -239,6 +239,8 @@ export const ArchetypeSchema: z.ZodType<ArchetypeDef> = z.strictObject({
   require: z.array(PredSchema).optional(),
   lies: z.array(LieSpecSchema),
   words: z.record(z.string(), z.string().min(1)).optional(),
+  // A forged tally of true deeds, cut by the valley's forger (docs/tech-spec.md §71): Loki's borrowed faces.
+  papers: z.literal('forged').optional(),
 });
 
 const SpeechSlotNameSchema = z.enum([
@@ -539,6 +541,8 @@ export const ScriptedCaseSchema: z.ZodType<ScriptedCaseDef> = z.strictObject({
   require: z.array(PredSchema).optional(),
   lies: z.array(LieSpecSchema),
   look: LookSchema,
+  // The face of a carver the forger's trail names (docs/tech-spec.md §71): the one, or the man named for it.
+  lookOf: z.enum(['culprit', 'named']).optional(),
   lines: z.array(Key).min(1).optional(),
   words: z.record(z.string(), z.string().min(1)).optional(),
   expect: DestinationSchema,
@@ -774,6 +778,28 @@ export const CampaignPartSchema = z.strictObject({
     .optional(),
   sellBack: Percent.optional(),
   reprieve: z.strictObject({ ending: Id, rings: Int, flag: Id, text: Key }).optional(),
+  // The forger's trail (docs/tech-spec.md §71): who cuts the forged tallies, found from marks at the desk.
+  trail: z
+    .strictObject({
+      since: Day,
+      when: z.lazy(() => StatePredSchema).optional(),
+      nights: z.array(Day).min(1),
+      suspects: z
+        .array(
+          z.strictObject({
+            id: Id,
+            look: LookSchema,
+            hands: z.array(z.enum(['elderRune', 'mirroredRune', 'brokenFormula'])).length(2),
+            text: Key,
+          }),
+        )
+        .min(2),
+      right: z.array(EffectSchema),
+      wrong: z.array(EffectSchema),
+      title: Key,
+      intro: Key,
+    })
+    .optional(),
   // The epilogue (docs/tech-spec.md §55): what became of everyone, told after the ending from the run.
   epilogue: z
     .strictObject({

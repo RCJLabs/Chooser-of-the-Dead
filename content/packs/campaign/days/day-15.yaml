@@ -28,7 +28,11 @@ queue:
   scripted:
     # Svanhild again, dead this time, if she was sent home on Day 7 (§60).
     - { case: case.svanhild15, at: 10 }
+    # The carver (docs/tech-spec.md §71): drowned if named on Night 14, else dead of a fever; and the man named
+    # on Night 14, if he wasn't the one.
     - { case: case.bjarni_old, at: 8 }
+    - { case: case.carver_late, at: 8 }
+    - { case: case.carver_innocent_late, at: 6 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }
     - { id: arch.freyja_pick, w: 2 }

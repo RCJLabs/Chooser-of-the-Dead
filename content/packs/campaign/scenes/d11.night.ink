@@ -31,9 +31,10 @@ You would know. You spent the afternoon dropping tallies like that into a basket
   You write that a forged tally doesn't move anyone anywhere, that you'd see it under the lens, and that the dead are where they are.
   "Hel keeps a quiet hall," you write. It's all you know about it.
 * [Ask for the carver's name.]
-  # fx: flag reported_carver
+  # fx: flag hunt_carver
   # fx: standing odin +1
-  You ask for the carver's name, and the names of the families he's carved for. The next raven brings a list. Skögul reads it, folds it, and takes it up to the hall without a word.
+  You ask for the carver's name. The next raven brings three: three carvers have been at doors in the valley this month, and nobody at home can say which of them knocked. Skögul reads the list and pins it to the wall above your desk.
+  "Every knife has its habits," she says. "Watch the tallies. When you're sure, give me a name, and the jarl will do the rest. You get one." # speaker: skogul
 * [Tell them the dead are happy where they are.]
   # fx: flag letters_kind +1
   You don't know that. You write it anyway, because someone at home needs to read it.

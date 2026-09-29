@@ -22,7 +22,9 @@ queue:
   scripted:
     # A miser who pays to be sent home (docs/tech-spec.md §59): a bribe for the stamp that sends the living back.
     - { case: case.hrapp, at: 4 }
+    # The carver named on Night 12 (docs/tech-spec.md §71): the right one, or another. Never both.
     - { case: case.bjarni_drowned, at: 9 }
+    - { case: case.carver_innocent, at: 9 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }
     - { id: arch.freyja_pick, w: 2 }

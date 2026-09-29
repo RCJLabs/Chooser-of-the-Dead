@@ -158,7 +158,7 @@ export function dressCase(
   const persona = planRng.pick(arch.personas);
   const speech = planSpeech(truth, planned, ctx, planRng);
   const ravens = planRavens(truth, decisive, ctx, knobs, planRng);
-  const tally = planTally(truth, planned, decisive, ctx, knobs, rng.fork('tally'));
+  const tally = planTally(truth, planned, decisive, ctx, knobs, rng.fork('tally'), arch.papers);
   const cues = ctx.cues.flatMap((c) => {
     if ('forgery' in c.hint) {
       // Only a soul carrying a tally can show one that looks off.
