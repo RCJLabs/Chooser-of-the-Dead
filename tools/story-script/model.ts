@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import type { CompiledScene } from '@cots/content-compiler';
-import type { Content, Destination, Effect, StatePred } from '@cots/engine';
+import type { Content, Destination, Effect, OriginPerk, StatePred } from '@cots/engine';
 import { fnv1a32 } from '@cots/engine';
 import { type Expr, flagsRead } from './expr';
 import { parseScene, type Row } from './parse';
@@ -85,6 +85,18 @@ export interface EpilogueDoc {
   readonly lines: readonly { readonly text: string; readonly when?: StatePred }[];
 }
 
+/** Who the chooser was in life (docs/tech-spec.md §72): what it gives, who it brings home, and its own scenes. */
+export interface OriginDoc {
+  readonly id: string;
+  readonly name: string;
+  readonly text: string;
+  readonly perk: OriginPerk;
+  /** Whoever the origin brings home, by the name the strings give them. */
+  readonly member?: string;
+  /** Its scenes in the order they're played, each after its day's own. */
+  readonly scenes: readonly SceneDoc[];
+}
+
 export interface EndingDoc {
   readonly id: string;
   readonly title: string;
@@ -114,6 +126,8 @@ export interface ScriptModel {
     readonly right: readonly Effect[];
     readonly wrong: readonly Effect[];
   };
+  /** The origins a run of the full game can be begun with (docs/tech-spec.md §72); none in the demo. */
+  readonly origins: readonly OriginDoc[];
   /** The family by id ("brother"), with the names the strings give them ("Ulf, your brother"). */
   readonly family: readonly { readonly id: string; readonly name: string }[];
   readonly strings: Readonly<Record<string, string>>;
@@ -225,6 +239,17 @@ export function buildModel(build: {
     })
     .sort((a, b) => a.day - b.day);
 
+  const origins: OriginDoc[] = (content.campaign?.origins ?? []).map((o) => ({
+    id: o.id,
+    name: t(o.name),
+    text: t(o.text),
+    perk: o.perk,
+    ...(o.member ? { member: t(o.member.name) } : {}),
+    scenes: [...o.scenes]
+      .sort((a, b) => a.day - b.day || (a.at === b.at ? 0 : a.at === 'morning' ? -1 : 1))
+      .flatMap((sc) => sceneDoc(sc.scene, sc.day, sc.at) ?? []),
+  }));
+
   const endings: EndingDoc[] = [...(content.campaign?.endings ?? [])]
     .sort((a, b) => a.order - b.order)
     .map((e) => ({ id: e.id, title: t(e.title), text: t(e.text), ...(e.when ? { when: e.when } : {}) }));
@@ -241,35 +266,30 @@ export function buildModel(build: {
     map.set(flag, list);
   };
   const dayName = (s: SceneDoc) => `Day ${s.day}, ${s.when === 'desk' ? 'at the desk' : s.when}`;
-
-  for (const d of days) {
-    for (const s of [d.morning, ...(d.desk ?? []), d.night]) {
-      if (!s) continue;
-      // The options open at each depth, so a setter can say which choice it follows.
-      const path: string[] = [];
-      for (const r of s.rows) {
-        if (r.kind === 'choice') {
-          path.length = r.depth - 1;
-          path.push(r.text);
-        } else if (r.kind === 'gather') path.length = r.depth - 1;
-        else if (r.kind === 'part') path.length = 0;
-        for (const f of rowConditions(r).flatMap(flagsRead)) {
-          add(read, f, { day: s.day, where: dayName(s), anchor: lineAnchor(s.name, r.line) });
-        }
-        if (r.kind === 'effects' || r.kind === 'line') {
-          for (const e of r.effects) {
-            if (!('flag' in e)) continue;
-            const detail = path.length > 0 ? path.map((p) => `“${p}”`).join(' → ') : undefined;
-            add(set, e.flag, {
-              day: s.day,
-              where: dayName(s),
-              anchor: lineAnchor(s.name, r.line),
-              ...(detail ? { detail } : {}),
-            });
-          }
+  const indexScene = (s: SceneDoc, where: string) => {
+    // The options open at each depth, so a setter can say which choice it follows.
+    const path: string[] = [];
+    for (const r of s.rows) {
+      if (r.kind === 'choice') {
+        path.length = r.depth - 1;
+        path.push(r.text);
+      } else if (r.kind === 'gather') path.length = r.depth - 1;
+      else if (r.kind === 'part') path.length = 0;
+      for (const f of rowConditions(r).flatMap(flagsRead)) {
+        add(read, f, { day: s.day, where, anchor: lineAnchor(s.name, r.line) });
+      }
+      if (r.kind === 'effects' || r.kind === 'line') {
+        for (const e of r.effects) {
+          if (!('flag' in e)) continue;
+          const detail = path.length > 0 ? path.map((p) => `“${p}”`).join(' → ') : undefined;
+          add(set, e.flag, { day: s.day, where, anchor: lineAnchor(s.name, r.line), ...(detail ? { detail } : {}) });
         }
       }
     }
+  };
+
+  for (const d of days) {
+    for (const s of [d.morning, ...(d.desk ?? []), d.night]) if (s) indexScene(s, dayName(s));
     for (const soul of d.souls) {
       for (const on of soul.onStamp) {
         for (const e of on.effects) {
@@ -292,6 +312,8 @@ export function buildModel(build: {
       }
     }
   }
+  // An origin's scenes (docs/tech-spec.md §72), played only in runs begun with it.
+  for (const o of origins) for (const s of o.scenes) indexScene(s, `${dayName(s)} (${o.name})`);
   const slice = content.campaign?.slice;
   for (const f of Object.keys(slice?.preset.flags ?? {})) {
     add(set, f, {
@@ -356,9 +378,10 @@ export function buildModel(build: {
     .sort()
     .map((name) => ({ name, setBy: set.get(name) ?? [], readBy: read.get(name) ?? [] }));
 
-  const scenes = days.flatMap((d) =>
-    [d.morning, ...(d.desk ?? []), d.night].filter((s): s is SceneDoc => s !== undefined),
-  );
+  const scenes = [
+    ...days.flatMap((d) => [d.morning, ...(d.desk ?? []), d.night].filter((s): s is SceneDoc => s !== undefined)),
+    ...origins.flatMap((o) => o.scenes),
+  ];
   const souls = days.flatMap((d) => d.souls);
   const version = fnv1a32([...scenes.map((s) => s.hash), ...souls.flatMap((s) => s.lines)].join('|')).toString(36);
   return {
@@ -391,7 +414,12 @@ export function buildModel(build: {
           },
         }
       : {}),
-    family: (content.campaign?.family ?? []).map((m) => ({ id: m.id, name: t(m.name) })),
+    origins,
+    // The family, and whoever an origin brings home (docs/tech-spec.md §72).
+    family: [
+      ...(content.campaign?.family ?? []),
+      ...(content.campaign?.origins ?? []).flatMap((o) => o.member ?? []),
+    ].map((m) => ({ id: m.id, name: t(m.name) })),
     strings,
     totals: {
       scenes: scenes.length,

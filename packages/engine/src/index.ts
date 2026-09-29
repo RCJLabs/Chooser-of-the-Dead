@@ -4,6 +4,7 @@ export * from './campaign/battle';
 export * from './campaign/epilogue';
 export * from './campaign/events';
 export * from './campaign/grade';
+export * from './campaign/origin';
 export * from './campaign/pleas';
 export * from './campaign/run';
 export * from './campaign/save';

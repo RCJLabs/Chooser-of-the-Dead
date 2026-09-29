@@ -15,8 +15,10 @@ import {
   factionKey,
   factionsMet,
   huntOn,
+  memberDef,
   type NamedSoul,
   namedIn,
+  originOf,
   type RunSave,
   type RunState,
   ruleText,
@@ -79,7 +81,7 @@ function header(p: PlaytestInput): string[] {
   const { run, t } = p;
   const campaign = campaignOf(p.content);
   const family = run.family.map((m) => {
-    const name = t(campaign.family.find((f) => f.id === m.id)?.name ?? m.id);
+    const name = t(memberDef(p.content, m.id)?.name ?? m.id);
     const status =
       m.status === 'sick'
         ? `sick, ${m.sickNights} night${m.sickNights === 1 ? '' : 's'} without medicine`
@@ -109,6 +111,8 @@ function header(p: PlaytestInput): string[] {
       ? `woven: ${t(p.content.campaign?.weaving?.weaves.find((w) => w.id === run.weave)?.name ?? run.weave)}`
       : '',
     run.slice ? 'the slice' : '',
+    // Who she was in life (docs/tech-spec.md §72).
+    run.origin ? `as ${t(originOf(run, p.content)?.name ?? run.origin)}` : '',
   ]
     .filter((s) => s !== '')
     .join(' · ');

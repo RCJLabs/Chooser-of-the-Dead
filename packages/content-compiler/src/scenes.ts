@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { type Content, type Effect, FACTIONS, type Faction } from '@cots/engine';
+import { type Content, type Effect, FACTIONS, type Faction, type FamilyDef } from '@cots/engine';
 import { EXTERNALS, parseFx, parseNeeds, type SceneEnv, walkScene } from '@cots/story';
 import { Compiler } from 'inkjs/full';
 import { ContentError } from './errors';
@@ -119,8 +119,8 @@ const flagsAll = (n: number): Record<string, number> => new Proxy({}, { get: () 
  * gone well with someone already gone. Not a proof over all runs; the walk
  * covers every choice path in each.
  */
-function sampleEnvs(content: Content, day: number): SceneEnv[] {
-  const family = content.campaign?.family ?? [];
+function sampleEnvs(content: Content, day: number, member?: FamilyDef): SceneEnv[] {
+  const family = [...(content.campaign?.family ?? []), ...(member ? [member] : [])];
   const status = (s: (i: number) => string) => Object.fromEntries(family.map((m, i) => [m.id, s(i)]));
   return [
     {
@@ -172,11 +172,23 @@ export function lintScenes(
       if (v.at >= d.queue.count[0]) problems.push(`day ${d.day} plays ${v.scene} past the end of its shortest line.`);
     }
   }
+  // An origin's own scenes (docs/tech-spec.md §72), each after one of its day's, with whoever the origin brings home.
+  const brings = new Map<string, FamilyDef>();
+  for (const o of content.campaign?.origins ?? []) {
+    for (const sc of o.scenes) {
+      if (!byId.has(sc.scene)) problems.push(`origin ${o.id} plays missing scene "${sc.scene}".`);
+      else playedOn.set(sc.scene, [...(playedOn.get(sc.scene) ?? []), sc.day]);
+      if (o.member) brings.set(sc.scene, o.member);
+    }
+  }
   if (content.daily?.scenes || content.primer?.scenes) problems.push('The Daily and the primer have no story scenes.');
   if (content.daily?.queue.visits || content.primer?.queue.visits) {
     problems.push('The Daily and the primer have no one at the desk.');
   }
-  const family = new Set((content.campaign?.family ?? []).map((m) => m.id));
+  const family = new Set([
+    ...(content.campaign?.family ?? []).map((m) => m.id),
+    ...(content.campaign?.origins ?? []).flatMap((o) => o.member?.id ?? []),
+  ]);
   const checkEffect = (e: Effect, where: string) => {
     if ('family' in e && !family.has(e.family)) problems.push(`${where} changes unknown family member "${e.family}".`);
   };
@@ -187,7 +199,7 @@ export function lintScenes(
       continue;
     }
     for (const day of days) {
-      for (const env of sampleEnvs(content, day)) {
+      for (const env of sampleEnvs(content, day, brings.get(scene.id))) {
         try {
           const walk = walkScene(scene.json, env);
           for (const path of walk.effects) for (const e of path) checkEffect(e, scene.file);

@@ -320,6 +320,48 @@ trail:
   title: trail.title
   intro: trail.intro
   named: { right: trail.named.right, wrong: trail.named.wrong }
+# Who the chooser was in life (docs/tech-spec.md §72), picked for a new run of the full game. Each origin's perk only
+# ever changes speed or money (docs/roadmap.md): a speed perk each, or the trader's money. Each brings someone to live
+# with the family, who keeps themselves while well (ownKeep): off the food bill, but sick, one more to feed and to buy
+# medicine for, and an adult, who can die. And each has three scenes, played after the night's own: a first letter, a
+# choice, and the last night. The numbers are first guesses; the sims can't weigh speed. The words are DRAFT.
+origins:
+  - id: shieldmaiden
+    name: origin.shieldmaiden
+    text: origin.shieldmaiden.text
+    perk: { tools: [{ tool: flip, costS: 0 }, { tool: feather, costS: 4 }] }
+    member: { id: thurid, name: family.thurid, adult: true, ownKeep: true }
+    scenes:
+      - { day: 1, at: night, scene: scene.o.shieldmaiden.1 }
+      - { day: 7, at: night, scene: scene.o.shieldmaiden.2 }
+      - { day: 20, at: night, scene: scene.o.shieldmaiden.3 }
+  - id: seeress
+    name: origin.seeress
+    text: origin.seeress.text
+    perk: { freeQuestions: 2 }
+    member: { id: heid, name: family.heid, adult: true, ownKeep: true }
+    scenes:
+      - { day: 1, at: night, scene: scene.o.seeress.1 }
+      - { day: 14, at: night, scene: scene.o.seeress.2 }
+      - { day: 20, at: night, scene: scene.o.seeress.3 }
+  - id: trader
+    name: origin.trader
+    text: origin.trader.text
+    perk: { startRings: 30, shopPct: 85 }
+    member: { id: gisli, name: family.gisli, adult: true, ownKeep: true }
+    scenes:
+      - { day: 1, at: night, scene: scene.o.trader.1 }
+      - { day: 12, at: night, scene: scene.o.trader.2 }
+      - { day: 20, at: night, scene: scene.o.trader.3 }
+  - id: thrall
+    name: origin.thrall
+    text: origin.thrall.text
+    perk: { sunS: 45 }
+    member: { id: kormak, name: family.kormak, adult: true, ownKeep: true }
+    scenes:
+      - { day: 1, at: night, scene: scene.o.thrall.1 }
+      - { day: 4, at: night, scene: scene.o.thrall.2 }
+      - { day: 20, at: night, scene: scene.o.thrall.3 }
 # Arms for the last battle (docs/tech-spec.md §56): from the night Muninn says Odin knows how it ends, the
 # quartermaster sells arms for one front a night, each lot dearer than the last, each adding strength at its front.
 # First guesses for the sims to tune. The words are DRAFT.
@@ -397,6 +439,42 @@ epilogue:
       section: home
       lines:
         - { when: { state: flags.tear_asa, gte: 1 }, text: epi.tear }
+    # Whoever the run's origin brought home (docs/tech-spec.md §72), and what came of their night's choice.
+    - id: epi.thurid
+      section: home
+      when: { state: origin.shieldmaiden, gte: 1 }
+      lines:
+        - { when: { state: member.thurid.died, gte: 1 }, text: epi.thurid.died }
+        - { when: { state: member.thurid.sick, gte: 1 }, text: epi.thurid.sick }
+        - { when: { state: flags.thurid_sold, gte: 1 }, text: epi.thurid.axe }
+        - { when: { state: flags.thurid_kept, gte: 1 }, text: epi.thurid.sword }
+        - { text: epi.thurid.home }
+    - id: epi.heid
+      section: home
+      when: { state: origin.seeress, gte: 1 }
+      lines:
+        - { when: { state: member.heid.died, gte: 1 }, text: epi.heid.died }
+        - { when: { state: member.heid.sick, gte: 1 }, text: epi.heid.sick }
+        - { when: { state: flags.heid_honest, gte: 1 }, text: epi.heid.honest }
+        - { when: { state: flags.heid_paid, gte: 1 }, text: epi.heid.paid }
+        - { text: epi.heid.home }
+    - id: epi.gisli
+      section: home
+      when: { state: origin.trader, gte: 1 }
+      lines:
+        - { when: { state: member.gisli.died, gte: 1 }, text: epi.gisli.died }
+        - { when: { state: member.gisli.sick, gte: 1 }, text: epi.gisli.sick }
+        - { when: { state: flags.gisli_share, gte: 1 }, text: epi.gisli.paid }
+        - { text: epi.gisli.home }
+    - id: epi.kormak
+      section: home
+      when: { state: origin.thrall, gte: 1 }
+      lines:
+        - { when: { state: member.kormak.died, gte: 1 }, text: epi.kormak.died }
+        - { when: { state: member.kormak.sick, gte: 1 }, text: epi.kormak.sick }
+        - { when: { state: flags.kormak_stamped, gte: 1 }, text: epi.kormak.stamped }
+        - { when: { state: flags.kormak_paid, gte: 1 }, text: epi.kormak.paid }
+        - { text: epi.kormak.home }
     - id: epi.skogul
       section: powers
       lines:

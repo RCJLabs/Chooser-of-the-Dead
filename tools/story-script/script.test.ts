@@ -18,9 +18,11 @@ import { renderScript } from './render';
 
 const built = buildTarget(TARGETS['dev-full'], loadPacks(resolve(import.meta.dirname, '../../content/packs')));
 const model = buildModel({ ...built, target: 'dev-full' });
-const scenes: SceneDoc[] = model.days.flatMap((d) =>
-  [d.morning, ...(d.desk ?? []), d.night].filter((s): s is SceneDoc => !!s),
-);
+// The days' scenes, and the origins' (docs/tech-spec.md §72).
+const scenes: SceneDoc[] = [
+  ...model.days.flatMap((d) => [d.morning, ...(d.desk ?? []), d.night].filter((s): s is SceneDoc => !!s)),
+  ...model.origins.flatMap((o) => o.scenes),
+];
 
 const plain: Wording = {
   person: (id) => ({ brother: 'Ulf', sister: 'Asa', mother: 'Ragna' })[id] ?? id,

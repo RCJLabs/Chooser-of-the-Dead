@@ -258,6 +258,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('sellBack') !== undefined ? { sellBack: last('sellBack') as number } : {}),
     ...(last('reprieve') ? { reprieve: last('reprieve') as NonNullable<CampaignDef['reprieve']> } : {}),
     ...(last('trail') ? { trail: last('trail') as NonNullable<CampaignDef['trail']> } : {}),
+    ...(last('origins') ? { origins: last('origins') as NonNullable<CampaignDef['origins']> } : {}),
   };
 }
 
@@ -1044,12 +1045,14 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
     if (e.when) walk(e.when, `ending ${e.id}`);
   }
   if (!endingIds.has(c.finale)) problems.push(`The campaign's finale "${c.finale}" isn't an ending.`);
-  // One of the family by id, and the ending a run came to (docs/tech-spec.md §55): the members must exist, and the
-  // ending, which only an epilogue can read (while a run goes on, it hasn't one).
+  // One of the family by id, and the ending a run came to (docs/tech-spec.md §55): the members must exist (the family,
+  // or someone an origin brings, §72), and the ending, which only an epilogue can read (while a run goes on, it hasn't
+  // one).
+  const household = new Set([...c.family.map((m) => m.id), ...(c.origins ?? []).flatMap((o) => o.member?.id ?? [])]);
   const names = (p: StatePred, where: string, epilogue: boolean): void => {
     for (const path of predPaths(p)) {
       const [head, id] = path.split('.');
-      if (head === 'member' && !c.family.some((m) => m.id === id)) {
+      if (head === 'member' && !household.has(id ?? '')) {
         problems.push(`${where} reads "${path}", but nobody in the family is "${id}".`);
       }
       if (head === 'ending' && !epilogue) problems.push(`${where} reads the run's ending: only the epilogue can.`);
@@ -1131,6 +1134,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintWeaving(content, key));
   problems.push(...lintRagnarok(content, key));
   problems.push(...lintTrail(content, key, walk));
+  problems.push(...lintOrigins(content, key));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1138,6 +1142,46 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
     const spec = content.days.find((x) => x.day === d);
     if (!spec) problems.push(`Campaign day ${d} has no day spec.`);
     else if (!spec.economy) problems.push(`Campaign day ${d} has no economy.`);
+  }
+  return problems;
+}
+
+/**
+ * Who the chooser was in life (docs/tech-spec.md §72): each origin's words; a perk that gives something, and only speed
+ * or money (the schema holds its kinds to those); someone at home who isn't already family and has a name; and scenes
+ * on days of the campaign.
+ */
+function lintOrigins(content: Content, key: (k: string, where: string) => void): string[] {
+  const c = content.campaign;
+  if (!c?.origins) return [];
+  const problems: string[] = [];
+  const family = new Set(c.family.map((m) => m.id));
+  const ids = new Set<string>();
+  const members = new Set<string>();
+  for (const o of c.origins) {
+    const where = `origin ${o.id}`;
+    if (ids.has(o.id)) problems.push(`Duplicate origin "${o.id}".`);
+    ids.add(o.id);
+    key(o.name, where);
+    key(o.text, where);
+    if (Object.keys(o.perk).length === 0) problems.push(`${where} gives no perk.`);
+    for (const t of o.perk.tools ?? []) {
+      if (!content.tools.some((x) => x.id === t.tool))
+        problems.push(`${where} speeds up a tool this build doesn't have.`);
+    }
+    if (o.member) {
+      if (family.has(o.member.id)) problems.push(`${where} brings "${o.member.id}", who is family already.`);
+      if (members.has(o.member.id)) problems.push(`${where} brings "${o.member.id}", whom another origin brings.`);
+      members.add(o.member.id);
+      key(o.member.name, where);
+    }
+    const at = new Set<string>();
+    for (const sc of o.scenes) {
+      if (sc.day > c.lastDay) problems.push(`${where} plays ${sc.scene} on day ${sc.day}, after the campaign's last.`);
+      const slot = `${sc.day}/${sc.at}`;
+      if (at.has(slot)) problems.push(`${where} plays two scenes on the ${sc.at} of day ${sc.day}.`);
+      at.add(slot);
+    }
   }
   return problems;
 }

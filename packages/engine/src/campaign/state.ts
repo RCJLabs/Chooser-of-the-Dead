@@ -297,6 +297,8 @@ export interface RunState {
   readonly kin?: readonly string[];
   /** The forger's trail (docs/tech-spec.md §71): the marks pinned so far, and the carver named; absent until either. */
   readonly trail?: RunTrail;
+  /** Who the chooser was in life (docs/tech-spec.md §72), by id; absent for a run begun without one. */
+  readonly origin?: string;
   readonly family: readonly FamilyMember[];
   readonly upgrades: readonly string[];
   /** Story memory across days. Integers only (Ink reads them). */
@@ -463,6 +465,9 @@ export function stateValue(run: RunState, path: string): number {
     // none is.
     case 'trail':
       return trailValue(run, key);
+    // Who the chooser was in life (docs/tech-spec.md §72): 1 for the run's origin, 0 for any other.
+    case 'origin':
+      return run.origin !== undefined && run.origin === key ? 1 : 0;
     // Lots of arms bought for the last battle (docs/tech-spec.md §56).
     case 'arms':
       return run.armsBought ?? 0;
@@ -534,7 +539,7 @@ export function predPaths(p: StatePred): string[] {
 
 /** Paths a StatePred may use (the content linter checks endings against it). */
 export const STATE_PATHS =
-  /^(day|rings|debtNights|naglfar|arms|ragnarok|oath|fronts|trail\.(night|right)|front\.[A-Za-z0-9_]+|(standing|lead)\.(odin|freyja|hel|loki|clerk)|einherjar\.(worthy|unworthy)|sent\.(VALHALLA|FOLKVANGR|HEL|RAN|RETURN|DETAIN|TRANSFER)|flags\.[A-Za-z0-9_]+|family\.(well|sick|home|gone)|member\.[A-Za-z0-9_]+\.(well|sick|gone|died|left)|ending\.[A-Za-z0-9_]+)$/;
+  /^(day|rings|debtNights|naglfar|arms|ragnarok|oath|fronts|trail\.(night|right)|origin\.[A-Za-z0-9_]+|front\.[A-Za-z0-9_]+|(standing|lead)\.(odin|freyja|hel|loki|clerk)|einherjar\.(worthy|unworthy)|sent\.(VALHALLA|FOLKVANGR|HEL|RAN|RETURN|DETAIN|TRANSFER)|flags\.[A-Za-z0-9_]+|family\.(well|sick|home|gone)|member\.[A-Za-z0-9_]+\.(well|sick|gone|died|left)|ending\.[A-Za-z0-9_]+)$/;
 
 /** Whether a StatePred reads the last battle (docs/tech-spec.md §54): what it asks can't be known before it's fought. */
 export function readsBattle(p: StatePred): boolean {

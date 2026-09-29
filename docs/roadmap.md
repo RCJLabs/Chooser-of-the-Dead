@@ -1,10 +1,18 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–70.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–72.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 6 (below), in the full game only:
+
+- **6. Valkyrie origins** ([`tech-spec.md`](tech-spec.md) §72). A new run asks who she was: the shieldmaiden (turning a soul over is free, the feather quick), the seeress (two free questions a day), the trader's daughter (30 rings more, upgrades 15% off) or the freed thrall (45 s more sun a day), or nobody in particular, as before. Each brings someone to live with the family who keeps themselves while well, so an origin costs nothing until they fall sick, and each has three draft scenes: a first letter, a choice, the last night. The sims can't weigh speed, so whether the four are worth about the same is a playtest question.
+
+Game phase 5 (below), in the full game only:
+
+- **5. The forger's trail** ([`tech-spec.md`](tech-spec.md) §71). One of three carvers, drawn for the run, cuts the forged tallies, and what the desk sees of his knife is pinned to a board. Once the Night 11 letter asks for his name, name him on Night 12 or 14, once.
 
 Game phase 3's second step (below), in the full game only:
 
@@ -34,9 +42,9 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–5 (above).
-- **Unblocked:** 6–8. They were held for your story sign-off, since they're heavy on writing. You said to treat the story as good and go on, so they go ahead in order. Their scenes are still drafts, marked `# draft` like the rest.
-- **Next:** 6, then 7 and 8; then the build and platform work queued below.
+- **Done:** 1–6 (above).
+- **Unblocked:** 7 and 8. They were held for your story sign-off, since they're heavy on writing. You said to treat the story as good and go on, so they go ahead in order. Their scenes are still drafts, marked `# draft` like the rest.
+- **Next:** 7, then 8; then the build and platform work queued below.
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
@@ -45,7 +53,7 @@ From the gameplay brainstorm, in the order agreed.
    - A jarl's retinue is judged as a group: the hearth-men share their jarl's fate, a rule that reads across souls. Done ([`tech-spec.md`](tech-spec.md) §70).
 4. **Endless as a run** (done, [`tech-spec.md`](tech-spec.md) §68). Between rounds, pick one of three boons, or take a curse for a higher score. Its numbers are guesses until players have run it.
 5. **The forger's trail** (done, [`tech-spec.md`](tech-spec.md) §71). One of three carvers, drawn for the run, cuts the forged tallies. His knife's habits show on each forged tally, on the papers Loki's borrowed faces carry, and in Muninn's gaps, and what the desk sees is pinned to a board. Once the Night 11 letter asks for his name, name him on Night 12 or 14, once; the right man and the wrong one each come to the desk.
-6. **Valkyrie origins.** Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, a different household and a few scenes of its own.
+6. **Valkyrie origins** (done, [`tech-spec.md`](tech-spec.md) §72). Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, someone more at home who keeps themselves while well, and three scenes of its own.
 7. **Mercy has memory.** Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.
 8. **The household as people.** Your family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
 

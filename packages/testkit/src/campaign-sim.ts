@@ -37,6 +37,7 @@ import {
   runContext,
   type ShiftAction,
   type ShiftState,
+  scenesFor,
   sellPrice,
   shiftFacts,
   shopFor,
@@ -198,7 +199,10 @@ export function scorePath(path: ScenePath, run: RunState, policy: StoryPolicy): 
   return score;
 }
 
-/** Plays today's morning or night scene the way the policy wants (the first best path on a tie). */
+/**
+ * Plays today's morning or night scenes the way the policy wants (the first best path on a tie): the day's own, then
+ * its origin's (docs/tech-spec.md §72).
+ */
 function playStory(
   run: RunState,
   content: Content,
@@ -207,7 +211,9 @@ function playStory(
   which: 'morning' | 'night',
   policy: StoryPolicy,
 ): RunState {
-  return playScene(run, content, ctx, scenes, content.days.find((d) => d.day === run.day)?.scenes?.[which], policy);
+  let r = run;
+  for (const id of scenesFor(run, content, which)) r = playScene(r, content, ctx, scenes, id, policy);
+  return r;
 }
 
 /** Plays a scene the way the policy wants (the first best path on a tie), unless it's been played. */
@@ -425,7 +431,7 @@ function nightActions(
   let bills = defaultBills(run);
   if (strategy === 'frugal') bills = { ...bills, hearth: run.day % 2 === 0 };
   if (strategy === 'neglect') bills = { hearth: false, food: false, medicine: [] };
-  const cost = billTotal(run, economy, bills);
+  const cost = billTotal(run, economy, bills, content);
   let rings = run.rings;
   if (strategy === 'upgradesFirst') {
     for (const u of shopFor(run, content)) {
@@ -542,6 +548,8 @@ export interface SimOptions {
   readonly oath?: boolean;
   /** A weave to play the run under (docs/tech-spec.md §53), by id, for measuring it. */
   readonly weave?: string;
+  /** Who the chooser was in life (docs/tech-spec.md §72), by id: the run is begun with that origin. */
+  readonly origin?: string;
   /** Called with the run as the horn blows, before the hosts go to the fronts: for probes of the last battle. */
   readonly onHorn?: (run: RunState) => void;
 }
@@ -555,7 +563,10 @@ export function simulateRun(
   options: SimOptions = {},
 ): RunResult {
   const policy = options.story ?? PLAIN;
-  const begun = newRun(content, seed, options.oath ? { oath: true } : {});
+  const begun = newRun(content, seed, {
+    ...(options.oath ? { oath: true } : {}),
+    ...(options.origin ? { origin: options.origin } : {}),
+  });
   let run: RunState = options.weave ? { ...begun, weave: options.weave } : begun;
   const rng = new Rng(`sim|${seed}|${judging.name}|${strategy}`);
   let lowest = run.rings;
@@ -722,6 +733,7 @@ export function simulateCampaign(
   promote?: boolean,
   bribes?: boolean,
   weave?: string,
+  origin?: string,
 ): PolicyReport[] {
   const out: PolicyReport[] = [];
   const mean = (xs: readonly number[]) => xs.reduce((a, x) => a + x, 0) / Math.max(1, xs.length);
@@ -738,6 +750,7 @@ export function simulateCampaign(
             ...(promote !== undefined ? { promote } : {}),
             ...(bribes ? { bribes } : {}),
             ...(weave ? { weave } : {}),
+            ...(origin ? { origin } : {}),
           }),
         );
         const ranks = campaignOf(content).promotion?.ranks.length ?? 0;
@@ -791,6 +804,8 @@ export interface ScenarioOptions {
   readonly careful?: boolean;
   /** Scenes played as their turn comes, by id, with the effects of the choices they stand for. */
   readonly scenes?: Readonly<Record<string, readonly Effect[]>>;
+  /** Who the chooser was in life (docs/tech-spec.md §72), by id: the run is begun with that origin. */
+  readonly origin?: string;
 }
 
 /**
@@ -807,7 +822,7 @@ export function scenarioSave(
   at: 'morning' | 'night' = 'morning',
   opts: ScenarioOptions = {},
 ): RunSave {
-  let save = startSave(content, seed, engine);
+  let save = startSave(content, seed, engine, opts.origin ? { origin: opts.origin } : {});
   let run = save.mornings[0] as RunState;
   const apply = (action: RunAction) => {
     const env = { content, ctx: runContext(content, run), ...(save.queue ? { queue: save.queue } : {}) };
@@ -816,9 +831,10 @@ export function scenarioSave(
     run = next;
   };
   const scene = (which: 'morning' | 'night') => {
-    const id = content.days.find((d) => d.day === run.day)?.scenes?.[which];
-    const effects = id ? opts.scenes?.[id] : undefined;
-    if (id && effects) apply({ t: 'scene', id, effects });
+    for (const id of scenesFor(run, content, which)) {
+      const effects = opts.scenes?.[id];
+      if (effects) apply({ t: 'scene', id, effects });
+    }
   };
   const shift = () => {
     scene('morning');

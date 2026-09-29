@@ -44,6 +44,7 @@ import {
   unwovenContext,
 } from './events';
 import { dayGrade } from './grade';
+import { familyDefs, fedAtHome, originOf } from './origin';
 import { pleaOf, withKin, withPlea } from './pleas';
 import {
   type Appeal,
@@ -161,12 +162,19 @@ export interface NewRunOptions {
   readonly slice?: 'play' | 'fromJump';
   /** Begun woven (docs/tech-spec.md §53): the run draws a weave, its rules read in another order. */
   readonly woven?: boolean;
+  /** Who the chooser was in life (docs/tech-spec.md §72), by id: not with the vertical slice. */
+  readonly origin?: string;
 }
 
 export function newRun(content: Content, seed: string, opts: NewRunOptions = {}): RunState {
   const campaign = campaignOf(content);
   if (opts.slice && !campaign.slice) throw new Error('This build has no vertical slice');
   if (opts.oath && opts.story) throw new Error('The oath and Story Mode are not played together');
+  if (opts.origin !== undefined) {
+    if (!campaign.origins?.some((o) => o.id === opts.origin))
+      throw new Error(`This build has no origin "${opts.origin}"`);
+    if (opts.slice) throw new Error('The vertical slice is played without an origin');
+  }
   // The run's day events (docs/tech-spec.md §52), drawn as it begins and kept, so a replayed day has the same.
   const events = drawEvents(content, seed);
   const weave = opts.woven ? drawWeave(content, seed) : undefined;
@@ -179,6 +187,9 @@ export function newRun(content: Content, seed: string, opts: NewRunOptions = {})
 }
 
 function firstMorning(campaign: CampaignDef, seed: string, genVersion: number, opts: NewRunOptions): RunState {
+  // Who she was in life (docs/tech-spec.md §72): someone more at home, and perhaps rings to start with.
+  const origin = campaign.origins?.find((o) => o.id === opts.origin);
+  const family = [...campaign.family, ...(origin?.member ? [origin.member] : [])];
   return {
     v: 1,
     seed,
@@ -186,11 +197,11 @@ function firstMorning(campaign: CampaignDef, seed: string, genVersion: number, o
     day: 1,
     phase: 'morning',
     shift: null,
-    rings: campaign.startRings,
+    rings: campaign.startRings + (origin?.perk.startRings ?? 0),
     debtNights: 0,
     standing: zeroStanding(),
     einherjar: { worthy: 0, unworthy: 0 },
-    family: campaign.family.map((f) => ({ id: f.id, status: 'well', cold: 0, hungry: 0, sickNights: 0 })),
+    family: family.map((f) => ({ id: f.id, status: 'well', cold: 0, hungry: 0, sickNights: 0 })),
     upgrades: [],
     flags: {},
     ledger: [],
@@ -202,6 +213,7 @@ function firstMorning(campaign: CampaignDef, seed: string, genVersion: number, o
     story: opts.story === true,
     ...(opts.oath ? { oath: true as const } : {}),
     ...(opts.slice ? { slice: true } : {}),
+    ...(origin ? { origin: origin.id } : {}),
   };
 }
 
@@ -263,6 +275,11 @@ export function shiftMods(run: RunState, content: Content): ShiftMods {
     else if ('freeQuestions' in e) freeQuestions += e.freeQuestions;
     else if ('finePct' in e) finePct = Math.min(finePct ?? e.finePct, e.finePct);
   }
+  // Who she was in life (docs/tech-spec.md §72): tools she's quicker with, questions that cost nothing, more sun.
+  const perk = originOf(run, content)?.perk;
+  for (const t of perk?.tools ?? []) toolCostS[t.tool] = Math.min(toolCostS[t.tool] ?? t.costS, t.costS);
+  freeQuestions += perk?.freeQuestions ?? 0;
+  sunS += perk?.sunS ?? 0;
   // A trip home at dawn (docs/tech-spec.md §50), chosen in a scene, but never the whole day: the gate keeps the
   // campaign's minSunS of it at least.
   sunS += run.dawnS ?? 0;
@@ -320,9 +337,20 @@ export function careFor(run: RunState, content: Content): NightCare {
   };
 }
 
-/** The upgrades on sale tonight. */
+/**
+ * The upgrades on sale tonight, at the prices the run pays (docs/tech-spec.md §72): less for a trader's daughter, and
+ * none that would make a tool slower than who she was already makes it.
+ */
 export function shopFor(run: RunState, content: Content): UpgradeDef[] {
-  return campaignOf(content).shop.filter((u) => u.since <= run.day && !run.upgrades.includes(u.id));
+  const perk = originOf(run, content)?.perk;
+  const pct = perk?.shopPct ?? 100;
+  const outdone = (u: UpgradeDef) => {
+    const e = u.effect;
+    return 'tool' in e && (perk?.tools ?? []).some((t) => t.tool === e.tool && t.costS <= e.costS);
+  };
+  return campaignOf(content)
+    .shop.filter((u) => u.since <= run.day && !run.upgrades.includes(u.id) && !outdone(u))
+    .map((u) => (pct === 100 ? u : { ...u, price: Math.floor((u.price * pct) / 100) }));
 }
 
 /** What an upgrade the run has sells back for tonight (docs/tech-spec.md §56), or null if it can't be sold. */
@@ -330,7 +358,9 @@ export function sellPrice(run: RunState, content: Content, item: string): number
   const share = campaignOf(content).sellBack;
   const u = campaignOf(content).shop.find((x) => x.id === item);
   if (share === undefined || !u || !run.upgrades.includes(item)) return null;
-  return Math.floor((u.price * share) / 100);
+  // Its share of what the run paid for it: a trader's daughter paid less (docs/tech-spec.md §72).
+  const pct = originOf(run, content)?.perk.shopPct ?? 100;
+  return Math.floor((Math.floor((u.price * pct) / 100) * share) / 100);
 }
 
 /**
@@ -378,17 +408,18 @@ export function economyFor(run: RunState, env: RunEnv): Economy {
   return run.oath ? { ...ranked, warnings: 0 } : ranked;
 }
 
-/** What tonight's bills cost as set. */
+/** What tonight's bills cost as set: food for everyone the purse feeds (docs/tech-spec.md §72). */
 export function billTotal(
   run: RunState,
   economy: Economy,
   bills: Bills,
+  content: Content,
 ): { hearth: number; food: number; medicine: number } {
   const home = run.family.filter((m) => m.status !== 'gone');
   const sick = new Set(home.filter((m) => m.status === 'sick').map((m) => m.id));
   return {
     hearth: bills.hearth ? economy.costs.hearth : 0,
-    food: bills.food ? economy.costs.food * home.length : 0,
+    food: bills.food ? economy.costs.food * fedAtHome(run, content).length : 0,
     medicine: economy.costs.medicine * bills.medicine.filter((id) => sick.has(id)).length,
   };
 }
@@ -1081,7 +1112,7 @@ function applyEffects(run: RunState, effects: readonly Effect[], events: RunEven
       if (!m || m.status === 'gone' || m.status === e.becomes) continue;
       if (e.becomes === 'gone') {
         // An adult dies; a child goes to relatives (docs/build-plan.md §1). Without the content, as a preview: died.
-        const def = content ? campaignOf(content).family.find((f) => f.id === e.family) : undefined;
+        const def = content ? familyDefs(r, content).find((f) => f.id === e.family) : undefined;
         const gone = def && !def.adult ? 'left' : 'died';
         r = { ...r, family: r.family.map((x) => (x.id === e.family ? { ...x, status: 'gone', gone } : x)) };
         events.push({ e: 'family', id: e.family, change: gone });
@@ -1111,10 +1142,12 @@ export interface MemberNight {
   readonly risk: number;
 }
 
-function memberNight(m: FamilyMember, bills: Bills, care: NightCare, adult: boolean): MemberNight {
+function memberNight(m: FamilyMember, bills: Bills, care: NightCare, adult: boolean, ownKeep: boolean): MemberNight {
   if (m.status === 'gone') return { member: m, risk: 0 };
+  // Someone who keeps themselves (docs/tech-spec.md §72) goes without only once they're sick and the house feeds them.
+  const fed = bills.food || (ownKeep && m.status === 'well');
   const cold = bills.hearth ? 0 : m.cold + 1;
-  const hungry = bills.food ? 0 : m.hungry + 1;
+  const hungry = fed ? 0 : m.hungry + 1;
   if (m.status === 'sick') {
     if (bills.medicine.includes(m.id)) {
       return { member: { ...m, status: 'well', cold, hungry, sickNights: 0 }, change: 'well', risk: 0 };
@@ -1130,25 +1163,33 @@ function memberNight(m: FamilyMember, bills: Bills, care: NightCare, adult: bool
     const cause = cold >= care.needNights ? 'cold' : 'hungry';
     return { member: { ...m, status: 'sick', cold, hungry, sickNights: 0 }, change: 'sick', cause, risk: 0 };
   }
-  const unmet = (bills.hearth ? 0 : 1) + (bills.food ? 0 : 1);
+  const unmet = (bills.hearth ? 0 : 1) + (fed ? 0 : 1);
   return { member: { ...m, cold, hungry }, risk: Math.min(100, unmet * care.sickChance + (care.sickAnyway ?? 0)) };
 }
 
 /** Tonight's upkeep under `bills`, all but chance: the bills, Draupnir, the purse and debt by morning, each member's night. */
 function upkeep(run: RunState, env: RunEnv, bills: Bills) {
   const campaign = campaignOf(env.content);
-  const cost = billTotal(run, economyOf(env), bills);
+  const cost = billTotal(run, economyOf(env), bills, env.content);
   const draupnir = campaign.draupnir.nights.includes(run.day) ? campaign.draupnir.rings : 0;
   const tithe = titheTonight(run, env.content);
   const rings = run.rings - cost.hearth - cost.food - cost.medicine - tithe + draupnir;
-  const adults = new Map(campaign.family.map((f) => [f.id, f.adult]));
+  const defs = new Map(familyDefs(run, env.content).map((f) => [f.id, f]));
   return {
     cost,
     draupnir,
     tithe,
     rings,
     debtNights: rings < campaign.debtFloor ? run.debtNights + 1 : 0,
-    members: run.family.map((m) => memberNight(m, bills, careFor(run, env.content), adults.get(m.id) === true)),
+    members: run.family.map((m) =>
+      memberNight(
+        m,
+        bills,
+        careFor(run, env.content),
+        defs.get(m.id)?.adult === true,
+        defs.get(m.id)?.ownKeep === true,
+      ),
+    ),
   };
 }
 
@@ -1284,7 +1325,7 @@ function dayAfter(run: RunState, campaign: CampaignDef, day: number): number | n
 export interface NightBills {
   readonly day: number;
   readonly hearth: number;
-  /** Food for everyone at home now. */
+  /** Food for everyone at home now whom the purse feeds (docs/tech-spec.md §72). */
   readonly food: number;
   /** Medicine for each person sick that night. */
   readonly medicine: number;
@@ -1296,7 +1337,7 @@ export interface NightBills {
 /** The bills of the run's next few nights after tonight (none after its last day), so the night screen can plan. */
 export function billForecast(run: RunState, content: Content, nights = 3): NightBills[] {
   const campaign = campaignOf(content);
-  const home = run.family.filter((m) => m.status !== 'gone').length;
+  const home = fedAtHome(run, content).length;
   const tithe = rankOf(run, content)?.tithe ?? 0;
   const out: NightBills[] = [];
   for (let d = dayAfter(run, campaign, run.day); d !== null && out.length < nights; d = dayAfter(run, campaign, d)) {
