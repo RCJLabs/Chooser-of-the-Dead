@@ -115,9 +115,9 @@ const flagsAll = (n: number): Record<string, number> => new Proxy({}, { get: () 
 
 /**
  * Runs that bracket what a scene can meet on its day: a fresh start, a run
- * gone badly (everyone sick, every flag set, in debt, out of favour) and a run
- * gone well with someone already gone. Not a proof over all runs; the walk
- * covers every choice path in each.
+ * gone badly (everyone sick, every flag set, in debt, out of favour, stern and
+ * often wrong) and a run gone well with someone already gone (soft, and seldom
+ * wrong). Not a proof over all runs; the walk covers every choice path in each.
  */
 function sampleEnvs(content: Content, day: number, member?: FamilyDef): SceneEnv[] {
   const family = [...(content.campaign?.family ?? []), ...(member ? [member] : [])];
@@ -130,8 +130,19 @@ function sampleEnvs(content: Content, day: number, member?: FamilyDef): SceneEnv
       flags: {},
       standing: standingAll(0),
       family: status(() => 'well'),
+      word: 0,
+      wrong: 0,
     },
-    { seed: 2, day, rings: -25, flags: flagsAll(1), standing: standingAll(-3), family: status(() => 'sick') },
+    {
+      seed: 2,
+      day,
+      rings: -25,
+      flags: flagsAll(1),
+      standing: standingAll(-3),
+      family: status(() => 'sick'),
+      word: -3,
+      wrong: 30,
+    },
     {
       seed: 3,
       day,
@@ -139,6 +150,8 @@ function sampleEnvs(content: Content, day: number, member?: FamilyDef): SceneEnv
       flags: flagsAll(3),
       standing: standingAll(4),
       family: status((i) => (i === 0 ? 'gone' : 'well')),
+      word: 3,
+      wrong: 2,
     },
   ];
 }
@@ -180,6 +193,12 @@ export function lintScenes(
       else playedOn.set(sc.scene, [...(playedOn.get(sc.scene) ?? []), sc.day]);
       if (o.member) brings.set(sc.scene, o.member);
     }
+  }
+  // Letters from home (docs/tech-spec.md §74), each after its day's own scenes.
+  for (const l of content.campaign?.letters ?? []) {
+    if (!byId.has(l.scene))
+      problems.push(`the letter on the ${l.at} of day ${l.day} plays missing scene "${l.scene}".`);
+    else playedOn.set(l.scene, [...(playedOn.get(l.scene) ?? []), l.day]);
   }
   if (content.daily?.scenes || content.primer?.scenes) problems.push('The Daily and the primer have no story scenes.');
   if (content.daily?.queue.visits || content.primer?.queue.visits) {

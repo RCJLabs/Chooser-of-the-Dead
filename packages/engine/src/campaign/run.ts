@@ -761,12 +761,24 @@ export function storyOffer(content: Content, c: CaseSpec): { dest: Destination; 
   return best;
 }
 
-/** The story consequences of how today's story souls were stamped. */
+/**
+ * What looking at a story soul does to the story (docs/tech-spec.md §74): the effects of each observation looked at on
+ * it; nothing for a generated soul.
+ */
+export function seenEffects(content: Content, c: CaseSpec, looked: readonly string[]): Effect[] {
+  if (!c.script || looked.length === 0) return [];
+  const def = content.scripted?.find((d) => d.id === c.script);
+  return (def?.onSeen ?? []).filter((rule) => looked.includes(rule.obs)).flatMap((rule) => rule.effects);
+}
+
+/** The story consequences of how today's story souls were stamped, and of what was looked at on them. */
 function storyEffects(shift: ShiftState, content: Content): Effect[] {
   const out: Effect[] = [];
   for (const v of shift.verdicts) {
     const c = shift.cases[v.index];
-    if (c && v.stamped !== null) out.push(...stampEffects(content, c, v.stamped));
+    if (!c) continue;
+    if (v.stamped !== null) out.push(...stampEffects(content, c, v.stamped));
+    out.push(...seenEffects(content, c, v.looked ?? []));
   }
   return out;
 }

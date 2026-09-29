@@ -149,10 +149,15 @@ describe('origins', () => {
   it('play their scenes after the day’s own, only in runs begun with them', () => {
     const own = full.days.find((d) => d.day === 1)?.scenes?.night;
     expect(scenesFor(night(undefined, 1), full, 'night')).toEqual([own]);
+    // Letters from home (docs/tech-spec.md §74) come after them: household.test.ts.
+    const letters = new Set((full.campaign?.letters ?? []).map((l) => l.scene));
     for (const o of origins) {
       for (const sc of o.scenes) {
         const day = full.days.find((d) => d.day === sc.day)?.scenes?.[sc.at];
-        expect(scenesFor(night(o.id, sc.day), full, sc.at)).toEqual([...(day ? [day] : []), sc.scene]);
+        expect(scenesFor(night(o.id, sc.day), full, sc.at).filter((id) => !letters.has(id))).toEqual([
+          ...(day ? [day] : []),
+          sc.scene,
+        ]);
       }
     }
     expect(scenesFor(night('trader', 2), full, 'night')).toEqual([full.days.find((d) => d.day === 2)?.scenes?.night]);

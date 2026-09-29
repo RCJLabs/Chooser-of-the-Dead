@@ -9,6 +9,7 @@ import {
   lineAnchor,
   type Mention,
   type OriginDoc,
+  obsWords,
   type SceneDoc,
   type ScriptModel,
   type SoulDoc,
@@ -192,10 +193,11 @@ function sceneHtml(s: SceneDoc, w: Words): string {
   return `
 <section class="scene" id="${sceneAnchor(s.name)}" data-scene="${esc(s.name)}" data-hash="${esc(s.hash)}" data-day="${s.day}">
   <header class="scene-head">
-    <p class="scene-title"><span class="when">${s.when === 'morning' ? 'Morning' : s.when === 'desk' ? `At the desk, after ${s.at ?? 0} souls` : 'Night'}</span>
+    <p class="scene-title"><span class="when">${s.when === 'morning' ? 'Morning' : s.when === 'desk' ? `At the desk, after ${s.at ?? 0} souls` : 'Night'}${s.letter ? ', a letter from home' : ''}</span>
       <span class="status ${s.draft ? 'is-draft' : 'is-signed'}">${s.draft ? 'Draft' : 'Signed off'}</span>
       <span class="verdict-chip" data-chip hidden></span><span class="changed-chip" data-changed hidden>Changed since your review</span></p>
     <p class="scene-meta"><span>${nf.format(s.words)} words</span> <code class="file">${esc(s.file)}</code></p>
+    ${s.only ? `<p class="only">Sent only if ${stateWords(s.only, w)}.</p>` : ''}
     ${reads || sets ? `<p class="io">${[reads, sets].filter(Boolean).join('<span class="sep"></span>')}</p>` : ''}
   </header>
   <div class="rows">${s.rows.map((r) => rowHtml(s, r, w, reached)).join('')}</div>
@@ -281,17 +283,22 @@ function stateWords(p: StatePred, w: Words): string {
 }
 
 function soulHtml(s: SoulDoc, w: Words): string {
-  const stamps = s.onStamp
-    .map((on) => {
+  const stamps = [
+    ...s.onStamp.map((on) => {
       const how = on.stamped === '*' ? 'Judged, whatever the stamp' : `Stamped ${esc(on.stamped)}`;
       return `<li><span class="k">${how}</span> ${effectChips(on.effects, w)}</li>`;
-    })
-    .join('');
+    }),
+    // What looking at the soul does (docs/tech-spec.md §74), stamped or not.
+    ...s.onSeen.map(
+      (on) => `<li><span class="k">Looked at: ${esc(obsWords(on.obs))}</span> ${effectChips(on.effects, w)}</li>`,
+    ),
+  ].join('');
   return `
 <article class="soul" id="${soulAnchor(s.id)}">
   <p class="soul-kicker">At the gate: a story soul</p>
   <h4 class="soul-name">${esc(s.name)} <span class="soul-dest">belongs in ${esc(s.expect)}</span></h4>
   ${s.when ? `<p class="only">Comes only if ${stateWords(s.when, w)}.</p>` : ''}
+  ${s.errand ? `<p class="only">An errand from ${esc(s.errand.from)}. The desk says: “${esc(s.errand.text)}”</p>` : ''}
   ${s.lines.map((l) => `<p class="said">${esc(l)}</p>`).join('')}
   ${stamps ? `<ul class="stamps">${stamps}</ul>` : ''}
 </article>`;
@@ -304,9 +311,17 @@ function dayHtml(d: DayDoc, w: Words): string {
   <h2 class="day-title" id="day-${d.day}-title">Day ${d.day}</h2>
   <blockquote class="decree"><span class="k">The decree</span> ${esc(d.decree)}</blockquote>
   ${d.morning ? sceneHtml(d.morning, w) : ''}
+  ${(d.letters ?? [])
+    .filter((s) => s.when === 'morning')
+    .map((s) => sceneHtml(s, w))
+    .join('')}
   ${(d.desk ?? []).map((s) => sceneHtml(s, w)).join('')}
   ${souls}
   ${d.night ? sceneHtml(d.night, w) : ''}
+  ${(d.letters ?? [])
+    .filter((s) => s.when === 'night')
+    .map((s) => sceneHtml(s, w))
+    .join('')}
 </section>`;
 }
 

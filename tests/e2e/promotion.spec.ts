@@ -69,9 +69,12 @@ test('a rank offered after clean days: taken in the morning, worked at the gate,
   // At night, the tithe among the bills, and the way back down.
   await page.getByTestId('go-home').click();
   await expect(page.getByTestId('night-rings')).toBeVisible();
-  if ((await page.getByTestId('scene').count()) > 0) {
+  // The night's own scene, then your mother's letter (docs/tech-spec.md §74).
+  while ((await page.getByTestId('scene').count()) > 0) {
+    const id = await page.getByTestId('scene').getAttribute('data-scene');
     while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
     await page.getByTestId('scene-done').click();
+    await expect(page.locator(`[data-testid="scene"][data-scene="${id}"]`)).toHaveCount(0);
   }
   await expect(page.getByTestId('tithe')).toHaveText(`Odin's tithe for the day's rank: ${rank.tithe} rings.`);
   await expect(page.getByTestId('ahead-tithe')).toHaveText(

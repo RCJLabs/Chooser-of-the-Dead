@@ -672,5 +672,22 @@
   "epi.kormak.sick": "Kormak was abed at the end, drawing. Mostly suns.",
   "epi.kormak.stamped": "Kormak wore your stamped tally round his neck to the end. The steward crossed the road whenever he saw it coming.",
   "epi.kormak.paid": "Kormak's third witness told the story of his freedom-ale so often that half the valley believes they were there. It's the best-attended feast nobody went to.",
-  "epi.kormak.home": "Kormak kept the fire and the woodpile at your mother's to the end, up before the sun every morning there was one."
+  "epi.kormak.home": "Kormak kept the fire and the woodpile at your mother's to the end, up before the sun every morning there was one.",
+  "errand.steinar": "{from}, your brother, asked you to look at {name}'s back: did he run at the ford?",
+  "errand.oddny": "{from}, your mother, asked you to send {name} to Freyja's meadow.",
+  "case.steinar.ulf": "You've Ulf's look about the eyes. He worked the bellows like it owed him money.",
+  "case.steinar.ford": "We held the ford till noon. Ask anyone who was there.",
+  "case.steinar.cousin": "The jarl's cousin will tell it well. Let him.",
+  "case.oddny.ragna": "Ragna's child! You have her chin. She used to steal my goat's milk and blame the goat.",
+  "case.oddny.meadow": "I always said I'd dance in Freyja's meadow. Everyone laughed. I kept saying it.",
+  "case.oddny.cough": "The cough took the whole valley's winter. I only borrowed some of it.",
+  "case.oddny.plea": "{name} asks for a Fólkvangr stamp, to dance in Freyja's meadow as she always said she would: a mistake all the same.",
+  "thread.oddny": "Your mother asked you to send Oddny Grimsdottir to Freyja's meadow, if she comes to your gate.",
+  "thread.steinar": "Ulf asked you to look at Steinar Kolsson's back, if he comes to your gate: did he run?",
+  "epi.oddny.meadow": "Hild's dream of Oddny dancing in Freyja's meadow was told at the well for a generation. Your mother never said a word.",
+  "epi.oddny.hel": "Oddny Grimsdottir sat by Hel's fire, where the sick go, and was warm for the first time in years.",
+  "epi.steinar.truth": "Ulf told Steinar's mother the truth. She never spoke to him again, and he thought it was right.",
+  "epi.steinar.kind": "Steinar's mother kept her coin: her son died facing them. Ulf never told her otherwise.",
+  "epi.steinar.unknown": "Ulf never asked you about Steinar again. The jarl's cousin told it better every winter.",
+  "epi.steinar.never": "Nobody ever knew how Steinar Kolsson died. The jarl's cousin told it better every winter."
 }

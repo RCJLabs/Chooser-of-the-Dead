@@ -18,6 +18,12 @@ export interface JournalEntry {
   readonly flags: Readonly<Record<string, number>>;
   readonly standing: Readonly<Record<Faction, number>>;
   readonly family: Readonly<Record<string, FamilyMember['status']>>;
+  /**
+   * How the chooser had judged, as letters read it (docs/tech-spec.md §74): the word among the dead (§73) and the
+   * souls sent wrong so far. Absent in entries from before letters read them, which read them as 0.
+   */
+  readonly word?: number;
+  readonly wrong?: number;
 }
 
 /**
@@ -40,6 +46,9 @@ export interface RunSave {
   /** Every scene played, oldest first (absent in saves from before the journal). */
   readonly journal?: readonly JournalEntry[];
 }
+
+/** The souls the run has sent wrong so far, over every audit (docs/tech-spec.md §74): what letters from home read. */
+export const wrongSoFar = (run: Pick<RunState, 'ledger'>): number => run.ledger.reduce((n, l) => n + l.wrong, 0);
 
 /** The context the run plays today in, its day event (docs/tech-spec.md §52) included. */
 export function runContext(content: Content, run: RunState): DayCtx {
@@ -72,6 +81,8 @@ function noted(save: RunSave, before: RunState, action: Extract<RunAction, { t: 
     flags: before.flags,
     standing: before.standing,
     family: Object.fromEntries(before.family.map((m) => [m.id, m.status])),
+    word: before.word ?? 0,
+    wrong: wrongSoFar(before),
   };
   return [...(save.journal ?? []).filter((e) => e.day !== entry.day || e.scene !== entry.scene), entry];
 }

@@ -4638,6 +4638,80 @@ The brainstorm's version, and what changed:
 - **The words are draft,** like the rest: the levels, the found-out news, the desk's lines.
 - **Numbers are guesses:** the bounds, the levels' shares, the offers' rings, two mornings.
 
+## 74. The household as people (game phase 8)
+
+**Why.** Game phase 8 in [`roadmap.md`](roadmap.md): the family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
+
+**Letters from home** (`letters` in the campaign pack's `campaign.yaml`, `scenesFor` in `campaign/origin.ts`)
+- **A letter is a scene played after the day's own and the origin's,** on the morning or night of its day, on runs where its `when` holds. The game reads the list afresh after each scene, so a letter's `when` sees what the scenes before it did; the sims do the same.
+- **Five, all at night:**
+  - **Night 6,** while your mother is at home: her friend Oddny Grimsdottir died of the coughing sickness, and she asks you to send her to Freyja's meadow (`errand_oddny`; a promise sets `oddny_promised`).
+  - **Night 7,** once Oddny was judged (`oddny_judged`): her answer, by where you sent her.
+  - **Night 8,** while Ulf is at home: his friend Steinar Kolsson died at the ford, and he asks you to look at Steinar's back. The jarl's cousin says Steinar died facing them (`errand_steinar`; `steinar_promised`).
+  - **Night 10,** if Ulf asked and is still at home: what you can tell him.
+    - You looked at the back (`steinar_back`): the truth (`told_ulf_truth`) or a kind lie (`told_ulf_kind`).
+    - You never looked: that you didn't (`steinar_unknown`), or the kind lie anyway.
+    - The sun set before Steinar reached the desk: nobody knows.
+  - **Night 14,** every run: what they say of you at home, in a letter from whoever is there (your mother, Ulf, or your aunt). It reads the word among the dead (§73): stern at −2 and below, soft at 2 and above. It also reads the souls you've sent wrong so far: 15 or more, or 3 or fewer.
+- **Scenes can read two more numbers:** `word()` (§73) and `wrong()` (the souls sent wrong over every audit so far, `wrongSoFar`). The journal keeps both with each entry, so a scene read back plays as it did. An entry from before has neither, which is 0.
+
+**Errands at the desk** (`errand` and `onSeen` on a story soul)
+- **Two story souls come only if someone at home asked** (`when: flags.errand_*`):
+  - **Oddny Grimsdottir, Day 7.** Honest and dead of sickness, so she belongs in Hel's. She asks for Fólkvangr herself (a story plea, §51). Granted (`oddny_meadow`), it's a mistake with its usual costs, and like any ask granted it moves the word a step softer. Refused (`oddny_hel`), a step sterner.
+  - **Steinar Kolsson, Day 10.** He fled the ford with a wound in his back, says he didn't, and belongs in Hel's (`steinar_valhalla` if he's sent there anyway). His lie is shown false by the back, like any.
+- **The desk says who asked** (`errand: { from, text }`, `errandOf`), under the soul's own notes, with the name used inside a sentence: "Ulf, your brother, asked you to look at Steinar Kolsson's back: did he run at the ford?"
+- **What looking at a soul does** (`onSeen: [{ obs, effects }]`):
+  - A verdict on a story soul carries the observations the player looked at (`Verdict.looked`), and the audit applies the effects of each one seen (`seenEffects`), whatever the stamp. Looking at Steinar's back wound (`woundsBack`) sets `steinar_back`.
+  - What was looked at on the soul at the desk when the sun set counts too. A soul never reached counts nothing, and a story soul isn't carried to the next day (§41).
+  - Ordinary souls carry no `looked`.
+- **The journal** lists each errand while it's open (`thread.oddny`, `thread.steinar`). **The epilogue** has a line for each (`epi.oddny`, `epi.steinar`).
+- **Nothing here changes what can be solved.** Both souls are judged by the day's rules like anyone, and the lint proves each can be made under every whim and weave (§53).
+
+**Where it shows**
+- **At the desk,** the errand's note (`errand-banner`), beside the offer, kin and plea notes.
+- **At night,** the letters after the night's own scene.
+- **In the journal's threads and the epilogue.**
+- **The playtest report** labels a letter in its Choices ("night, a letter from home") instead of printing its scene id.
+- **The story page** shows each day's letters after its night scene, with the condition that sends each. It also shows an errand soul's errand and what looking at it does. Letters, errands and what looking does all feed the flag index. Every flag set is read somewhere, and every flag read is set.
+- **The lint:**
+  - a letter after the last day, sent twice, reading run state that doesn't exist, or playing a missing scene;
+  - an errand from outside the family, or its words missing;
+  - an observation the desk doesn't have, or effects on family that doesn't exist.
+
+**Numbers** (`pnpm sim campaign --seeds 30`, plain story; against the same sims for phase 7, §73)
+- **The bots meet both souls in almost every run.** Your mother and Ulf are home on Nights 6 and 8 unless something took them, and the letters set the errands whichever way you answer. Experts look at everything, so they see Steinar's back and tell Ulf the truth; novices never turn him over.
+- **Experts earn about 20 rings more a run** (172 / 626 / 180 against 151 / 603 / 160, payAll / frugal / upgradesFirst). That is two more souls judged rightly, and Steinar's lie caught.
+- **Novices are demoted in 30 / 7 / 70% of runs,** against 40 / 10 / 70%. At 30 seeds that's within about ±12 points, and two more souls a run shift the bots' random draws, so the runs aren't paired.
+- **The endings each bot reaches are the same within a few runs,** and the test that bots reach every ending passed, with and without an origin.
+
+**Tests**
+- **Engine** (`household.test.ts`):
+  - letters: the full game only; after the night's own scene, on the runs their `when` holds for; after an origin's; never in the morning;
+  - the journal keeps the word and the souls sent wrong;
+  - errands: the soul only if asked, and who asked;
+  - Oddny's plea granted and refused;
+  - Steinar: what was looked at, stamped rightly or not, and at dusk;
+  - `seenEffects` only on story souls that say what looking does.
+  - Also updated: `origin.test.ts` leaves letters out when it checks the origins' scenes.
+- **Story** (`index.test.ts`): `word()` and `wrong()`, and a journal entry from before them.
+- **Compiler** (`campaign-lint.test.ts`, `story.test.ts`): the lints above.
+- **Story page** (`script.test.ts`): letters, their conditions, the errand, what looking does, and the flags.
+- **e2e** (`household.spec.ts`, full game, phone and desktop):
+  - Night 6's letter and the journal's thread;
+  - Oddny at the desk with the errand note and her plea; granted, cited, and your mother's answer that night;
+  - Steinar's errand note; his back looked at, the truth told;
+  - never looked at, the other branch;
+  - Night 14's letter on a stern word.
+- **Fixed on the way:** `run.test.ts`'s check that a story soul's words hold found Oddny's weapon word turned to "sword". A Day 7 blade could come up a copied Ulfberht, so her blade is pinned plain, as Svanhild's is.
+
+**Known limits**
+- **Two errands,** both from the family every run has. Someone an origin brings asks none, and the lint only knows the family.
+- **Only the Night 14 letter reads the word and the souls sent wrong.** Others could, once the story is signed off.
+- **Looking is what counts,** not catching the lie. A player who turns Steinar over and looks at the wound knows, whether or not they call out his lie.
+- **Busy nights.** Night 14 as the seeress now plays three scenes.
+- **The words are draft,** like the rest: five scenes, two souls' lines, the notes, the threads and four epilogue lines.
+- **Numbers are guesses:** the Night 14 thresholds (the word at ±2, 15 and 3 souls sent wrong).
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

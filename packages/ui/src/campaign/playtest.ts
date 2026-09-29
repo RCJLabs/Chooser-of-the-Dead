@@ -534,10 +534,20 @@ function choices(p: PlaytestInput): string[] {
   const lines = (p.save.journal ?? []).map((e) => {
     const day = p.content.days.find((d) => d.day === e.day);
     const when = day?.scenes;
-    // A scene at the desk (docs/tech-spec.md §46) is played between the day's souls.
+    // A scene at the desk (docs/tech-spec.md §46) is played between the day's souls; a letter from home (§74), after
+    // the night's or the morning's own.
     const desk = (day?.queue.visits ?? []).some((v) => v.scene === e.scene);
+    const letter = (p.content.campaign?.letters ?? []).find((l) => l.day === e.day && l.scene === e.scene);
     const label =
-      when?.morning === e.scene ? 'morning' : when?.night === e.scene ? 'night' : desk ? 'at the desk' : e.scene;
+      when?.morning === e.scene
+        ? 'morning'
+        : when?.night === e.scene
+          ? 'night'
+          : desk
+            ? 'at the desk'
+            : letter
+              ? `${letter.at}, a letter from home`
+              : e.scene;
     const json = p.scenes[e.scene];
     let picked: string[] | null = null;
     try {

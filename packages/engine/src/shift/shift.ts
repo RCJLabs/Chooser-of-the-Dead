@@ -127,6 +127,11 @@ export interface Verdict {
   readonly caughtAbout?: number;
   /** Marks on the forger's trail seen on the soul (docs/tech-spec.md §71), on a day it runs; absent when none. */
   readonly marks?: readonly VerdictMark[];
+  /**
+   * On a story soul, the observations the player looked at (docs/tech-spec.md §74), by key, for the story to read at
+   * the audit; absent when none, and on any other soul.
+   */
+  readonly looked?: readonly string[];
   readonly atMs: number;
 }
 
@@ -540,6 +545,8 @@ function finish(
     const index = state.verdicts.length + i;
     const soul = ctx && state.phase === 'shift' ? memberSoul(state, index - desk) : undefined;
     const marks = ctx && soul ? marksSeen(c, soul.seen, soulCtx(ctx, c)) : [];
+    // What was looked at on a story soul still at the desk as the sun set was seen all the same (docs/tech-spec.md §74).
+    const looked = soul ? lookedAt(c, soul.seen) : [];
     return {
       index,
       stamped: null,
@@ -550,6 +557,7 @@ function finish(
       caught: 0,
       lies: c.lies.length,
       ...(marks.length > 0 ? { marks } : {}),
+      ...(looked.length > 0 ? { looked } : {}),
       atMs,
     };
   });
@@ -601,6 +609,7 @@ function verdictFor(
     .filter((x) => !(party[x.soul]?.seen ?? []).includes(x.field))
     .map((x) => memberField(x.soul, x.field));
   const marks = marksSeen(c, soul.seen, ctx);
+  const looked = lookedAt(c, soul.seen);
   return {
     index,
     stamped,
@@ -615,8 +624,16 @@ function verdictFor(
     ...(soul.gave?.length ? { gave: soul.gave.length } : {}),
     ...(crossFlagged(soul).size > 0 ? { caughtAbout: crossFlagged(soul).size } : {}),
     ...(marks.length > 0 ? { marks } : {}),
+    ...(looked.length > 0 ? { looked } : {}),
     atMs,
   };
+}
+
+/** The observations looked at on a story soul (docs/tech-spec.md §74), by key, once each; none on any other soul. */
+function lookedAt(c: CaseSpec, seen: readonly string[]): string[] {
+  if (c.script === undefined) return [];
+  const keys = c.evidence.fields.flatMap((f) => (f.obs && seen.includes(f.id) ? [f.obs.key] : []));
+  return [...new Set(keys)];
 }
 
 /**

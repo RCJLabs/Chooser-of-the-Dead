@@ -716,6 +716,16 @@ export interface ScriptedCaseDef {
    * for it (a string with `{name}`). Granted, it's a mistake all the same.
    */
   readonly plea?: { readonly stamp: Destination; readonly text: string };
+  /**
+   * A favour the household asked of the chooser for this soul (docs/tech-spec.md §74): who at home asked, by family
+   * id, and the desk's words for it while the soul is there (a string with `{name}` and `{from}`).
+   */
+  readonly errand?: { readonly from: string; readonly text: string };
+  /**
+   * What looking at the soul does to the story (docs/tech-spec.md §74), at the audit: the effects of each observation
+   * seen on it before it left the desk, stamped or not.
+   */
+  readonly onSeen?: readonly { readonly obs: string; readonly effects: readonly Effect[] }[];
 }
 
 /** What a story scene (or a scripted soul) does to the run, applied once. */
@@ -865,6 +875,8 @@ export interface CampaignDef {
   readonly trail?: TrailDef;
   /** Who the chooser was in life (docs/tech-spec.md §72), picked for a new run; none without it. */
   readonly origins?: readonly OriginDef[];
+  /** Letters from home played after the day's own scenes, on the runs they're for (docs/tech-spec.md §74). */
+  readonly letters?: readonly LetterDef[];
 }
 
 /**
@@ -902,6 +914,17 @@ export interface OriginScene {
   readonly day: number;
   readonly at: 'morning' | 'night';
   readonly scene: string;
+}
+
+/**
+ * A letter from home (docs/tech-spec.md §74): a scene played after the day's own and its origin's, on the morning or
+ * night of `day`, when `when` holds as its turn comes. The household's errands are asked and answered in them.
+ */
+export interface LetterDef {
+  readonly day: number;
+  readonly at: 'morning' | 'night';
+  readonly scene: string;
+  readonly when?: StatePred;
 }
 
 /** A carver the forger's trail can name (docs/tech-spec.md §71). */

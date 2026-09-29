@@ -46,6 +46,8 @@ const env: SceneEnv = {
   flags: {},
   standing: { odin: 0, freyja: 0, hel: 0, loki: 0, clerk: 0 },
   family: { mother: 'well', brother: 'well', sister: 'well' },
+  word: 0,
+  wrong: 0,
 };
 
 describe('compiling a scene', () => {
@@ -204,6 +206,34 @@ describe('story souls in a target', { timeout: 30_000 }, () => {
     expect(bad).toMatch(/visit scene\.d18\.desk reads unknown run state "mood.odin"/);
     // A scene only the desk played is still a scene some day plays.
     expect(bad).not.toMatch(/no day plays scene\.d18\.desk/);
+  });
+
+  it('rejects an errand from outside the family, missing words, and looking at what the desk can’t show (docs/tech-spec.md §74)', () => {
+    const packs = packsWith((p) => {
+      const campaign = p.get('campaign');
+      if (!campaign) throw new Error('no campaign pack');
+      campaign.content.scripted = campaign.content.scripted.map((d) =>
+        d.id === 'case.steinar'
+          ? {
+              ...d,
+              errand: { from: 'cousin', text: 'errand.nobody' },
+              onSeen: [{ obs: 'aura', effects: [{ family: 'cousin', becomes: 'sick' }] }],
+            }
+          : d,
+      );
+    });
+    const error = (() => {
+      try {
+        build(packs);
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return '';
+    })();
+    expect(error).toMatch(/story soul case\.steinar is an errand from unknown family member "cousin"/);
+    expect(error).toMatch(/story soul case\.steinar uses missing string "errand\.nobody"/);
+    expect(error).toMatch(/story soul case\.steinar reads unknown observation "aura" when seen/);
+    expect(error).toMatch(/story soul case\.steinar changes unknown family member "cousin"/);
   });
 
   it('rejects unknown facts, missing lines, unreserved names, unknown words and unplaced or unknown souls', () => {

@@ -312,6 +312,17 @@ threads:
     text: thread.woodKnown
   - { id: thread.wood, when: { state: flags.wood, gte: 1 }, text: thread.wood }
   - { id: thread.stayHome, when: { state: flags.stay_home, gte: 1 }, text: thread.stayHome }
+  # The household's errands at the desk (docs/tech-spec.md §74), until the soul is judged.
+  - id: thread.oddny
+    when: { all: [{ state: flags.errand_oddny, gte: 1 }, { state: flags.oddny_judged, lte: 0 }] }
+    text: thread.oddny
+  - id: thread.steinar
+    when:
+      all:
+        - { state: flags.errand_steinar, gte: 1 }
+        - { state: flags.steinar_judged, lte: 0 }
+        - { state: flags.steinar_back, lte: 0 }
+    text: thread.steinar
   - { id: thread.clerkContract, when: { state: flags.clerk_contract, gte: 1 }, text: thread.clerkContract }
   - { id: thread.truth, when: { state: flags.truth, gte: 1 }, text: thread.truth, count: flags.truth }
   # The forger's trail (docs/tech-spec.md §71), while the carver can still be named.
@@ -398,6 +409,19 @@ arms:
     - { front: front.fire, name: arms.fire, text: arms.fire.text }
     - { front: front.gate, name: arms.gate, text: arms.gate.text }
     - { front: front.ship, name: arms.ship, text: arms.ship.text }
+# Letters from home (docs/tech-spec.md §74): scenes played after the day's own (and the origin's), on the runs their
+# `when` holds for. The household's errands are asked and answered in them: your mother's friend Oddny (asked on Night 6,
+# at the desk on Day 7, answered that night) and Ulf's friend Steinar (Night 8, Day 10, Night 10); and on Night 14, what
+# they say of you at home, read from the word among the dead (§73) and the souls you've sent wrong. DRAFT text.
+letters:
+  - { day: 6, at: night, scene: scene.e.oddny.ask, when: { state: member.mother.gone, lte: 0 } }
+  - { day: 7, at: night, scene: scene.e.oddny.answer, when: { state: flags.oddny_judged, gte: 1 } }
+  - { day: 8, at: night, scene: scene.e.steinar.ask, when: { state: member.brother.gone, lte: 0 } }
+  - day: 10
+    at: night
+    scene: scene.e.steinar.answer
+    when: { all: [{ state: flags.errand_steinar, gte: 1 }, { state: member.brother.gone, lte: 0 }] }
+  - { day: 14, at: night, scene: scene.e.talk }
 # The epilogue (docs/tech-spec.md §55): after the ending's own words, what became of everyone, read from how the run
 # left them. Each slot says the first of its lines whose `when` holds (the last, without one, whatever else); a slot
 # with none that holds says nothing. Not after a failure or the slice's end. Naglfar can sail on Day 18 or 19, before
@@ -458,6 +482,20 @@ epilogue:
         - { when: { state: flags.letters_honest, gte: 3 }, text: epi.asa.honest }
         - { when: { state: flags.letters_kind, gte: 3 }, text: epi.asa.kind }
         - { text: epi.asa.home }
+    # The household's errands at the desk (docs/tech-spec.md §74): what came of your mother's favour, and of Ulf's.
+    - id: epi.oddny
+      section: home
+      lines:
+        - { when: { state: flags.oddny_meadow, gte: 1 }, text: epi.oddny.meadow }
+        - { when: { state: flags.oddny_hel, gte: 1 }, text: epi.oddny.hel }
+    - id: epi.steinar
+      section: home
+      when: { state: flags.errand_steinar, gte: 1 }
+      lines:
+        - { when: { state: flags.told_ulf_truth, gte: 1 }, text: epi.steinar.truth }
+        - { when: { state: flags.told_ulf_kind, gte: 1 }, text: epi.steinar.kind }
+        - { when: { state: flags.steinar_unknown, gte: 1 }, text: epi.steinar.unknown }
+        - { text: epi.steinar.never }
     # Freyja's tear, sent home from the desk on Day 11 (docs/tech-spec.md §59).
     - id: epi.tear
       section: home

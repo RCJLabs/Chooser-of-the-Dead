@@ -1,5 +1,6 @@
 import type { Content, FamilyDef, OriginDef, OriginScene } from '../content/types';
-import type { FamilyMember, RunState } from './state';
+import type { CaseSpec } from '../gen/types';
+import { evalState, type FamilyMember, type RunState } from './state';
 
 /*
  * Who the chooser was in life (docs/tech-spec.md §72): picked for a new run of the full game and kept with it. Each
@@ -37,11 +38,23 @@ export function memberDef(content: Content, id: string): FamilyDef | undefined {
 }
 
 /**
- * The scenes the run plays on the morning or night of its day, in order: the day's own, then its origin's for then.
- * Each is played once, so what's still to play is the first of these not yet played.
+ * The scenes the run plays on the morning or night of its day, in order: the day's own, then its origin's for then,
+ * then the letters from home whose `when` holds (docs/tech-spec.md §74). Each is played once, so what's still to play
+ * is the first of these not yet played; a letter's `when` is read as its turn comes, after the scenes before it.
  */
-export function scenesFor(run: Pick<RunState, 'origin' | 'day'>, content: Content, at: 'morning' | 'night'): string[] {
+export function scenesFor(run: RunState, content: Content, at: 'morning' | 'night'): string[] {
   const own = content.days.find((d) => d.day === run.day)?.scenes?.[at];
   const origin = (originOf(run, content)?.scenes ?? []).filter((s: OriginScene) => s.day === run.day && s.at === at);
-  return [...(own ? [own] : []), ...origin.map((s) => s.scene)];
+  const letters = (content.campaign?.letters ?? []).filter(
+    (l) => l.day === run.day && l.at === at && (l.when === undefined || evalState(l.when, run)),
+  );
+  return [...(own ? [own] : []), ...origin.map((s) => s.scene), ...letters.map((l) => l.scene)];
+}
+
+/**
+ * The favour someone at home asked (docs/tech-spec.md §74) that the soul at the desk answers: who asked, and the words
+ * the desk says it in. Null for a soul nobody asked about.
+ */
+export function errandOf(content: Content, c: CaseSpec): { from: string; text: string } | null {
+  return (c.script ? content.scripted?.find((d) => d.id === c.script)?.errand : undefined) ?? null;
 }

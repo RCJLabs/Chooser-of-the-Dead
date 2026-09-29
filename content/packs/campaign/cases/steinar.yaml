@@ -1,0 +1,33 @@
+# DRAFT writing (game phase 8, docs/tech-spec.md §74). Day 10, if Ulf wrote on Night 8 (errand_steinar): Steinar Kolsson,
+# who worked the bellows beside Ulf at Hallbjorn's smithy, went with the jarl's cousin to the fighting at the ford and
+# didn't come back. The cousin tells everyone he died facing them. He didn't: the wound is in his back, and he says
+# otherwise, a lie the back shows false. Ulf asked you to look at his back. The desk says so while he's there; what
+# you saw is what you can tell Ulf that night (scene.e.steinar.answer), and he goes where the rules send him, as
+# anyone does.
+id: case.steinar
+personas: [braggart]
+truth:
+  alive: { is: false }
+  cause: { is: battle }
+  grip: { is: weapon }
+  weaponOwner: { is: self }
+  blade: { is: plain }
+  woundsFront: { is: 0 }
+  woundsBack: { is: 1 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+lies:
+  - { fact: fled, claim: false, p: 100, motive: wantsValhalla, onQuestion: { confess: 2, excuse: 2 } }
+look: { gender: m, name: Steinar, patronym: Kolsson, age: 23, build: broad, beard: short }
+lines: [case.steinar.ulf, case.steinar.ford, case.steinar.cousin]
+words: { pool.weapons: axe }
+expect: HEL
+when: { state: flags.errand_steinar, gte: 1 }
+errand: { from: brother, text: errand.steinar }
+onSeen:
+  - { obs: woundsBack, effects: [{ flag: steinar_back }] }
+onStamp:
+  - { stamped: '*', effects: [{ flag: steinar_judged }] }
+  - { stamped: VALHALLA, effects: [{ flag: steinar_valhalla }] }

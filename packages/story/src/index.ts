@@ -1,4 +1,4 @@
-import { type Effect, type Faction, fnv1a32, type JournalEntry, type RunState } from '@cots/engine';
+import { type Effect, type Faction, fnv1a32, type JournalEntry, type RunState, wrongSoFar } from '@cots/engine';
 import { Story } from 'inkjs';
 
 /*
@@ -20,10 +20,16 @@ export interface SceneEnv {
   readonly standing: Readonly<Record<Faction, number>>;
   /** Family member id -> 'well' | 'sick' | 'gone'. */
   readonly family: Readonly<Record<string, string>>;
+  /**
+   * How the chooser has judged (docs/tech-spec.md §74), for letters that react to it: the word among the dead (§73,
+   * −3 stern to 3 soft) and the souls sent wrong so far.
+   */
+  readonly word: number;
+  readonly wrong: number;
 }
 
 /** External functions a scene may declare (`EXTERNAL flag(name)` …). */
-export const EXTERNALS = ['flag', 'standing', 'rings', 'day', 'home', 'sick'] as const;
+export const EXTERNALS = ['flag', 'standing', 'rings', 'day', 'home', 'sick', 'word', 'wrong'] as const;
 
 export interface SceneLine {
   readonly text: string;
@@ -49,6 +55,8 @@ export function sceneEnv(run: RunState, sceneId: string): SceneEnv {
     flags: run.flags,
     standing: run.standing,
     family: Object.fromEntries(run.family.map((m) => [m.id, m.status])),
+    word: run.word ?? 0,
+    wrong: wrongSoFar(run),
   };
 }
 
@@ -61,6 +69,8 @@ export function journalEnv(runSeed: string, entry: JournalEntry): SceneEnv {
     flags: entry.flags,
     standing: entry.standing,
     family: entry.family,
+    word: entry.word ?? 0,
+    wrong: entry.wrong ?? 0,
   };
 }
 
@@ -159,6 +169,8 @@ function bind(story: Story, env: SceneEnv): void {
   story.BindExternalFunction('day', () => env.day, true);
   story.BindExternalFunction('home', (id: string) => (env.family[id] && env.family[id] !== 'gone' ? 1 : 0), true);
   story.BindExternalFunction('sick', (id: string) => (env.family[id] === 'sick' ? 1 : 0), true);
+  story.BindExternalFunction('word', () => env.word, true);
+  story.BindExternalFunction('wrong', () => env.wrong, true);
 }
 
 /** Plays a scene from its start through `choices`, stopping at the next choice or the end. */

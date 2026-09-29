@@ -186,6 +186,8 @@ describe('a jarl’s bribe (docs/tech-spec.md §47)', () => {
         flags,
         standing: { odin: 0, freyja: 0, hel: 0, loki: 0, clerk: 0 },
         family: { mother: 'well', brother: 'well', sister: 'well' },
+        word: 0,
+        wrong: 0,
       };
       return playScene(json, env, [0, 0])
         .lines.map((l) => l.text)
@@ -212,6 +214,8 @@ describe('the clerk’s contract, kept (docs/tech-spec.md §57)', () => {
     flags,
     standing: { odin: 0, freyja: 0, hel: 0, loki: 0, clerk },
     family: { mother: 'well', brother: 'well', sister: 'well' },
+    word: 0,
+    wrong: 0,
   });
   const play = (id: string, e: ReturnType<typeof env>, choices: number[]) => {
     const json = scenes[id];
@@ -253,6 +257,8 @@ describe('Ragna and the hill (docs/tech-spec.md §50)', () => {
     flags,
     standing: { odin: 0, freyja: 0, hel: 0, loki: 0, clerk: 0 },
     family: { mother, brother: 'well', sister: 'well' },
+    word: 0,
+    wrong: 0,
   });
   const play = (id: string, day: number, flags: Record<string, number>, choices: number[], mother = 'well') => {
     const json = scenes[id];
@@ -319,6 +325,8 @@ describe('the levy and Solveig’s boy (docs/tech-spec.md §51)', () => {
     flags,
     standing: { odin: 0, freyja: 0, hel: 0, loki: 0, clerk: 0 },
     family: { mother: 'well', brother, sister: 'well' },
+    word: 0,
+    wrong: 0,
   });
   const play = (id: string, day: number, flags: Record<string, number>, choices: number[], brother = 'well') => {
     const json = scenes[id];
