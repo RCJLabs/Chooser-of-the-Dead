@@ -737,6 +737,11 @@ export interface FamilyDef {
   readonly name: string;
   /** Adults can die; children fall ill or are sent away, but never die (docs/build-plan.md §1). */
   readonly adult: boolean;
+  /**
+   * Keeps themselves while well (docs/tech-spec.md §72): off the food bill and never hungry for want of it; sick,
+   * they're fed and need medicine like anyone.
+   */
+  readonly ownKeep?: true;
 }
 
 /** Speed only: cheaper tools or questions, or more sun. Never changes what can be solved. */
@@ -853,6 +858,45 @@ export interface CampaignDef {
   readonly reprieve?: ReprieveDef;
   /** The forger's trail (docs/tech-spec.md §71): who cuts the forged tallies, found from marks at the desk. */
   readonly trail?: TrailDef;
+  /** Who the chooser was in life (docs/tech-spec.md §72), picked for a new run; none without it. */
+  readonly origins?: readonly OriginDef[];
+}
+
+/**
+ * Who the chooser was in life (campaign.yaml `origins`, docs/tech-spec.md §72): a perk, someone at home because of it,
+ * and scenes of its own. Picked for a new run and kept with it.
+ */
+export interface OriginDef {
+  readonly id: string;
+  /** String keys: its name, and who she was and what it gives her. */
+  readonly name: string;
+  readonly text: string;
+  readonly perk: OriginPerk;
+  /** Someone at home because of who she was, beside the rest of the family. */
+  readonly member?: FamilyDef;
+  /** Its own scenes, each played after the day's own morning or night scene. */
+  readonly scenes: readonly OriginScene[];
+}
+
+/** What an origin gives: speed or money only, never what can be solved (docs/roadmap.md). */
+export interface OriginPerk {
+  /** A tool's sun cost, in seconds, in place of its own (or an upgrade's, if that's less). */
+  readonly tools?: readonly { readonly tool: ToolId; readonly costS: number }[];
+  /** Questions a day that cost no sun. */
+  readonly freeQuestions?: number;
+  /** More sun every shift. */
+  readonly sunS?: number;
+  /** Rings more to start with. */
+  readonly startRings?: number;
+  /** Percent of its price each upgrade costs. */
+  readonly shopPct?: number;
+}
+
+/** One of an origin's scenes: the day, and whether it follows the morning's scene or the night's. */
+export interface OriginScene {
+  readonly day: number;
+  readonly at: 'morning' | 'night';
+  readonly scene: string;
 }
 
 /** A carver the forger's trail can name (docs/tech-spec.md §71). */

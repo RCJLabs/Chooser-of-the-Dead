@@ -125,7 +125,10 @@ describe('the shipped epilogue', () => {
     }
   }
 
-  /** A finished run with the values given: flags, the day, the ending, one of the family, a front, a lead. */
+  /**
+   * A finished run with the values given: flags, the day, the ending, its origin (docs/tech-spec.md §72) and whoever
+   * that brings home, one of the family, a front, a lead.
+   */
   function runWith(values: ReadonlyMap<string, number>): RunState {
     let run: RunState = {
       ...base,
@@ -137,9 +140,15 @@ describe('the shipped epilogue', () => {
         fronts: fronts.map((id) => ({ id, foe: 1, stood: [], ran: 0, arms: 0, strength: 0, held: false })),
       },
     };
-    for (const [path, v] of values) {
+    // The origin first, so its member is at home before anything reads how they are.
+    const ordered = [...values].sort(([a], [b]) => Number(b.startsWith('origin.')) - Number(a.startsWith('origin.')));
+    for (const [path, v] of ordered) {
       const [head, id = '', how = ''] = path.split('.');
-      if (head === 'flags') run = { ...run, flags: { ...run.flags, [id]: v } };
+      if (head === 'origin' && v >= 1) {
+        const member = shipped.origins?.find((o) => o.id === id)?.member;
+        const well = { status: 'well' as const, cold: 0, hungry: 0, sickNights: 0 };
+        run = { ...run, origin: id, family: [...run.family, ...(member ? [{ id: member.id, ...well }] : [])] };
+      } else if (head === 'flags') run = { ...run, flags: { ...run.flags, [id]: v } };
       else if (head === 'day') run = { ...run, day: v };
       else if (head === 'ending' && v >= 1) run = { ...run, ending: path };
       else if (head === 'member' && v >= 1) {

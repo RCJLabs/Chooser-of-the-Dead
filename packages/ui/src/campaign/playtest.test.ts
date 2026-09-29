@@ -111,6 +111,15 @@ describe('the playtest report', () => {
     expect(text).toContain('### Mistakes\n\nNone.');
   });
 
+  // docs/tech-spec.md §72.
+  it('says who she was in life, and lists whoever the origin brought home with the family', () => {
+    const save = startSave(content, 'playtest-origin', ENGINE_MAJOR, { origin: 'shieldmaiden' });
+    const text = report(save);
+    expect(text).toContain('- **Run:** slot 1 · seed `playtest-origin` · as origin.shieldmaiden');
+    expect(text).toMatch(/- \*\*Family:\*\* .* · family\.thurid: well$/m);
+    expect(report(startSave(content, 'playtest-plain', ENGINE_MAJOR))).not.toContain(' · as ');
+  });
+
   it('names each soul sent wrong: the stamp, where it belonged, and the rule that said so', () => {
     const save = played('playtest-wrong', 1, wrong);
     const text = report(save);

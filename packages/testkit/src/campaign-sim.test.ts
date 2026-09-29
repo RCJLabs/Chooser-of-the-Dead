@@ -127,6 +127,30 @@ describe('the endings', () => {
     expect(campaignOnly.map((a) => a.id).filter((id) => !earned.has(id))).toEqual([]);
   }, 300_000);
 
+  // docs/tech-spec.md §72: an origin's scenes touch nothing an ending reads, so each can still be reached.
+  it('can each still be reached in a run begun with an origin', () => {
+    const content = loadContent('dev-full');
+    const scenes = loadScenes('dev-full');
+    const origins = (content.campaign?.origins ?? []).map((o) => o.id);
+    expect(origins.length).toBeGreaterThan(0);
+    const missed: string[] = [];
+    for (const [k, [ending, judging, night, story, options]] of REACH.entries()) {
+      const origin = origins[k % origins.length] as string;
+      const seen: string[] = [];
+      for (let i = 0; i < 6 && !seen.includes(ending); i++) {
+        const r = simulateRun(content, `reach${i}`, bot(judging), night, {
+          story: storyPolicy(story),
+          scenes,
+          origin,
+          ...options,
+        });
+        seen.push(r.ending ?? 'none');
+      }
+      if (!seen.includes(ending)) missed.push(`${ending} as ${origin}: got ${seen.join(', ')}`);
+    }
+    expect(missed).toEqual([]);
+  }, 300_000);
+
   it('covers every ending the full campaign can end on', () => {
     // Endings with a condition, and the finale; the demo's and the slice's finales end other runs.
     const ids = reachableEndings(loadContent('dev-full')).map((e) => e.id);

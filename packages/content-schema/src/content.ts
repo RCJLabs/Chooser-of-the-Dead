@@ -560,7 +560,12 @@ export const ScriptedCaseSchema: z.ZodType<ScriptedCaseDef> = z.strictObject({
   plea: z.strictObject({ stamp: DestinationSchema, text: Key }).optional(),
 });
 
-const FamilyDefSchema: z.ZodType<FamilyDef> = z.strictObject({ id: z.string(), name: Key, adult: z.boolean() });
+const FamilyDefSchema: z.ZodType<FamilyDef> = z.strictObject({
+  id: z.string(),
+  name: Key,
+  adult: z.boolean(),
+  ownKeep: z.literal(true).optional(),
+});
 
 const UpgradeSchema: z.ZodType<UpgradeDef> = z.strictObject({
   id: Id,
@@ -800,6 +805,29 @@ export const CampaignPartSchema = z.strictObject({
       intro: Key,
       named: z.strictObject({ right: Key, wrong: Key }),
     })
+    .optional(),
+  // Who the chooser was in life (docs/tech-spec.md §72): a perk (speed or money only), someone at home, and scenes.
+  origins: z
+    .array(
+      z.strictObject({
+        id: Id,
+        name: Key,
+        text: Key,
+        perk: z.strictObject({
+          tools: z
+            .array(z.strictObject({ tool: ToolIdSchema, costS: Int.min(0) }))
+            .min(1)
+            .optional(),
+          freeQuestions: Int.min(1).optional(),
+          sunS: Int.min(1).max(120).optional(),
+          startRings: Int.min(1).optional(),
+          shopPct: Int.min(1).max(99).optional(),
+        }),
+        member: FamilyDefSchema.optional(),
+        scenes: z.array(z.strictObject({ day: Day, at: z.enum(['morning', 'night']), scene: Id })),
+      }),
+    )
+    .min(1)
     .optional(),
   // The epilogue (docs/tech-spec.md §55): what became of everyone, told after the ending from the run.
   epilogue: z

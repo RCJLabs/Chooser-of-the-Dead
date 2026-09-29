@@ -311,3 +311,37 @@ describe('the forger’s trail, as content', () => {
     expect(withTrail(() => undefined)).toThrow(/wears the face of a carver, but this build has no forger's trail/);
   }, 60_000);
 });
+
+type Origins = NonNullable<CampaignPart['origins']>;
+
+// docs/tech-spec.md §72.
+describe('origins, as content', () => {
+  const withOrigins = (change: (list: Origins) => Origins) =>
+    compileWith((c) => ({ ...c, origins: change(c.origins ?? []) }));
+  const first = (edit: (o: Origins[number]) => Origins[number]) =>
+    withOrigins(([o, ...rest]) => (o ? [edit(o), ...rest] : rest));
+  it('compiles as shipped, and refuses missing words, an origin twice, or one that gives nothing', () => {
+    expect(withOrigins((list) => list)).not.toThrow();
+    expect(first((o) => ({ ...o, text: 'origin.nobody' }))).toThrow(/origin \w+ uses missing string "origin\.nobody"/);
+    expect(withOrigins((list) => [...list, ...list.slice(0, 1)])).toThrow(/Duplicate origin "\w+"/);
+    expect(first((o) => ({ ...o, perk: {} }))).toThrow(/origin \w+ gives no perk/);
+  }, 60_000);
+
+  it('refuses someone at home who is family already, or whom two origins bring', () => {
+    expect(first((o) => ({ ...o, member: { id: 'mother', name: 'family.mother', adult: true } }))).toThrow(
+      /origin \w+ brings "mother", who is family already/,
+    );
+    expect(withOrigins(([a, b, ...rest]) => (a && b ? [a, { ...b, member: a.member }, ...rest] : rest))).toThrow(
+      /origin \w+ brings "\w+", whom another origin brings/,
+    );
+  }, 60_000);
+
+  it('refuses a scene that is missing, or two in one slot', () => {
+    expect(first((o) => ({ ...o, scenes: [...o.scenes, { day: 2, at: 'night', scene: 'scene.o.nowhere' }] }))).toThrow(
+      /origin \w+ plays missing scene "scene\.o\.nowhere"/,
+    );
+    expect(
+      first((o) => ({ ...o, scenes: [...o.scenes, { day: 1, at: 'night', scene: 'scene.o.seeress.1' }] })),
+    ).toThrow(/origin \w+ plays two scenes on the night of day 1/);
+  }, 60_000);
+});

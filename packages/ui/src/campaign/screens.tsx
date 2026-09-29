@@ -31,22 +31,27 @@ import {
   factionKey,
   factionsMet,
   favoursFor,
+  fedAtHome,
   fight,
   hostMarks,
   hostParts,
   hostsAt,
   huntOn,
   type JournalEntry,
+  memberDef,
   type NamedSoul,
   type NightOutlook,
   namedIn,
   nightOutlook,
+  type OriginDef,
+  originOf,
   type RunEvent,
   type RunState,
   rankOf,
   reachableEndings,
   replayableDays,
   ruleText,
+  scenesFor,
   sellPrice,
   shiftMods,
   shiftScore,
@@ -126,11 +131,12 @@ export async function enterCampaign(): Promise<void> {
   [scenes] = await Promise.all([loadScenes(), loadSlots()]);
 }
 
-const familyName = (content: Content, id: string) => t(campaignOf(content).family.find((m) => m.id === id)?.name ?? id);
+/** One of the household's name: the family's, or that of someone an origin brings (docs/tech-spec.md §72). */
+const familyName = (content: Content, id: string) => t(memberDef(content, id)?.name ?? id);
 
 /** The name to use inside a sentence ("Ragna" rather than "Ragna, your mother"): `<name key>.short`, if there is one. */
 const familyShort = (content: Content, id: string) => {
-  const key = campaignOf(content).family.find((m) => m.id === id)?.name ?? id;
+  const key = memberDef(content, id)?.name ?? id;
   return hasText(`${key}.short`) ? t(`${key}.short`) : t(key);
 };
 
@@ -527,8 +533,15 @@ function SlotSummary({ record }: { record: SlotRecord }) {
       {run.oath ? ` · ${t('ui.campaign.sworn')}` : ''}
       {run.weave ? ` · ${t('ui.campaign.woven')}` : ''}
       {run.slice ? ` · ${t('ui.campaign.slice')}` : ''}
+      <OriginName run={run} />
     </p>
   );
+}
+
+/** Who she was in life (docs/tech-spec.md §72), after the run's other marks; nothing for a run begun without. */
+function OriginName({ run }: { run: RunState }) {
+  const o = originOf(run, gameContent);
+  return o ? <span data-testid="origin-name">{` · ${t(o.name)}`}</span> : null;
 }
 
 /** A night that ends the run stays in the day's log; any other night starts a new morning. */
@@ -560,11 +573,79 @@ function StartChoice({ i, value, onChange }: { i: number; value: Start; onChange
   );
 }
 
+/** What an origin gives, in words (docs/tech-spec.md §72): its perk, a line each, then who it brings home. */
+function perkLines(o: OriginDef): string[] {
+  const p = o.perk;
+  return [
+    ...(p.tools ?? []).map((x) => t('ui.origin.tool', { tool: t(`tool.${x.tool}`), s: x.costS })),
+    ...(p.freeQuestions ? [t('ui.origin.questions', { n: p.freeQuestions })] : []),
+    ...(p.sunS ? [t('ui.origin.sun', { s: p.sunS })] : []),
+    ...(p.startRings ? [t('ui.origin.rings', { n: p.startRings })] : []),
+    ...(p.shopPct ? [t('ui.origin.shop', { off: 100 - p.shopPct })] : []),
+    ...(o.member ? [t('ui.origin.member', { name: t(o.member.name) })] : []),
+  ];
+}
+
+/**
+ * Who she was in life (docs/tech-spec.md §72), for a new run of the full game: one of the build's origins, or nobody
+ * in particular, the household as it always was. Not for the vertical slice. Folded, saying the choice, so three
+ * empty slots stay short on a phone.
+ */
+function OriginChoice({ i, value, onChange }: { i: number; value: string; onChange: (id: string) => void }) {
+  const origins = gameContent.campaign?.origins;
+  if (!origins) return null;
+  const chosen = origins.find((o) => o.id === value);
+  return (
+    <details class="slot__origins" data-testid={`origins-${i}`}>
+      <summary>
+        {t('ui.origin.legend')} <span class="muted">{chosen ? t(chosen.name) : t('ui.origin.none')}</span>
+      </summary>
+      <fieldset class="slot__origin">
+        <legend class="sr-only">{t('ui.origin.legend')}</legend>
+        <label class="origin">
+          <input
+            type="radio"
+            name={`origin-${i}`}
+            checked={value === ''}
+            data-testid={`origin-none-${i}`}
+            onChange={() => onChange('')}
+          />
+          <span class="origin__body">
+            <b>{t('ui.origin.none')}</b>
+            <span class="origin__text">{t('ui.origin.none.text')}</span>
+          </span>
+        </label>
+        {origins.map((o) => (
+          <label key={o.id} class="origin">
+            <input
+              type="radio"
+              name={`origin-${i}`}
+              checked={value === o.id}
+              data-testid={`origin-${o.id}-${i}`}
+              onChange={() => onChange(o.id)}
+            />
+            <span class="origin__body">
+              <b>{t(o.name)}</b>
+              <span class="origin__text">{t(o.text)}</span>
+              {perkLines(o).map((line) => (
+                <span key={line} class="origin__perk">
+                  {line}
+                </span>
+              ))}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+    </details>
+  );
+}
+
 function Slot({ i, record }: { i: number; record: SlotRecord | null }) {
   const [story, setStory] = useState(false);
   const [oath, setOath] = useState(false);
   const [woven, setWoven] = useState(false);
   const [start, setStart] = useState<Start>('campaign');
+  const [origin, setOrigin] = useState('');
   const [confirm, setConfirm] = useState(false);
   const days = record ? replayableDays(record.save) : [];
   const [day, setDay] = useState(days[days.length - 1] ?? 1);
@@ -611,12 +692,17 @@ function Slot({ i, record }: { i: number; record: SlotRecord | null }) {
           </label>
         ) : null}
         <StartChoice i={i} value={start} onChange={setStart} />
+        {start === 'campaign' ? <OriginChoice i={i} value={origin} onChange={setOrigin} /> : null}
         <div class="row">
           <button
             type="button"
             class="btn btn--primary"
             data-testid={`new-${i}`}
-            onClick={() => newCampaign(i, story, start === 'campaign' ? undefined : start, oath && !story, woven)}
+            onClick={() =>
+              start === 'campaign'
+                ? newCampaign(i, story, undefined, oath && !story, woven, origin || undefined)
+                : newCampaign(i, story, start, oath && !story, woven)
+            }
           >
             {t('ui.campaign.new')}
           </button>
@@ -1127,10 +1213,12 @@ function DebtBanner({ run }: { run: RunState }) {
   );
 }
 
-/** The scene still to be played now, if the day has one and this build ships it. */
+/**
+ * The scene still to be played now, if there is one this build ships: the day's own first, then its origin's
+ * (docs/tech-spec.md §72).
+ */
 function pendingScene(run: RunState, which: 'morning' | 'night'): string | null {
-  const id = gameContent.days.find((d) => d.day === run.day)?.scenes?.[which];
-  return id && scenes[id] && !run.scenes.includes(id) ? id : null;
+  return scenesFor(run, gameContent, which).find((id) => scenes[id] && !run.scenes.includes(id)) ?? null;
 }
 
 // ---------- morning ----------
@@ -1204,7 +1292,7 @@ function Morning() {
   // §49) fines are never waived.
   const assists = currentAssists(!run.story && !run.oath, run.story);
   const assisted = assistText(assists);
-  const bills = billTotal(run, economyOf({ content: gameContent, ctx }), defaultBills(run));
+  const bills = billTotal(run, economyOf({ content: gameContent, ctx }), defaultBills(run), gameContent);
   const tonight = bills.hearth + bills.food + bills.medicine + (rankOf(run, gameContent)?.tithe ?? 0);
   return (
     <main class="screen screen--morning">
@@ -1214,6 +1302,7 @@ function Morning() {
         {run.story ? ` · ${t('ui.campaign.story')}` : ''}
         {run.oath ? ` · ${t('ui.campaign.sworn')}` : ''}
         {run.weave ? ` · ${t('ui.campaign.woven')}` : ''}
+        <OriginName run={run} />
         <RankName run={run} />
       </p>
       <StandingStrip run={run} />
@@ -1949,6 +2038,7 @@ function FamilyList({ run, plan = false }: { run: RunState; plan?: boolean }) {
     <ul class="family" data-testid="family">
       {run.family.map((m) => {
         const name = familyName(gameContent, m.id);
+        // Someone who keeps themselves while well is off the food bill until they're sick (docs/tech-spec.md §72).
         const status =
           m.status === 'gone'
             ? t(m.gone === 'died' ? 'ui.family.died' : 'ui.family.left')
@@ -1956,7 +2046,9 @@ function FamilyList({ run, plan = false }: { run: RunState; plan?: boolean }) {
               ? plan
                 ? t('ui.family.sickLeft', { left: care.sickNights - m.sickNights })
                 : t('ui.family.sick')
-              : t('ui.family.well');
+              : memberDef(gameContent, m.id)?.ownKeep
+                ? t('ui.family.ownKeep')
+                : t('ui.family.well');
         const needs = [
           m.status !== 'gone' && m.cold > 0 ? t('ui.family.cold', { n: m.cold }) : null,
           m.status !== 'gone' && m.hungry > 0 ? t('ui.family.hungry', { n: m.hungry }) : null,
@@ -1974,12 +2066,10 @@ function FamilyList({ run, plan = false }: { run: RunState; plan?: boolean }) {
 
 /** What the bills as set do tonight: who is lost, who surely falls sick, who gets worse, and the odds for the rest. */
 function Outlook({ run, outlook, bills }: { run: RunState; outlook: NightOutlook; bills: Bills }) {
-  const campaign = campaignOf(gameContent);
-  const adult = new Map(campaign.family.map((f) => [f.id, f.adult]));
   const lines: { key: string; id: string; text: string; bold?: boolean }[] = outlook.members.flatMap((n, i) => {
     const was = run.family[i];
     const name = familyShort(gameContent, n.member.id);
-    const how = adult.get(n.member.id) ? 'died' : 'left';
+    const how = memberDef(gameContent, n.member.id)?.adult ? 'died' : 'left';
     if (n.change === 'died' || n.change === 'left') {
       return [{ key: n.member.id, id: 'outlook-lost', text: t('ui.night.lost', { name, how: n.change }), bold: true }];
     }
@@ -2018,7 +2108,8 @@ function Outlook({ run, outlook, bills }: { run: RunState; outlook: NightOutlook
 function NightsAhead({ run }: { run: RunState }) {
   const ahead = billForecast(run, gameContent);
   if (ahead.length === 0) return null;
-  const home = run.family.filter((m) => m.status !== 'gone').length;
+  // Fed from the purse: someone who keeps themselves while well isn't (docs/tech-spec.md §72).
+  const home = fedAtHome(run, gameContent).length;
   return (
     // A region that can take the focus: on a narrow screen the table scrolls sideways, by keyboard too.
     // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region must take the focus to scroll by keyboard
@@ -2063,6 +2154,8 @@ function BillsCard({ run, outlook }: { run: RunState; outlook: NightOutlook }) {
   const set = (next: Bills) => dispatch({ t: 'bills', bills: next });
   const home = run.family.filter((m) => m.status !== 'gone');
   const sick = home.filter((m) => m.status === 'sick');
+  // Food for those the purse feeds: not someone who keeps themselves while well (docs/tech-spec.md §72).
+  const fed = fedAtHome(run, gameContent).length;
   const floor = campaignOf(gameContent).debtFloor;
   const limit = debtLimit(gameContent);
   return (
@@ -2084,7 +2177,7 @@ function BillsCard({ run, outlook }: { run: RunState; outlook: NightOutlook }) {
           data-testid="bill-food"
           onChange={(e) => set({ ...bills, food: (e.target as HTMLInputElement).checked })}
         />{' '}
-        {t('ui.night.food', { n: home.length, cost: economy.costs.food * home.length })}
+        {t('ui.night.food', { n: fed, cost: economy.costs.food * fed })}
       </label>
       {sick.map((m) => (
         <label key={m.id}>

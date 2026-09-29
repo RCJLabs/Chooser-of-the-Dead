@@ -8,6 +8,7 @@ import {
   flagAnchor,
   lineAnchor,
   type Mention,
+  type OriginDoc,
   type SceneDoc,
   type ScriptModel,
   type SoulDoc,
@@ -55,7 +56,10 @@ function wordsFor(model: ScriptModel) {
   const titles = new Map(model.endings.map((e) => [e.id, e.title]));
   const ending = (id: string) => esc(titles.get(id) ?? id);
   const front = (id: string) => esc(model.strings[id] ?? id);
-  return { person, power, speaker, flag, wording, flags, ending, front };
+  const tool = (id: string) => model.strings[`tool.${id}`] ?? id;
+  const origins = new Map(model.origins.map((o) => [o.id, o.name]));
+  const origin = (id: string) => esc(origins.get(id) ?? id);
+  return { person, power, speaker, flag, wording, flags, ending, front, tool, origin };
 }
 type Words = ReturnType<typeof wordsFor>;
 
@@ -263,6 +267,9 @@ function stateWords(p: StatePred, w: Words): string {
       if (p.gte !== undefined && p.lte !== undefined)
         return `a carver was named between Night ${p.gte} and Night ${p.lte}`;
       return p.lte === 0 ? 'no carver has been named' : `no carver was named after Night ${p.lte}`;
+    // Who the chooser was in life (docs/tech-spec.md §72).
+    case 'origin':
+      return p.lte === 0 ? `the run wasn't begun as ${w.origin(key)}` : `the run was begun as ${w.origin(key)}`;
     case 'member': {
       const how = p.state.split('.')[2] ?? '';
       const is = { well: 'is well', sick: 'is sick', gone: 'is gone', died: 'died', left: 'went to relatives' }[how];
@@ -358,6 +365,31 @@ function trailHtml(t: NonNullable<ScriptModel['trail']>, w: Words): string {
       <p class="only">Naming the right carver:</p><p>${effectChips(t.right, w) || 'nothing'}</p>
       <p class="only">Naming another:</p><p>${effectChips(t.wrong, w) || 'nothing'}</p>
     </section>`;
+}
+
+/** What an origin's perk does, in words (docs/tech-spec.md §72). */
+function perkWords(o: OriginDoc, w: Words): string {
+  const p = o.perk;
+  const secs = (n: number) => (n === 0 ? 'no sun' : `${n} s of sun`);
+  return [
+    ...(p.tools ?? []).map((t) => `${esc(w.tool(t.tool))} costs ${secs(t.costS)}`),
+    ...(p.freeQuestions ? [`the first ${p.freeQuestions} questions each day cost no sun`] : []),
+    ...(p.sunS ? [`${p.sunS} s more sun every shift`] : []),
+    ...(p.startRings ? [`${p.startRings} rings more to start`] : []),
+    ...(p.shopPct ? [`upgrades cost ${p.shopPct}% of their price`] : []),
+  ].join('; ');
+}
+
+/** An origin (docs/tech-spec.md §72): who she was, what it gives, who it brings home, and its own scenes. */
+function originHtml(o: OriginDoc, w: Words): string {
+  const days = o.scenes.map((sc) => `${sc.when === 'morning' ? 'Morning' : 'Night'} ${sc.day}`).join(', ');
+  return `
+<section class="day" id="origin-${esc(o.id)}" aria-labelledby="origin-${esc(o.id)}-title">
+  <h2 class="day-title" id="origin-${esc(o.id)}-title">${esc(o.name)}</h2>
+  <blockquote class="decree"><span class="k">Who she was</span> ${esc(o.text)}</blockquote>
+  <p class="only">Gives: ${perkWords(o, w)}.${o.member ? ` At home besides the family: ${esc(o.member)}.` : ''} Its scenes play after the day's own (${days}), only in runs begun with it.</p>
+  ${o.scenes.map((sc) => sceneHtml(sc, w)).join('')}
+</section>`;
 }
 
 const SECTION_NAMES: Readonly<Record<string, string>> = {
@@ -764,10 +796,19 @@ export function renderScript(model: ScriptModel, generated: string): { body: str
 <div class="shell">
   <nav class="rail" aria-label="Days">
     <ol>${rail}</ol>
-    <div class="rail-more"><a href="#flags">Flags</a><a href="#endings">Endings</a><a href="#epilogue">Epilogue</a><a href="#threads">Journal threads</a>${model.trail ? '<a href="#trail">The forger’s trail</a>' : ''}</div>
+    <div class="rail-more"><a href="#flags">Flags</a><a href="#endings">Endings</a><a href="#epilogue">Epilogue</a><a href="#threads">Journal threads</a>${model.trail ? '<a href="#trail">The forger’s trail</a>' : ''}${model.origins.length > 0 ? '<a href="#origins">Origins</a>' : ''}</div>
   </nav>
   <main class="script">
     ${model.days.map((d) => dayHtml(d, w)).join('')}
+    ${
+      model.origins.length > 0
+        ? `<section class="appendix" id="origins">
+      <h2>Origins</h2>
+      <p>Who the chooser was in life, picked for a new run of the full game. Each gives a perk, brings someone to live with the family, and has scenes of its own, played after the day's own in runs begun with it.</p>
+    </section>
+    ${model.origins.map((o) => originHtml(o, w)).join('')}`
+        : ''
+    }
     <section class="appendix" id="flags">
       <h2>Flags</h2>
       <p>What the story remembers between days. A flag nothing reads yet is a choice with no later consequence${unread > 0 ? ` (${unread} of them)` : ''}${unset > 0 ? `; ${unset} ${unset === 1 ? 'is' : 'are'} read but never set` : ''}.</p>

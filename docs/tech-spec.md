@@ -4493,6 +4493,70 @@ The brainstorm's version, and what changed:
 - **The story around it is draft,** like the rest: the letter's new lines, the carvers, the drowned man's words, the epilogue lines.
 - **Numbers are guesses:** 15 rings and Odin's ±1, three carvers, Nights 12 and 14.
 
+## 72. Valkyrie origins (game phase 6)
+
+**Why.** Game phase 6 in [`roadmap.md`](roadmap.md): who the chooser was in life, picked for a new run of the full game, for a reason to play it again as someone else. Each origin has a speed or money perk, someone more at home, and scenes of its own.
+
+**Origins** (`origins` in the campaign pack's `campaign.yaml`, `campaign/origin.ts`)
+- **Four, one perk each, only speed or money** (the roadmap's rule for perks):
+  - **The shieldmaiden:** turning a soul over costs no sun, the feather 4 s.
+  - **The seeress:** the first two questions each day cost no sun.
+  - **The trader's daughter:** 30 rings more to start, and upgrades cost 15% less. Sold back, an upgrade fetches half of what she paid.
+  - **The freed thrall:** every shift has 45 s more sun.
+  - A perk is applied where upgrades and favours are (`shiftMods`, `shopFor`, `sellPrice`): a tool's cost is the least of its own, an upgrade's and the perk's. The shop doesn't offer an upgrade that her perk already beats (the oiled bier and the swan feather, for the shieldmaiden).
+- **Someone at home**, beside the family every run has: Thurid, her shield-sister; Heid, the old seeress; Gisli, her father's steersman; Kormak, freed the same day. Each is an adult, so each can die.
+  - **They keep themselves while well** (`ownKeep` on a family member): off the food bill, and never hungry for want of it. Sick, they're fed and need medicine like anyone. So an origin costs nothing while its member is well; it adds someone to keep warm and to nurse.
+  - They count at home for everything else: the family list, `family.home` (the empty house needs them gone too), `member.<id>.*`, and scenes' `home()` and `sick()`.
+- **Three scenes each** (`scenes`: day, morning or night, scene id), each played after the day's own (`scenesFor`):
+  - Night 1, their first letter.
+  - A choice on a night of its own: Thurid's sword for 12 rings (Night 7); a ring a question from a frightened valley, or the truth for nothing (Night 14); a herring share bought on Night 1 for 20 that pays 35 (Night 12); fifteen rings for a third witness to Kormak's freedom, or the RETURN stamp on it (Odin −1) (Night 4).
+  - The last night, Night 20.
+  - They touch no flag an ending reads, so an origin changes which endings a run can reach only through the rings and Odin's −1 above.
+- **The epilogue** has a line for whoever came home with her (`epi.thurid` and the rest), read from how they are and the night's choice.
+- **State:** `RunState.origin`, `origin.<id>` for conditions.
+
+**Where it shows**
+- **A new run's slot** asks "Who were you?": nobody in particular, the household as it always was (the default), or one of the four, each with its blurb, what it gives and who it brings home. Not for the vertical slice, and not in the demo, whose content has no origins.
+- **The run says so** on its slot and its mornings, beside Story Mode, the oath and the weave. The family list says who's off the food bill, and the food bill and the nights ahead count only those the purse feeds.
+- **The playtest report** says who she was in its run line; the family line lists the member.
+- **The story page** has an Origins section: each origin, what it gives, who it brings, and its scenes, read into the flag index.
+- **The sims** take `--origin`, and play the origin's scenes with the story policies.
+- **Saves:** a run from before origins has none and plays as before. `isRunSave` needs nothing new.
+
+**Numbers** (`pnpm sim campaign --seeds 40 --origin …`, plain story; demoted, by night strategy payAll / frugal / upgradesFirst)
+
+| Bot | No origin | Shieldmaiden | Seeress | Trader | Thrall |
+|---|---|---|---|---|---|
+| Novice | 32.5 / 17.5 / 57.5% | 27.5 / 20 / 47.5% | 30 / 27.5 / 55% | 30 / 20 / 32.5% | 32.5 / 22.5 / 57.5% |
+
+- Expert and competent bots were never demoted with any origin. Experts' mean rings (payAll): 169 with none; 206, 172, 255 and 167 as the shieldmaiden, seeress, trader and thrall. The shieldmaiden skips two upgrades; the trader pays less for all of them.
+- At 40 seeds a rate is good to about ±12 points. Frugal nights (the hearth every other night) are where the member shows: they can fall sick, and medicine costs.
+- **The first design fed them from the purse:** about 150 rings a run, most of it on the late nights. With 20 rings to start (40 and a fifth off for the trader), novices were demoted about twice as often (about 62 / 40 / 85% with the three speed perks), so an origin was a tax. Hence `ownKeep`.
+
+**Tests**
+- **Engine** (`origin.test.ts`):
+  - four origins in the full game and none in the demo;
+  - a run begun as each, with its member, rings and state;
+  - no unknown origin, and none with the slice;
+  - perks at the desk, the trader's prices and sell-back, and the shop without the upgrades a perk beats;
+  - `ownKeep` tonight and in the nights ahead, and hunger;
+  - a member's death;
+  - scenes in order;
+  - saves.
+- **Compiler** (`campaign-lint.test.ts`): missing words, an origin twice, one with no perk, a member who's family already or whom two origins bring, a missing scene, two scenes in one slot. The scene walks cover each origin's scenes with its member at home.
+- **Sims** (`campaign-sim.test.ts`): every ending can still be reached in a run begun with an origin.
+- **Report** (`playtest.test.ts`), and **e2e** (`origins.spec.ts`, full game, phone and desktop):
+  - the picker, its words and tap sizes;
+  - none for the slice, none in the demo;
+  - a run begun as the shieldmaiden says so on its morning and slot;
+  - on Night 1, Thurid's note after Ulf's letter, her place in the family list, and the food bill.
+
+**Known limits**
+- **The bots can't weigh speed.** They never question and only run short of sun with `--pace` (§63), so the sims show the trader's money and nothing of the other three perks. Whether 45 s of sun, two free questions and a quick bier and feather are worth about the same to a player, and whether any of them is worth 30 rings and 15% off, is a playtest question.
+- **"A different household" is one more person,** not a different family: Ragna, Ulf and Asa are in every run, because the whole story is written around them.
+- **The words are draft,** like the rest: twelve scenes, four blurbs, the members' names and their epilogue lines. The freed thrall's story wants the same sensitivity read as the clerk's.
+- **Numbers are guesses:** the perks, 12, 10, 20→35 and 15 rings in the scenes, and Odin's −1.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

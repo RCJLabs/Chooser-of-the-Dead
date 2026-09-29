@@ -229,6 +229,7 @@ export function newCampaign(
   slice?: 'play' | 'fromJump',
   oath = false,
   woven = false,
+  origin?: string,
 ): void {
   // Never over a save, nor over something unreadable the player hasn't cleared.
   if (!isFree(slot)) return;
@@ -238,7 +239,12 @@ export function newCampaign(
   const sworn = oath && !story ? { oath: true } : {};
   // The Norns' weave (docs/tech-spec.md §53), once an ending on this device has opened it.
   const weave = woven && weaveOpen(gameContent, settings.peek().endingsSeen) ? { woven: true } : {};
-  write(slot, startSave(gameContent, seed, ENGINE_MAJOR, { story, ...sworn, ...weave, ...(slice ? { slice } : {}) }));
+  // Who she was in life (docs/tech-spec.md §72): never with the vertical slice.
+  const who = origin && !slice ? { origin } : {};
+  write(
+    slot,
+    startSave(gameContent, seed, ENGINE_MAJOR, { story, ...sworn, ...weave, ...who, ...(slice ? { slice } : {}) }),
+  );
   openSlot(slot);
 }
 
