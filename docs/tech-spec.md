@@ -4557,6 +4557,87 @@ The brainstorm's version, and what changed:
 - **The words are draft,** like the rest: twelve scenes, four blurbs, the members' names and their epilogue lines. The freed thrall's story wants the same sensitivity read as the clerk's.
 - **Numbers are guesses:** the perks, 12, 10, 20→35 and 15 rings in the scenes, and Odin's −1.
 
+## 73. Mercy has memory (game phase 7)
+
+**Why.** Game phase 7 in [`roadmap.md`](roadmap.md): word spreads among the dead. How strict or merciful the chooser has been changes how often souls plead, bribe or lie, and some souls let through turn out later to have lied.
+
+**The word** (`word` in the campaign pack's `campaign.yaml`, `campaign/word.ts`)
+- **A number from −3 to 3, 0 to start** (`RunState.word`). The audit moves it for each soul that asked:
+  - a step softer for each ask granted: a plea (the kin's included) or rings offered for a stamp (the story's included);
+  - a step sterner for each ask refused, meaning the soul was sent where it belongs;
+  - neither way for a third hall.
+- **Three levels** (`levels`, in order, each holding up to a word):
+  - **Stern, −2 and below:** one of the day's own souls asks on 25% of days, and souls lie at 85% of the day's lie rate.
+  - **Even-handed, −1 to 1:** 50% (the pleas' own chance) and 100%, the campaign as it was.
+  - **Soft, 2 and above:** 75% and 115%, and half of those who ask bring rings instead of a plea.
+- **From the next day on.** The day's context scales its lie rate (`withWord` in `dayContext`, a noon decree's day too), and the pleas' draw takes the level's chance instead of its own (`withPlea`). Nothing else about a soul changes.
+- **The Daily never changes.** Its content has no campaign, and so no word. The day goldens are made with `createDayContext`, which no run's word reaches, and they held.
+
+**Offers** (`offers`)
+- **On a soft day, an asking soul may offer rings instead** (`CaseSpec.offer`, drawn on a stream of its own), for a hall the offers let souls of its hall pay for:
+  - 15 rings for Valhalla, from Hel's or Rán's;
+  - 12 for Fólkvangr, from Hel's;
+  - 12 for Valhalla, from the clerk's (from Day 10).
+- **Taken, it's paid at the audit with the story's rings,** as a story soul's offer is (§47). `stampEffects` covers it, so the desk's banner, the audit's row, the mistake's `paid` and the bots' bribes all do too. It's a mistake all the same, with its usual costs.
+- **It runs at the last battle:** it bought the hall; it didn't want it. It doesn't appeal.
+
+**Who asks, and false asks**
+- **Only a soul whose lies can all be caught at the desk asks** (`liesCatchable`): it tells no lie, or another of its own fields shows each one false, with no question needed. So a player who checks a soul that asks can always tell whether it lied. A lie about a companion (§69) is only ever told where the companion shows it false.
+- **An ordinary soul, not kin, that asks and lies is asking falsely.** Granted:
+  - it doesn't stand where it asked to go. It's a misfit, named at the last battle as one who'll run, and never among the worthy;
+  - it doesn't appeal either;
+  - two mornings later the dead find it out (`RunState.found`, `found.after`), the morning says so, and the word goes a step softer: they say you can be fooled. A slice's jump tells what it jumped over on the morning after.
+- **Story souls and kin ask as before.** What a story soul asks is written; kin ask for someone else.
+
+**Where it shows**
+- **At the desk:**
+  - an ordinary soul's plea says it stands there "if he told you the truth";
+  - once a lie of its own is caught, the plea or offer adds "He has lied to you already";
+  - an offer's banner is the one a story soul's has.
+- **The audit:** how far the day's asks moved the word and the level it's at, on a day someone asked; the rings an offer paid, as a story soul's are.
+- **The morning:** from the pleas' first day, the word's level and what the line says of the chooser; and, as news, the souls found out that morning.
+- **The playtest report** counts offers and the souls found out lying beside the pleas, marks each, and says where the word stood after each audit that moved it. `pnpm playtest` reads the new counts.
+- **State:** `word`, for conditions. Nothing reads it yet.
+- **Saves:** a run from before the word has none, which is 0: even-handed, the campaign as it was.
+
+**Numbers** (`pnpm sim campaign`, plain story; demoted, by night strategy payAll / frugal / upgradesFirst)
+- **The bots refuse every plea unless told otherwise, so their word ends stern:** −3 for experts and competent bots, −2.6 to −2.9 for novices. Beside the same sims on main before the word (30 seeds):
+  - experts and competent bots are never demoted either way. Their rings are 3–23 lower: fewer liars means fewer caught-lie bonuses. The endings each reaches are the same within a few runs.
+  - novices are demoted in 28 / 9 / 67% of runs, against 28 / 13 / 63% before, over 100 seeds each: the same, within about ±9 points. (At 30 seeds, 40 / 10 / 70 against 33 / 17 / 57: noise. Fewer liars also moves the bots' random draws, so the two runs of a seed aren't paired.)
+- **Bots that grant pleas (`--pleas`), except to a soul they caught lying,** end even-handed or soft (1.1 to 2.7). They grant 6–9 of 10–13 asks a run and let 0.5–2 liars through. Novices who grant them are demoted in 67 / 23 / 83% of runs (30 seeds): each granted plea is a mistake, with its fine, and a soft word brings more of them.
+- **Taking the offers too (`--bribes --pleas`) pays.** Experts end with 180 / 623 / 194 rings, against 115 / 585 / 128 granting pleas alone, and novices are demoted in 53 / 23 / 73% of runs.
+- **The forger's trail** (§71) gets fewer marks when the word is stern, since forged tallies are lies. Over 30 seeds of careful play (every forged tally under the lens), Days 11–14 pinned 72, 70, 61 and 55 marks, against 85, 80, 64 and 56 before. The marks left only the carver by Night 12 in 28 of the 30 runs, against 29.
+- **The bots can't show what fewer or more liars do to judging:** their accuracy is fixed, whatever a soul tells them. Whether a stern word makes the desk easier for players, and a soft one harder, is a playtest question.
+
+**Tests**
+- **Engine** (`word.test.ts`):
+  - the levels and their bounds, and 0 even-handed as before;
+  - none in the demo;
+  - the lie rate a level gives a day, a noon decree's too;
+  - fewer liars on a stern word's days than on a soft one's;
+  - the ask chance, and only souls whose lies can be caught asking;
+  - a caught lie told from one that can't be caught;
+  - offers and what they pay;
+  - a step for each ask answered, and none past the bounds;
+  - a false ask granted: it runs, doesn't appeal, and is found out two mornings later;
+  - a slice's jump.
+- **Also updated:** `run.test.ts`. A granted plea that stands is an honest soul's; where a test forces the pleas' chance, it leaves the word out; and the jarl's offer is filed with the pleas.
+- **Compiler** (`campaign-lint.test.ts`): levels out of order, past the bounds or twice; missing words; a level that brings offers with none to bring; an offer for the soul's own hall, for RETURN, or from a hall whose souls never plead; a word with no pleas.
+- **Report** (`playtest.test.ts`, `tools/playtest`), and **e2e** (`word.spec.ts`, `plea.spec.ts`, full game, phone and desktop):
+  - a liar's plea "if he told you the truth", and its lie caught;
+  - granted, the audit's row;
+  - two mornings later, the news and the soft word;
+  - nothing before the pleas' first day.
+- **Fixed on the way:** the desk's caught-lie badge was white on #d86a52, 3.4:1. It's now on #a8432f, 6:1. No scan before had a lie caught on the desk layout.
+- **`trail.spec.ts`** now picks its seed by what its day pins, as the other scenario tests do: a strict player's Day 11 on the old seed pinned one mark.
+
+**Known limits**
+- **Two refusals make the word stern,** so a strict player is stern by about Day 9 and stays there. The design's bet is that a strict desk should be quieter.
+- **Mercy costs more than it did** on a soft word (more asks, each a mistake to grant), and only the offers taken pay some of it back.
+- **The morning shows the level, not the chance or the lie rate behind it.**
+- **The words are draft,** like the rest: the levels, the found-out news, the desk's lines.
+- **Numbers are guesses:** the bounds, the levels' shares, the offers' rings, two mornings.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

@@ -290,6 +290,43 @@ describe('the playtest report', () => {
     expect(without).not.toContain('### Pleas and kin');
   });
 
+  it('counts offers and the souls found out lying, and where the word among the dead stood (docs/tech-spec.md §73)', () => {
+    const save = played('playtest-word', 1, right);
+    const day1 = (save.mornings.at(-1) as RunState).ledger[0];
+    if (!day1) throw new Error('no day filed');
+    const ledger: DayLedger[] = [
+      {
+        ...day1,
+        day: 9,
+        pleas: [
+          { name: 'Arne Hauksson', belongs: 'HEL', to: 'VALHALLA', granted: true, lied: true },
+          { name: 'Asgaut Thorolfsson', belongs: 'HEL', to: 'VALHALLA', story: true, offer: 30, granted: false },
+        ],
+        word: { by: 0, now: 0 },
+      },
+      {
+        ...day1,
+        day: 10,
+        pleas: [{ name: 'Orm Grimsson', belongs: 'RAN', to: 'VALHALLA', offer: 15, granted: true }],
+        word: { by: 1, now: 1 },
+      },
+      { ...day1, day: 11, pleas: [], word: { by: 0, now: 2 } },
+    ];
+    const run = (m: RunState) => ({ ...m, ledger, word: 2 });
+    const text = report({ ...save, mornings: save.mornings.map(run) });
+    const section = text.slice(text.indexOf('### Pleas and kin'), text.indexOf('### Appeals'));
+    expect(section.split('\n').filter((l) => l !== '')).toEqual([
+      '### Pleas and kin',
+      'Pleas: 1, granted: 1. Kin who came: 0.',
+      'Offers: 2, taken: 1.',
+      'Found out lying: 1.',
+      'Word among the dead: word.soft (+2). After the audits that moved it: Day 10 +1.',
+      '- Day 9: Arne Hauksson, asked for dest.VALHALLA, belonging in dest.HEL: granted. It had lied at the desk: found out later.',
+      '- Day 9: Asgaut Thorolfsson (a story soul), offered 30 rings for dest.VALHALLA, belonging in dest.HEL: refused.',
+      '- Day 10: Orm Grimsson, offered 15 rings for dest.VALHALLA, belonging in dest.RAN: taken.',
+    ]);
+  });
+
   it('counts the mistakes of a day filed before they were itemised', () => {
     const save = played('playtest-old', 1, wrong);
     const old: RunSave = {

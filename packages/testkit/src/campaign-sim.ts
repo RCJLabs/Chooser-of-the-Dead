@@ -344,10 +344,12 @@ function shiftActions(
     if (party) actions.push({ t: 'shift', action: { t: 'turn', to: k, at } });
     at += paceS * 1000;
     const right = rng.chance(Math.round(judging.accuracy * 1000), 1000);
+    let lying = false;
     if (right && c.lies.length > 0 && rng.chance(Math.round(judging.catches * 1000), 1000)) {
       const own = catchLie(c, ctx, at);
       const caught =
         own.length > 0 || !party ? own : catchCrossLie(cases.slice(party.start, party.start + party.size), k, ctx, at);
+      lying = caught.length > 0;
       for (const action of caught) actions.push({ t: 'shift', action });
       for (const action of lookForMarks(c, ctx, at, caught)) actions.push({ t: 'shift', action });
     }
@@ -355,10 +357,10 @@ function shiftActions(
     // A soul the bot knows belongs where a favour asks for souls from goes where the favour asks instead.
     const favour = right ? favours.find((f) => f.left > 0 && f.r.from === c.expect.dest) : undefined;
     if (favour) favour.left--;
-    // A bot that takes bribes takes what a story soul offers (docs/tech-spec.md §47), as a choice, not a slip; one
-    // that grants pleas gives a story soul the stamp it asks for (docs/tech-spec.md §51).
+    // A bot that takes bribes takes what a soul offers (docs/tech-spec.md §47, §73), as a choice, not a slip; one that
+    // grants pleas gives a soul the stamp it asks for (§51, §59), unless it caught the soul lying (§73).
     const offer = bribes ? storyOffer(content, c) : null;
-    const plea = pleas ? pleaOf(content, c) : null;
+    const plea = pleas && !lying ? pleaOf(content, c) : null;
     const dest: Destination = offer
       ? offer.dest
       : plea
@@ -517,6 +519,9 @@ export interface RunResult {
   readonly reprieved: boolean;
   /** The forger's trail (docs/tech-spec.md §71): marks pinned, and whether the carver named was the one (null: none). */
   readonly trail: { readonly marks: number; readonly right: boolean | null };
+  /** Word among the dead at the end (docs/tech-spec.md §73), and the false asks granted over the run. */
+  readonly word: number;
+  readonly found: number;
 }
 
 export interface SimOptions {
@@ -540,9 +545,15 @@ export interface SimOptions {
   readonly serveUpTo?: number;
   /** Whether the bot takes the ranks it's offered (docs/tech-spec.md §44); unanswered, offers lapse at the gate. */
   readonly promote?: boolean;
-  /** Whether the bot takes what story souls offer for a wrong stamp (docs/tech-spec.md §47); it never does unless told. */
+  /**
+   * Whether the bot takes what souls offer for a wrong stamp, the story's (docs/tech-spec.md §47) and ordinary souls'
+   * (§73); it never does unless told.
+   */
   readonly bribes?: boolean;
-  /** Whether the bot grants what story souls plead for (docs/tech-spec.md §51); it never does unless told. */
+  /**
+   * Whether the bot grants what souls plead for, the story's (docs/tech-spec.md §51), ordinary souls' and kin (§59, §60),
+   * unless it caught the soul lying (§73); it never does unless told.
+   */
   readonly pleas?: boolean;
   /** Whether the run is played under the oath (docs/tech-spec.md §49): fines from the first mistake. */
   readonly oath?: boolean;
@@ -685,6 +696,8 @@ export function simulateRun(
     arms: run.armsBought ?? 0,
     reprieved: run.ledger.some((l) => (l.night?.reprieve ?? 0) !== 0),
     trail: { marks: run.trail?.marks.length ?? 0, right: run.trail?.accused?.right ?? null },
+    word: run.word ?? 0,
+    found: run.found?.length ?? 0,
   };
 }
 
@@ -716,6 +729,14 @@ export interface PolicyReport {
   /** Lots of arms bought (mean), and runs a reprieve saved (docs/tech-spec.md §56). */
   readonly meanArms: number;
   readonly reprieved: number;
+  /**
+   * Word among the dead (docs/tech-spec.md §73): the word at the end, souls that asked over a run (pleas, offers and
+   * kin who asked, the story's included), those granted, and the false asks among them (means).
+   */
+  readonly meanWord: number;
+  readonly meanAsks: number;
+  readonly meanGranted: number;
+  readonly meanFound: number;
   readonly endings: Record<string, number>;
   readonly ledgerErrors: number;
 }
@@ -734,6 +755,7 @@ export function simulateCampaign(
   bribes?: boolean,
   weave?: string,
   origin?: string,
+  pleas?: boolean,
 ): PolicyReport[] {
   const out: PolicyReport[] = [];
   const mean = (xs: readonly number[]) => xs.reduce((a, x) => a + x, 0) / Math.max(1, xs.length);
@@ -749,6 +771,7 @@ export function simulateCampaign(
             ...(serve ? { serve } : {}),
             ...(promote !== undefined ? { promote } : {}),
             ...(bribes ? { bribes } : {}),
+            ...(pleas ? { pleas } : {}),
             ...(weave ? { weave } : {}),
             ...(origin ? { origin } : {}),
           }),
@@ -789,6 +812,14 @@ export function simulateCampaign(
           ),
           meanArms: mean(results.map((r) => r.arms)),
           reprieved: results.filter((r) => r.reprieved).length,
+          meanWord: mean(results.map((r) => r.word)),
+          meanAsks: mean(
+            results.map((r) => r.ledger.reduce((n, l) => n + (l.pleas ?? []).filter((p) => p.to).length, 0)),
+          ),
+          meanGranted: mean(
+            results.map((r) => r.ledger.reduce((n, l) => n + (l.pleas ?? []).filter((p) => p.granted).length, 0)),
+          ),
+          meanFound: mean(results.map((r) => r.found)),
           endings,
           ledgerErrors: results.filter((r) => !r.ledgerOk).length,
         });

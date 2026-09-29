@@ -68,8 +68,25 @@ export interface DayPlea {
   readonly kin?: string;
   /** A story soul, whose plea is written into its case. */
   readonly story?: true;
+  /** Rings it offered for the hall it asked for, instead of pleading (docs/tech-spec.md §73). */
+  readonly offer?: number;
   /** Whether it was given the hall it asked for. */
   readonly granted: boolean;
+  /** An ordinary soul that lied at the desk, and was given the hall it asked for (docs/tech-spec.md §73): found out later. */
+  readonly lied?: true;
+}
+
+/**
+ * A false ask granted (docs/tech-spec.md §73): an ordinary soul that lied at the desk and was given the hall it asked
+ * for. The dead find it out on the morning of `on`, and say so.
+ */
+export interface FoundAsk {
+  readonly name: string;
+  /** The day it was judged, and the hall it was given. */
+  readonly day: number;
+  readonly hall: Destination;
+  /** The morning it's found out. */
+  readonly on: number;
 }
 
 /**
@@ -221,6 +238,11 @@ export interface DayLedger {
    * campaign has pleas or kin, empty on a day nobody asked, and absent in saves from before they were kept.
    */
   readonly pleas?: readonly DayPlea[];
+  /**
+   * Word among the dead (docs/tech-spec.md §73) after the audit, and how far the day's asks moved it: in a build whose
+   * campaign keeps it, and absent in saves from before it was kept.
+   */
+  readonly word?: { readonly by: number; readonly now: number };
   /** The appeal heard that morning, if one came. */
   readonly appeal?: AppealHeard;
   /** The line at dusk, when souls were left in it and there's a next day for them. */
@@ -297,6 +319,13 @@ export interface RunState {
   readonly kin?: readonly string[];
   /** The forger's trail (docs/tech-spec.md §71): the marks pinned so far, and the carver named; absent until either. */
   readonly trail?: RunTrail;
+  /**
+   * Word among the dead (docs/tech-spec.md §73): softer for each ask granted, sterner for each refused, between the
+   * campaign's bounds; absent (0) until it moves.
+   */
+  readonly word?: number;
+  /** The false asks granted (docs/tech-spec.md §73): souls that lied and were given what they asked for, found out later. */
+  readonly found?: readonly FoundAsk[];
   /** Who the chooser was in life (docs/tech-spec.md §72), by id; absent for a run begun without one. */
   readonly origin?: string;
   readonly family: readonly FamilyMember[];
@@ -465,6 +494,9 @@ export function stateValue(run: RunState, path: string): number {
     // none is.
     case 'trail':
       return trailValue(run, key);
+    // Word among the dead (docs/tech-spec.md §73): below 0 stern, above soft.
+    case 'word':
+      return run.word ?? 0;
     // Who the chooser was in life (docs/tech-spec.md §72): 1 for the run's origin, 0 for any other.
     case 'origin':
       return run.origin !== undefined && run.origin === key ? 1 : 0;
@@ -539,7 +571,7 @@ export function predPaths(p: StatePred): string[] {
 
 /** Paths a StatePred may use (the content linter checks endings against it). */
 export const STATE_PATHS =
-  /^(day|rings|debtNights|naglfar|arms|ragnarok|oath|fronts|trail\.(night|right)|origin\.[A-Za-z0-9_]+|front\.[A-Za-z0-9_]+|(standing|lead)\.(odin|freyja|hel|loki|clerk)|einherjar\.(worthy|unworthy)|sent\.(VALHALLA|FOLKVANGR|HEL|RAN|RETURN|DETAIN|TRANSFER)|flags\.[A-Za-z0-9_]+|family\.(well|sick|home|gone)|member\.[A-Za-z0-9_]+\.(well|sick|gone|died|left)|ending\.[A-Za-z0-9_]+)$/;
+  /^(day|rings|debtNights|naglfar|arms|ragnarok|oath|fronts|word|trail\.(night|right)|origin\.[A-Za-z0-9_]+|front\.[A-Za-z0-9_]+|(standing|lead)\.(odin|freyja|hel|loki|clerk)|einherjar\.(worthy|unworthy)|sent\.(VALHALLA|FOLKVANGR|HEL|RAN|RETURN|DETAIN|TRANSFER)|flags\.[A-Za-z0-9_]+|family\.(well|sick|home|gone)|member\.[A-Za-z0-9_]+\.(well|sick|gone|died|left)|ending\.[A-Za-z0-9_]+)$/;
 
 /** Whether a StatePred reads the last battle (docs/tech-spec.md §54): what it asks can't be known before it's fought. */
 export function readsBattle(p: StatePred): boolean {

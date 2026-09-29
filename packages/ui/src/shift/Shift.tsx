@@ -1,6 +1,7 @@
 import type { Hotspot } from '@cots/art';
 import {
   type CaseSpec,
+  caughtLies,
   currentCase,
   type Destination,
   type Field,
@@ -1382,8 +1383,22 @@ function CoachBar({ s, lesson }: { s: Session; lesson: Lesson | null }) {
 }
 
 /**
- * What a story soul offers for a stamp where it doesn't belong (docs/tech-spec.md §47), said openly while it's at
- * the desk: taking it is a choice, never a slip. The stamp is still wrong, with its citation.
+ * Whether a soul that asks at the desk could be asking falsely (docs/tech-spec.md §73): an ordinary soul, not come for
+ * its kin, in a build that keeps the word among the dead. Granted, one that lied is found out, and runs.
+ */
+const mayAskFalsely = (s: Session, c: CaseSpec): boolean =>
+  s.content.campaign?.word !== undefined && c.script === undefined && c.kin === undefined;
+
+/** Such a soul caught in a lie at the desk (docs/tech-spec.md §73), said as soon as it's caught. */
+function LiedNote({ s, c }: { s: Session; c: CaseSpec }) {
+  if (!mayAskFalsely(s, c) || caughtLies(s.state.soul) === 0) return null;
+  return <span data-testid="plea-lied"> {t('ui.plea.lied', { gender: c.evidence.look.gender })}</span>;
+}
+
+/**
+ * What a soul offers for a stamp where it doesn't belong, said openly while it's at the desk: a story soul's (docs/tech-
+ * spec.md §47), or an ordinary soul's (§73). Taking it is a choice, never a slip. The stamp is still wrong, with its
+ * citation.
  */
 function OfferNote({ s, c }: { s: Session; c: CaseSpec }) {
   const offer = storyOffer(s.content, c);
@@ -1392,13 +1407,15 @@ function OfferNote({ s, c }: { s: Session; c: CaseSpec }) {
   return (
     <p class="shift__note" data-testid="offer-banner">
       {t('ui.offer', { name, n: offer.rings, dest: t(`dest.${offer.dest}`) })}
+      <LiedNote s={s} c={c} />
     </p>
   );
 }
 
 /**
  * What a soul asks for, openly, where it doesn't belong (docs/tech-spec.md §51, §59), while it's at the desk: a story
- * soul's plea, or an ordinary soul's.
+ * soul's plea, or an ordinary soul's. Granted, an ordinary soul stands where it asked to go only if it told the truth
+ * (§73).
  */
 function PleaNote({ s, c }: { s: Session; c: CaseSpec }) {
   const plea = pleaOf(s.content, c);
@@ -1410,7 +1427,13 @@ function PleaNote({ s, c }: { s: Session; c: CaseSpec }) {
   return (
     <p class="shift__note" data-testid="plea-banner">
       {t(plea.text, { name: `${name} ${patronym}`, gender, dest: t(`dest.${plea.dest}`), kinGender })}
-      {host && <span data-testid="plea-stands"> {t('ui.plea.stands', { gender })}</span>}
+      {host && (
+        <span data-testid="plea-stands">
+          {' '}
+          {t(mayAskFalsely(s, c) ? 'ui.plea.standsIf' : 'ui.plea.stands', { gender })}
+        </span>
+      )}
+      <LiedNote s={s} c={c} />
     </p>
   );
 }

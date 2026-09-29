@@ -727,6 +727,34 @@ export const CampaignPartSchema = z.strictObject({
         .min(1),
     })
     .optional(),
+  // Word among the dead (docs/tech-spec.md §73): how merciful the chooser is said to be, and what that brings.
+  word: z
+    .strictObject({
+      max: Int.min(1),
+      levels: z
+        .array(
+          z.strictObject({
+            id: Id,
+            upTo: Int.optional(),
+            asks: Percent,
+            lies: Int.min(0).max(200),
+            offers: Percent.optional(),
+            name: Key,
+            text: Key,
+          }),
+        )
+        .min(1),
+      offers: z.array(
+        z.strictObject({
+          from: DestinationSchema,
+          to: DestinationSchema,
+          rings: Int.min(1),
+          since: Day.optional(),
+        }),
+      ),
+      found: z.strictObject({ after: Int.min(1), text: Key }),
+    })
+    .optional(),
   // The kin of the misjudged (docs/tech-spec.md §60): later at the desk, and asking to join them.
   kin: z.strictObject({ from: Day, chance: Percent, after: Int.min(1), text: Key, plea: Key }).optional(),
   // The Norns' weave (docs/tech-spec.md §53): the same rules in another order, for a run begun woven.

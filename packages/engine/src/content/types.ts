@@ -833,6 +833,11 @@ export interface CampaignDef {
   readonly requests?: RequestsDef;
   /** Ordinary souls who plead for a hall where they don't belong (docs/tech-spec.md §59); none without it. */
   readonly pleas?: PleasDef;
+  /**
+   * Word among the dead (docs/tech-spec.md §73): how the line speaks of the chooser's mercy, and what that brings;
+   * none without it.
+   */
+  readonly word?: WordDef;
   /** The kin of souls sent to the wrong hall, at the desk later (docs/tech-spec.md §60); none without it. */
   readonly kin?: KinDef;
   /** What each god grants while their standing is high enough (docs/tech-spec.md §43); none without it. */
@@ -1162,6 +1167,49 @@ export interface PleaDef {
   /** in these words (a string key, given the soul's `name` and `gender`), */
   readonly text: string;
   /** from this day (absent: from `from`). */
+  readonly since?: number;
+}
+
+/**
+ * Word among the dead (campaign.yaml `word`, docs/tech-spec.md §73). Each soul's ask granted at the audit (a plea, or
+ * rings offered for a stamp) moves the word a step softer, and each refused (the soul judged rightly) a step sterner,
+ * between -max and max. The level it's at sets, from the next day on, how often a soul asks and how often souls lie,
+ * and whether some who ask bring rings. A soul that asks and lies too is lying about why: granted, the dead find it out.
+ */
+export interface WordDef {
+  /** How far the word goes either way. */
+  readonly max: number;
+  /** In order: the first level whose `upTo` the word doesn't pass holds (the last has none). */
+  readonly levels: readonly WordLevel[];
+  /** What souls offer for a stamp where they don't belong, on a level that brings offers. */
+  readonly offers: readonly OfferDef[];
+  /** A false ask granted, found out this many mornings after, in these words. */
+  readonly found: { readonly after: number; readonly text: string };
+}
+
+export interface WordLevel {
+  readonly id: string;
+  /** The word at or below which this level holds; absent on the last. */
+  readonly upTo?: number;
+  /** Percent of days (from the pleas' first) when one of the day's own souls asks: the pleas' chance, at this level. */
+  readonly asks: number;
+  /** Percent of the day's lie rate its souls lie at. */
+  readonly lies: number;
+  /** Percent of those asks that come with rings instead of a plea; none when absent. */
+  readonly offers?: number;
+  /** String keys: the level's name, and what the line says of the chooser. */
+  readonly name: string;
+  readonly text: string;
+}
+
+export interface OfferDef {
+  /** Souls that belong here by the day's rules */
+  readonly from: Destination;
+  /** may offer rings to be sent here, */
+  readonly to: Destination;
+  /** this many, */
+  readonly rings: number;
+  /** from this day (absent: the pleas' first). */
   readonly since?: number;
 }
 

@@ -204,8 +204,11 @@ function pleasLine(reports: readonly Report[]): string[] {
   if (counted.length === 0) return ['No run counted pleas or kin.'];
   const sum = (f: (p: NonNullable<Report['pleas']>) => number) =>
     counted.reduce((n, r) => n + (r.pleas ? f(r.pleas) : 0), 0);
+  // Offers and liars found out (docs/tech-spec.md §73), where a report counted any.
+  const offers = sum((p) => p.offers ?? 0);
+  const lied = sum((p) => p.lied ?? 0);
   return [
-    `Pleas: ${sum((p) => p.asked)}, granted: ${sum((p) => p.granted)}. Kin who came: ${sum((p) => p.kin)}. From ${counted.length} of ${reports.length} runs.`,
+    `Pleas: ${sum((p) => p.asked)}, granted: ${sum((p) => p.granted)}. Kin who came: ${sum((p) => p.kin)}.${offers > 0 ? ` Offers: ${offers}, taken: ${sum((p) => p.taken ?? 0)}.` : ''}${lied > 0 ? ` Found out lying: ${lied}.` : ''} From ${counted.length} of ${reports.length} runs.`,
   ];
 }
 

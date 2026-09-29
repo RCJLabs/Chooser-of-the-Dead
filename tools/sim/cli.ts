@@ -4,12 +4,15 @@
  *   pnpm sim sweep --daily [--seeds 200]      Dailies #1..#seeds
  *   pnpm sim sweep --parties [--seeds 200] [--days 9-20] [--prefix parties] [--no-timing]
  *     Days with parties (docs/tech-spec.md §69): each member checked with its companions, and a careful bot at the desk.
- *   pnpm sim campaign [--seeds 200] [--target dev-full|web-demo] [--story plain,ferry,…|all] [--no-fines] [--pace 25] [--serve freyja] [--promote] [--bribes] [--weave id] [--origin id]
+ *   pnpm sim campaign [--seeds 200] [--target dev-full|web-demo] [--story plain,ferry,…|all] [--no-fines] [--pace 25] [--serve freyja] [--promote] [--bribes] [--pleas] [--weave id] [--origin id]
  *     Bots play the target's scenes with each story policy (plain by default; see STORY_POLICIES);
  *     --no-fines plays every shift with that assist on; --pace sets the seconds of sun a bot spends on each
  *     soul (25 by default, when the sun never sets on the line), and adds the souls left at dusk; --serve has bots
  *     do one god's requests (docs/tech-spec.md §42) and adds each god's standing and the requests done; --bribes
- *     has bots take what story souls offer for a wrong stamp (§47); --origin begins every run with that origin (§72).
+ *     has bots take what souls offer for a wrong stamp (§47, §73); --pleas has them grant what souls plead for, but to
+ *     a soul they caught lying (§59, §73); --origin begins every run with that origin (§72). Where the build keeps the
+ *     word among the dead (§73), the report adds it at the end, the souls that asked and were granted, and the false
+ *     asks granted (means).
  *   pnpm sim compare --set 'path=value' [--set …] [--seeds 30] [--target dev-full] [--judging expert,competent,novice]
  *       [--strategy payAll] [--story plain] [--pace 25] [--nights 3,9,15,19]
  *     The tuning workbench (§63): the same bots on the same seeds with the content as built and with the changes, and
@@ -56,6 +59,7 @@ if (cmd === 'campaign') {
   const serve = process.argv.includes('--serve') ? (arg('serve', 'freyja') as Faction) : undefined;
   const promote = process.argv.includes('--promote') ? true : undefined;
   const bribes = process.argv.includes('--bribes');
+  const pleas = process.argv.includes('--pleas');
   const weave = process.argv.includes('--weave') ? arg('weave', '') : undefined;
   const origin = process.argv.includes('--origin') ? arg('origin', '') : undefined;
   const reports = simulateCampaign(
@@ -72,12 +76,14 @@ if (cmd === 'campaign') {
     bribes,
     weave,
     origin,
+    pleas,
+  );
+  const word = loadContent(target).campaign?.word !== undefined;
+  console.log(
+    `campaign sim: ${target}, ${seeds} runs per policy${noFines ? ', no fines' : ''}${pace !== undefined ? `, ${pace}s a soul` : ''}${serve ? `, serving ${serve}` : ''}${promote ? ', taking promotions' : ''}${bribes ? ', taking bribes' : ''}${pleas ? ', granting pleas' : ''}${weave ? `, woven: ${weave}` : ''}${origin ? `, as ${origin}` : ''}, ${((performance.now() - started) / 1000).toFixed(1)}s`,
   );
   console.log(
-    `campaign sim: ${target}, ${seeds} runs per policy${noFines ? ', no fines' : ''}${pace !== undefined ? `, ${pace}s a soul` : ''}${serve ? `, serving ${serve}` : ''}${promote ? ', taking promotions' : ''}${bribes ? ', taking bribes' : ''}${weave ? `, woven: ${weave}` : ''}${origin ? `, as ${origin}` : ''}, ${((performance.now() - started) / 1000).toFixed(1)}s`,
-  );
-  console.log(
-    `judging    night          story      demoted  reprieved  family lost  rings (mean / min)  upgrades  arms  fronts${pace !== undefined ? '  left / died   Hel  Odin' : ''}${serve ? '  met/asked  Odin Freyja   Hel Clerk' : ''}${promote ? '  days at rank' : ''}  endings`,
+    `judging    night          story      demoted  reprieved  family lost  rings (mean / min)  upgrades  arms  fronts${pace !== undefined ? '  left / died   Hel  Odin' : ''}${serve ? '  met/asked  Odin Freyja   Hel Clerk' : ''}${promote ? '  days at rank' : ''}${word ? '  word  asked/granted  lied' : ''}  endings`,
   );
   for (const r of reports) {
     const pct = (n: number) => `${((n * 100) / r.runs).toFixed(1)}%`.padStart(6);
@@ -115,6 +121,13 @@ if (cmd === 'campaign') {
                 .map((d) => d.toFixed(1))
                 .join(' / ')
                 .padStart(13),
+            ]
+          : []),
+        ...(word
+          ? [
+              r.meanWord.toFixed(1).padStart(5),
+              `${r.meanAsks.toFixed(1)}/${r.meanGranted.toFixed(1)}`.padStart(14),
+              r.meanFound.toFixed(1).padStart(5),
             ]
           : []),
         ` ${Object.entries(r.endings)

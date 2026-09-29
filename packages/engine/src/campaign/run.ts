@@ -57,6 +57,7 @@ import {
   type DayWaiting,
   evalState,
   type FamilyMember,
+  type FoundAsk,
   type LineSoul,
   type NamedSoul,
   type RequestSettled,
@@ -68,6 +69,7 @@ import {
 } from './state';
 import { canAccuse, culpritOf, markTrail, pinsToday, trailOf } from './trail';
 import { drawWeave, underWeave } from './weave';
+import { askedFalsely, foundOut, movedWord, ordinaryOffer, wordDef, wordOf } from './word';
 
 /*
  * The campaign's day loop (docs/tech-spec.md §4):
@@ -135,6 +137,8 @@ export type RunEvent =
   | { readonly e: 'fought'; readonly battle: Battle }
   /** A carver named on the forger's trail (docs/tech-spec.md §71), and whether he was the one. */
   | { readonly e: 'accused'; readonly suspect: string; readonly right: boolean }
+  /** A false ask granted, found out this morning (docs/tech-spec.md §73): the soul, the day it was judged, its hall. */
+  | { readonly e: 'found'; readonly name: string; readonly day: number; readonly hall: Destination }
   | { readonly e: 'rejected'; readonly reason: string };
 
 export interface RunEnv {
@@ -684,8 +688,9 @@ export function campaignQueue(run: RunState, env: RunEnv): CaseSpec[] {
     if (made.ok) cases.splice(Math.min(slot.at, cases.length), 0, late ? { ...made.case, noon: true } : made.case);
   }
   // On some days, one of the day's own is kin to a soul sent where it didn't belong (docs/tech-spec.md §60), and on some
-  // one pleads for another hall (§59): each on a stream of its own, so the line is otherwise the same.
-  const asked = withPlea(env.content, run.seed, env.ctx, withKin(env.content, run, env.ctx, cases));
+  // one pleads for another hall (§59), or offers rings for one (§73): each on a stream of its own, so the line is
+  // otherwise the same.
+  const asked = withPlea(env.content, run, env.ctx, withKin(env.content, run, env.ctx, cases));
   // Souls who waited through the night can push the day's own later: keep the decree's souls last.
   const ordered = noon ? [...asked.filter((c) => !c.noon), ...asked.filter((c) => c.noon)] : asked;
   // Last, the day's parties (docs/tech-spec.md §69), from the line as it stands. A lie about a companion never moves a
@@ -722,21 +727,29 @@ export function threadsInPlay(run: RunState, content: Content): { id: string; te
     .map((th) => ({ id: th.id, text: th.text, ...(th.count ? { n: stateValue(run, th.count) } : {}) }));
 }
 
-/** What stamping a story soul `stamped` does to the story (nothing for a generated soul). */
+/**
+ * What stamping a soul `stamped` does: a story soul's effects on the story, and an ordinary soul's offer taken, its
+ * rings (docs/tech-spec.md §73); nothing for any other generated soul.
+ */
 export function stampEffects(content: Content, c: CaseSpec, stamped: Destination): Effect[] {
+  const offer = ordinaryOffer(c);
+  if (offer) return offer.dest === stamped ? [{ rings: offer.rings }] : [];
   if (!c.script) return [];
   const def = content.scripted?.find((d) => d.id === c.script);
   return (def?.onStamp ?? []).filter((rule) => matches(rule.stamped, stamped)).flatMap((rule) => rule.effects);
 }
 
-/** The rings stamping a story soul `stamped` pays at the audit (docs/tech-spec.md §47); 0 for a generated soul. */
+/**
+ * The rings stamping a soul `stamped` pays at the audit: a story soul's (docs/tech-spec.md §47), or an ordinary soul's
+ * offer (§73); 0 for any other.
+ */
 export function stampRings(content: Content, c: CaseSpec, stamped: Destination): number {
   return stampEffects(content, c, stamped).reduce((n, e) => n + ('rings' in e ? e.rings : 0), 0);
 }
 
 /**
- * A story soul's offer (docs/tech-spec.md §47): rings for a stamp other than where it belongs, the most it pays
- * if it names several. The desk shows it while the soul is there, and bots that take bribes take it.
+ * A soul's offer (docs/tech-spec.md §47, §73): rings for a stamp other than where it belongs, the most it pays if it
+ * names several. The desk shows it while the soul is there, and bots that take bribes take it.
  */
 export function storyOffer(content: Content, c: CaseSpec): { dest: Destination; rings: number } | null {
   let best: { dest: Destination; rings: number } | null = null;
@@ -898,6 +911,10 @@ function audit(
   const mistakes: DayMistake[] = [];
   // Who asked for another hall today, and kin who came, whatever the stamp (docs/tech-spec.md §60): the report's.
   const pleas: DayPlea[] = [];
+  // Word among the dead (docs/tech-spec.md §73): how the day's asks were answered, and the false ones granted.
+  const word = wordDef(env.content);
+  let wordBy = 0;
+  const found: FoundAsk[] = [];
   // What each verdict cost, for an appeal to give back.
   const costs = new Map<number, { fine: number; standing: Partial<Record<Faction, number>>; worthy: boolean }>();
   shift.verdicts.forEach((v: Verdict) => {
@@ -909,16 +926,28 @@ function audit(
     const finesBefore = fines;
     const pled = pleaGranted(env.content, shift, v);
     const plea = c ? pleaOf(env.content, c) : null;
-    if (c && (plea || c.kin)) {
+    // Rings offered for a stamp, a story soul's (§47) or an ordinary soul's (§73), when it didn't plead.
+    const offer = c && !plea ? storyOffer(env.content, c) : null;
+    const ask = plea?.dest ?? offer?.dest;
+    const granted = ask !== undefined && v.stamped === ask;
+    // Granted, a soul that asked and lied too is found out, and runs at the last battle all the same (§73).
+    const lied = word !== undefined && granted && c !== undefined && askedFalsely(c);
+    // The word goes a step softer for each ask granted, and sterner for each refused: the soul sent where it belongs.
+    if (ask !== undefined) wordBy += granted ? 1 : v.stamped === v.expected ? -1 : 0;
+    if (c && (ask || c.kin)) {
       pleas.push({
         name: soulName(c),
         belongs: v.expected,
-        ...(plea ? { to: plea.dest } : {}),
+        ...(ask ? { to: ask } : {}),
         ...(c.kin ? { kin: c.kin.name } : {}),
         ...(c.script ? { story: true as const } : {}),
-        granted: pled,
+        ...(offer ? { offer: offer.rings } : {}),
+        granted,
+        ...(lied ? { lied: true as const } : {}),
       });
     }
+    if (c && lied && word)
+      found.push({ name: soulName(c), day: run.day, hall: v.stamped, on: run.day + word.found.after });
     if (v.correct) {
       correct++;
       pay += economy.wage;
@@ -952,7 +981,7 @@ function audit(
     // hearth-man rightly sent after his jarl (§70): he stood by him to the end.
     const followed =
       v.correct && c !== undefined && typeof env.ctx.rules.find((r) => r.id === c.expect.rule)?.then === 'object';
-    const worthy = c ? pled || followed || eval2({ ref: campaign.worthy }, c.truth, env.ctx) : false;
+    const worthy = c ? (pled && !lied) || followed || eval2({ ref: campaign.worthy }, c.truth, env.ctx) : false;
     if (v.stamped === 'VALHALLA' && c) {
       if (worthy) einherjar.worthy++;
       else einherjar.unworthy++;
@@ -987,6 +1016,7 @@ function audit(
     return c !== undefined && follow(c);
   });
   const retinue = { men: sworn.length, right: sworn.filter((v) => v.correct).length };
+  const wordNow = word ? movedWord(word, wordOf(run), wordBy) : wordOf(run);
   const ledger: DayLedger = {
     day: run.day,
     correct,
@@ -1004,6 +1034,7 @@ function audit(
     ...(parties.n > 0 ? { parties: retinue.men > 0 ? { ...parties, retinue } : parties } : {}),
     // Kept, even empty, where the campaign has pleas or kin, so a day nobody asked differs from a day not counted.
     ...(campaign.pleas || campaign.kin ? { pleas } : {}),
+    ...(word ? { word: { by: wordNow - wordOf(run), now: wordNow } } : {}),
     ...(run.appealHeard ? { appeal: run.appealHeard } : {}),
     ...(line ? { waiting: line.waiting } : {}),
     ...(requests.length > 0 ? { requests } : {}),
@@ -1020,22 +1051,33 @@ function audit(
   for (const [f, n] of Object.entries(line?.waiting.standing ?? {})) nextStanding[f as Faction] += n ?? 0;
   for (const r of requests) for (const [f, n] of Object.entries(r.standing)) nextStanding[f as Faction] += n ?? 0;
   // A soul given to a god whose request was done in full is that god's now, and doesn't appeal: righting it would
-  // keep the reward without its cost. Nor does a soul sent where it asked to go (docs/tech-spec.md §59).
-  const given = (v: Verdict) =>
-    requests.some((r) => r.met && v.expected === r.from && v.stamped === r.to) || pleaGranted(env.content, shift, v);
-  // Souls sent to a hall they didn't belong in, but for those given: at Ragnarök they break and run (§54).
+  // keep the reward without its cost. Nor does a soul sent where it asked to go (docs/tech-spec.md §59), or paid to
+  // go (§73).
+  const met = (v: Verdict) => requests.some((r) => r.met && v.expected === r.from && v.stamped === r.to);
+  const took = (v: Verdict) => {
+    const c = shift.cases[v.index];
+    return c !== undefined && v.stamped !== null && ordinaryOffer(c)?.dest === v.stamped;
+  };
+  const given = (v: Verdict) => met(v) || pleaGranted(env.content, shift, v) || took(v);
+  // A soul that asked falsely and was granted (§73) stands nowhere: it runs from the host it was sent to.
+  const falsely = (v: Verdict) => {
+    const c = shift.cases[v.index];
+    return word !== undefined && c !== undefined && askedFalsely(c) && (pleaGranted(env.content, shift, v) || took(v));
+  };
+  const pledTruly = (v: Verdict) => pleaGranted(env.content, shift, v) && !falsely(v);
+  // Souls sent to a hall they didn't belong in, but for those given it by a request met or a plea truly made: at
+  // Ragnarök they break and run (§54).
   const misfits: Partial<Record<Destination, number>> = { ...run.misfits };
   // And the souls the battle will name: who'll run from each host, the story's own who'll stand in one, and those who
   // asked to be there.
   const named: NamedSoul[] = [...(run.named ?? [])];
   for (const v of shift.verdicts) {
     if (v.stamped === null) continue;
-    const wrong = v.stamped !== v.expected && !given(v);
+    const wrong = v.stamped !== v.expected && !met(v) && !pledTruly(v);
     if (wrong) misfits[v.stamped] = (misfits[v.stamped] ?? 0) + 1;
     const c = shift.cases[v.index];
     const runs = v.stamped === 'VALHALLA' ? !(costs.get(v.index)?.worthy ?? false) : wrong;
-    const asked = pleaGranted(env.content, shift, v);
-    if (c) named.push(...namedAs(campaign, c, run.day, v.stamped, runs, asked));
+    if (c) named.push(...namedAs(campaign, c, run.day, v.stamped, runs, pledTruly(v)));
   }
   // The souls whose kin came to the desk today and were judged (docs/tech-spec.md §60): their kin won't come again.
   const kinCame = shift.verdicts.flatMap((v) => {
@@ -1061,6 +1103,8 @@ function audit(
       ...(named.length > 0 ? { named } : {}),
       ...(kinCame.length > 0 ? { kin: [...(run.kin ?? []), ...kinCame] } : {}),
       ...(trail ? { trail } : {}),
+      ...(run.word !== undefined || wordNow !== 0 ? { word: wordNow } : {}),
+      ...(found.length > 0 ? { found: [...(run.found ?? []), ...found] } : {}),
       ledger: [...run.ledger, ledger],
       ...(appeal ? { appeal } : {}),
       ...(line && line.carried.length > 0 ? { waiting: line.carried } : {}),
@@ -1653,8 +1697,11 @@ export function stepRun(run: RunState, action: RunAction, env: RunEnv): { state:
         events.push({ e: 'horn' });
         return { state: { ...after, phase: 'ragnarok', shift: null, bills: null }, events };
       }
-      const next = nextMorning(after, campaignOf(env.content));
-      events.push({ e: 'dayBegins', day: next.day });
+      const morning = nextMorning(after, campaignOf(env.content));
+      events.push({ e: 'dayBegins', day: morning.day });
+      // The false asks due by this morning are found out, and the word goes softer for each (docs/tech-spec.md §73).
+      const { run: next, told } = foundOut(morning, env.content, after.day);
+      for (const f of told) events.push({ e: 'found', name: f.name, day: f.day, hall: f.hall });
       return {
         state: {
           ...next,

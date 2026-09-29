@@ -345,3 +345,57 @@ describe('origins, as content', () => {
     ).toThrow(/origin \w+ plays two scenes on the night of day 1/);
   }, 60_000);
 });
+
+type Word = NonNullable<CampaignPart['word']>;
+
+// docs/tech-spec.md §73.
+describe('word among the dead, as content', () => {
+  const withWord = (change: (w: Word) => Word) => compileWith((c) => (c.word ? { ...c, word: change(c.word) } : c));
+  const level = (i: number, edit: (l: Word['levels'][number]) => Word['levels'][number]) =>
+    withWord((w) => ({ ...w, levels: w.levels.map((l, k) => (k === i ? edit(l) : l)) }));
+  it('compiles as shipped, and refuses levels out of order, past its bounds or twice, and missing words', () => {
+    expect(withWord((w) => w)).not.toThrow();
+    expect(withWord((w) => ({ ...w, levels: [...w.levels].reverse() }))).toThrow(
+      /The last word level word\.stern holds up to a word; it should hold the rest\./,
+    );
+    expect(level(1, (l) => ({ ...l, upTo: -3 }))).toThrow(
+      /The word level word\.even holds up to -3, not past the level before it\./,
+    );
+    expect(level(1, (l) => ({ ...l, upTo: 3 }))).toThrow(
+      /The word level word\.even holds up to 3, the word's bound or past it\./,
+    );
+    expect(withWord((w) => ({ ...w, levels: [w.levels[0] ?? w.levels[1], ...w.levels] as Word['levels'] }))).toThrow(
+      /Duplicate word level "word\.stern"/,
+    );
+    expect(level(0, (l) => ({ ...l, text: 'word.nobody' }))).toThrow(
+      /word level word\.stern uses missing string "word\.nobody"/,
+    );
+    expect(withWord((w) => ({ ...w, found: { ...w.found, text: 'word.nobody' } }))).toThrow(
+      /the word among the dead uses missing string "word\.nobody"/,
+    );
+  }, 60_000);
+
+  it('refuses offers to bring that there are none of, and offers no soul would make', () => {
+    expect(withWord((w) => ({ ...w, offers: [] }))).toThrow(
+      /The word level word\.soft brings offers, but there are none to bring\./,
+    );
+    expect(withWord((w) => ({ ...w, offers: [{ from: 'HEL', to: 'HEL', rings: 5 }] }))).toThrow(
+      /The offer from HEL to HEL pays for the hall the soul already belongs in\./,
+    );
+    expect(withWord((w) => ({ ...w, offers: [{ from: 'HEL', to: 'RETURN', rings: 5 }] }))).toThrow(
+      /The offer from HEL to RETURN pays for a stamp no soul asks for\./,
+    );
+    expect(withWord((w) => ({ ...w, offers: [{ from: 'DETAIN', to: 'VALHALLA', rings: 5 }] }))).toThrow(
+      /The offer from DETAIN to VALHALLA comes from a hall whose souls never plead\./,
+    );
+  }, 60_000);
+
+  it('refuses a word with no pleas for it to set the chance of', () => {
+    expect(
+      compileWith((c) => {
+        const { pleas: _, ...rest } = c;
+        return rest;
+      }),
+    ).toThrow(/The word among the dead sets how often souls ask, but the campaign has no pleas\./);
+  }, 60_000);
+});

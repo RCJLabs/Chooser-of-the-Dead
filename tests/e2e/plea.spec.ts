@@ -75,8 +75,10 @@ test('an ordinary soul pleads for another hall: said openly with what it means a
       const banner = page.getByTestId('plea-banner');
       await expect(banner).toContainText(`${name} ${patronym} asks for a`);
       await expect(banner).toContainText('a mistake all the same.');
+      // An ordinary soul stands there only if it told the truth (docs/tech-spec.md §73).
+      const he = gender === 'f' ? 'she' : 'he';
       await expect(banner.getByTestId('plea-stands')).toHaveText(
-        `Granted, ${gender === 'f' ? 'she' : 'he'}'ll stand with that hall's host at the last battle, not run from it.`,
+        `Granted, ${he}'ll stand with that hall's host at the last battle, not run from it, if ${he} told you the truth.`,
       );
       const axe = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
@@ -96,4 +98,6 @@ test('an ordinary soul pleads for another hall: said openly with what it means a
 
   await expect(page.getByTestId('audit-title')).toHaveText(`Day ${DAY}: the audit`);
   await expect(page.getByTestId('audit-score')).toHaveText(`${queue.length - 1} of ${queue.length} judged rightly`);
+  // Granted, the word among the dead goes a step softer (docs/tech-spec.md §73).
+  await expect(page.getByTestId('word-moved')).toContainText('The word among the dead goes a step softer:');
 });
