@@ -880,9 +880,10 @@ export interface TrailDef {
   /** What naming him does, and what naming another man does. */
   readonly right: readonly Effect[];
   readonly wrong: readonly Effect[];
-  /** The board's words (string keys): its heading, and what it says before anything is pinned. */
+  /** The board's words (string keys): its heading, what it says of the hunt, and what it says once a man is named. */
   readonly title: string;
   readonly intro: string;
+  readonly named: { readonly right: string; readonly wrong: string };
 }
 
 /**

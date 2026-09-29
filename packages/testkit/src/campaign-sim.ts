@@ -16,6 +16,7 @@ import {
   type Destination,
   defaultBills,
   deskVisit,
+  type Effect,
   earnedAt,
   economyOf,
   epilogueFor,
@@ -784,6 +785,14 @@ export function simulateCampaign(
   return out;
 }
 
+/** What a scenario save does besides judging every soul rightly (see scenarioSave). */
+export interface ScenarioOptions {
+  /** Looks for marks on the forger's trail at the desk (docs/tech-spec.md §71), as a careful player does. */
+  readonly careful?: boolean;
+  /** Scenes played as their turn comes, by id, with the effects of the choices they stand for. */
+  readonly scenes?: Readonly<Record<string, readonly Effect[]>>;
+}
+
 /**
  * A scenario jumper for tests (docs/build-plan.md §11): a save on the morning
  * of `day`, with every earlier soul judged rightly and every bill paid; or, `at`
@@ -796,6 +805,7 @@ export function scenarioSave(
   day: number,
   engine: number,
   at: 'morning' | 'night' = 'morning',
+  opts: ScenarioOptions = {},
 ): RunSave {
   let save = startSave(content, seed, engine);
   let run = save.mornings[0] as RunState;
@@ -805,11 +815,19 @@ export function scenarioSave(
     save = recordAction(save, run, action, next);
     run = next;
   };
+  const scene = (which: 'morning' | 'night') => {
+    const id = content.days.find((d) => d.day === run.day)?.scenes?.[which];
+    const effects = id ? opts.scenes?.[id] : undefined;
+    if (id && effects) apply({ t: 'scene', id, effects });
+  };
   const shift = () => {
+    scene('morning');
     apply({ t: 'beginShift', at: 0 });
+    const ctx = runContext(content, run);
     let at = 0;
     for (const c of run.shift?.cases ?? []) {
       at += 1000;
+      if (opts.careful) for (const action of lookForMarks(c, ctx, at)) apply({ t: 'shift', action });
       apply({ t: 'shift', action: { t: 'stamp', dest: c.expect.dest, at } });
       apply({ t: 'shift', action: { t: 'send', at } });
     }
@@ -822,6 +840,7 @@ export function scenarioSave(
       break;
     }
     shift();
+    scene('night');
     apply({ t: 'endNight' });
   }
   // The night of `day`, its scene still to play.

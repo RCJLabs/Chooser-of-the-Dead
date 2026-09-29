@@ -4,6 +4,7 @@ import {
   type Content,
   campaignOf,
   createDayContext,
+  culpritOf,
   type DayLedger,
   type DayMistake,
   type Destination,
@@ -13,11 +14,15 @@ import {
   type Faction,
   factionKey,
   factionsMet,
+  huntOn,
   type NamedSoul,
   namedIn,
   type RunSave,
   type RunState,
   ruleText,
+  suspectsLeft,
+  type TrailSuspect,
+  trailOf,
 } from '@cots/engine';
 import { journalEnv, playScene } from '@cots/story';
 
@@ -253,6 +258,37 @@ function parties(p: PlaytestInput): string[] {
     `Parties: ${total('n')}, of ${total('souls')} souls. Lies about a companion: ${total('lies')}, caught before the stamp: ${total('caught')}.${men > 0 ? ` Hearth-men who went where their jarl went: ${men}, judged rightly: ${right}.` : ''}`,
     '',
     ...lines,
+  ];
+}
+
+/**
+ * The forger's trail (docs/tech-spec.md §71): whether the hunt opened, the marks pinned each day, and who was named and
+ * when, beside who cut the tallies. Nothing before the trail's first day.
+ */
+function trail(p: PlaytestInput): string[] {
+  const def = trailOf(p.content);
+  if (!def || p.run.day < def.since) return [];
+  const name = (s: TrailSuspect) => `${s.look.name} ${s.look.patronym}`;
+  const culprit = culpritOf(def, p.run.seed);
+  const marks = p.run.trail?.marks ?? [];
+  const accused = p.run.trail?.accused;
+  const named = accused ? def.suspects.find((s) => s.id === accused.suspect) : undefined;
+  const days = [...new Set(marks.map((m) => m.day))].map(
+    (d) =>
+      `- Day ${d}: ${marks
+        .filter((m) => m.day === d)
+        .map((m) => `${m.hand} (${m.via === 'tally' ? 'tally' : 'Muninn'}, ${m.name})`)
+        .join(', ')}`,
+  );
+  const left = suspectsLeft(def, marks).map(name);
+  return [
+    "### The forger's trail",
+    '',
+    `The carver: ${name(culprit)}. ${huntOn(p.run, p.content) ? 'The hunt opened.' : 'The hunt never opened.'} Marks pinned: ${marks.length}; they leave ${left.join(', ')}.`,
+    named && accused
+      ? `Named on Night ${accused.day}: ${name(named)}, ${accused.right ? 'the right man' : 'the wrong man'}.`
+      : 'Nobody named.',
+    ...(days.length > 0 ? ['', ...days] : []),
   ];
 }
 
@@ -507,6 +543,7 @@ export function playtestReport(p: PlaytestInput): string {
     '',
     ...(pleas(p).length > 0 ? [...pleas(p), ''] : []),
     ...(parties(p).length > 0 ? [...parties(p), ''] : []),
+    ...(trail(p).length > 0 ? [...trail(p), ''] : []),
     ...appeals(p),
     '',
     ...line(p),

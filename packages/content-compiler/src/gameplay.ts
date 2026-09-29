@@ -1156,8 +1156,7 @@ function lintTrail(
   const t = c?.trail;
   if (!c || !t) return [];
   const problems: string[] = [];
-  key(t.title, "the forger's trail");
-  key(t.intro, "the forger's trail");
+  for (const k of [t.title, t.intro, t.named.right, t.named.wrong]) key(k, "the forger's trail");
   if (t.when) walk(t.when, "the forger's trail");
   const reserved = new Set(
     Object.entries(content.pools)

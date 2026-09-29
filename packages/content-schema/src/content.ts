@@ -798,6 +798,7 @@ export const CampaignPartSchema = z.strictObject({
       wrong: z.array(EffectSchema),
       title: Key,
       intro: Key,
+      named: z.strictObject({ right: Key, wrong: Key }),
     })
     .optional(),
   // The epilogue (docs/tech-spec.md §55): what became of everyone, told after the ending from the run.

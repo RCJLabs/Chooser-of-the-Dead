@@ -319,6 +319,7 @@ trail:
   wrong: [{ flag: carver_wrong }, { standing: odin, by: -1 }]
   title: trail.title
   intro: trail.intro
+  named: { right: trail.named.right, wrong: trail.named.wrong }
 # Arms for the last battle (docs/tech-spec.md §56): from the night Muninn says Odin knows how it ends, the
 # quartermaster sells arms for one front a night, each lot dearer than the last, each adding strength at its front.
 # First guesses for the sims to tune. The words are DRAFT.
@@ -479,6 +480,12 @@ epilogue:
         - { when: { state: flags.hrapp_draugr, gte: 1 }, text: epi.hrapp.draugr }
         - { when: { state: flags.hrapp_refused, gte: 1 }, text: epi.hrapp.hel }
         - { when: { state: flags.hrapp_judged, gte: 1 }, text: epi.hrapp.judged }
+    # The forger's trail (docs/tech-spec.md §71): the carver named, or another man in his place.
+    - id: epi.carver
+      section: dead
+      lines:
+        - { when: { state: flags.carver_wrong, gte: 1 }, text: epi.carver.wrong }
+        - { when: { state: flags.reported_carver, gte: 1 }, text: epi.carver.right }
     # The souls who come back (docs/tech-spec.md §60): the shieldmaiden sent home, Geir's widow, the miser's nephew, the
     # jarl's son and Thorvald's mother.
     - id: epi.svanhild

@@ -71,6 +71,43 @@ export function canAccuse(run: RunState, content: Content): boolean {
   );
 }
 
+/** The carvers' board as the chooser sees it at night (docs/tech-spec.md §71). */
+export interface TrailBoard {
+  readonly def: TrailDef;
+  /** Each carver, and whether the marks pinned so far leave him possible. */
+  readonly suspects: readonly { readonly suspect: TrailSuspect; readonly possible: boolean }[];
+  readonly marks: readonly TrailMark[];
+  /** Whether he can be named tonight; if not, the next night he can be. */
+  readonly tonight: boolean;
+  readonly next?: number;
+  /** The carver named tonight, and whether he was the one. */
+  readonly named?: { readonly suspect: TrailSuspect; readonly right: boolean };
+}
+
+/**
+ * The board for tonight: while the hunt is on, from the night it opens to the trail's last night, and on the night a
+ * carver is named, what came of it. None otherwise.
+ */
+export function trailBoard(run: RunState, content: Content): TrailBoard | null {
+  const def = trailOf(content);
+  if (!def || run.phase !== 'night' || !huntOn(run, content)) return null;
+  const accused = run.trail?.accused;
+  if (accused ? accused.day !== run.day : run.day > Math.max(...def.nights)) return null;
+  const marks = run.trail?.marks ?? [];
+  const left = new Set(suspectsLeft(def, marks).map((s) => s.id));
+  const named = accused ? def.suspects.find((s) => s.id === accused.suspect) : undefined;
+  const next = def.nights.find((n) => n > run.day);
+  const tonight = canAccuse(run, content);
+  return {
+    def,
+    suspects: def.suspects.map((suspect) => ({ suspect, possible: left.has(suspect.id) })),
+    marks,
+    tonight,
+    ...(!tonight && !accused && next !== undefined ? { next } : {}),
+    ...(named && accused ? { named: { suspect: named, right: accused.right } } : {}),
+  };
+}
+
 /**
  * Whether what's seen at the desk today is pinned: from the trail's first day to its last night, until a carver is
  * named. Marks are pinned before the hunt is on, so the board has the day's when it opens.
