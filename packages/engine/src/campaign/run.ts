@@ -60,9 +60,12 @@ import {
   type NamedSoul,
   type RequestSettled,
   type RunState,
+  type RunTrail,
   readsBattle,
   stateValue,
+  type TrailMark,
 } from './state';
+import { canAccuse, culpritOf, markTrail, pinsToday, trailOf } from './trail';
 import { drawWeave, underWeave } from './weave';
 
 /*
@@ -105,9 +108,10 @@ export type RunAction =
   | { readonly t: 'promotion'; readonly accept: boolean }
   /** At night, back down a rank. */
   | { readonly t: 'stepDown' }
-  /** The hosts sent to the fronts (docs/tech-spec.md §54): the order the fronts are to be held in. */
   /** The horn (docs/tech-spec.md §54): the order the fronts are held in, and the front the chooser rides to (§58). */
-  | { readonly t: 'marshal'; readonly order: readonly string[]; readonly ride?: string };
+  | { readonly t: 'marshal'; readonly order: readonly string[]; readonly ride?: string }
+  /** On one of the forger's trail's nights, the carver named (docs/tech-spec.md §71), once a run. */
+  | { readonly t: 'accuse'; readonly suspect: string };
 
 export type RunEvent =
   | { readonly e: 'shift'; readonly event: ShiftEvent }
@@ -128,6 +132,8 @@ export type RunEvent =
   /** The horn: the last night is over, and the hosts wait for their fronts (docs/tech-spec.md §54). */
   | { readonly e: 'horn' }
   | { readonly e: 'fought'; readonly battle: Battle }
+  /** A carver named on the forger's trail (docs/tech-spec.md §71), and whether he was the one. */
+  | { readonly e: 'accused'; readonly suspect: string; readonly right: boolean }
   | { readonly e: 'rejected'; readonly reason: string };
 
 export interface RunEnv {
@@ -654,7 +660,8 @@ export function campaignQueue(run: RunState, env: RunEnv): CaseSpec[] {
   // Last, the day's parties (docs/tech-spec.md §69), from the line as it stands. A lie about a companion never moves a
   // soul out of a hall the morning's requests ask for souls from, so they can still be done.
   const keepHalls = new Set((run.requests ?? []).map((r) => r.from));
-  return [...linkParties(ordered, env.ctx, run.seed, { keepHalls })];
+  // And on the forger's trail (docs/tech-spec.md §71), a day with marks enough shows both the carver's habits.
+  return markTrail(linkParties(ordered, env.ctx, run.seed, { keepHalls }), env.ctx);
 }
 
 /**
@@ -1005,6 +1012,8 @@ function audit(
     return kin && v.stamped !== null ? [kin.name] : [];
   });
   const appeal = chooseAppeal(run, shift, campaign, costs, fined, given);
+  // Marks on the forger's trail seen today (docs/tech-spec.md §71), pinned to the board.
+  const trail = pinMarks(run, shift, env.content);
   const asked = drawRequests(run, env, line?.carried ?? []);
   const promotion = promote(run, env, wrong === 0 && unjudged === 0);
   // The day's trip home is filed with the day (a night scene's is for tomorrow, and comes after this).
@@ -1020,6 +1029,7 @@ function audit(
       ...(Object.keys(misfits).length > 0 ? { misfits } : {}),
       ...(named.length > 0 ? { named } : {}),
       ...(kinCame.length > 0 ? { kin: [...(run.kin ?? []), ...kinCame] } : {}),
+      ...(trail ? { trail } : {}),
       ledger: [...run.ledger, ledger],
       ...(appeal ? { appeal } : {}),
       ...(line && line.carried.length > 0 ? { waiting: line.carried } : {}),
@@ -1029,6 +1039,27 @@ function audit(
     ledger,
     flags,
   };
+}
+
+/**
+ * The run's forger's trail with today's marks pinned (docs/tech-spec.md §71): each habit seen on a soul, once, while
+ * the trail still pins them.
+ */
+function pinMarks(run: RunState, shift: ShiftState, content: Content): RunTrail | undefined {
+  const def = trailOf(content);
+  if (!def || !pinsToday(run, def)) return run.trail;
+  const marks: TrailMark[] = [...(run.trail?.marks ?? [])];
+  for (const v of shift.verdicts) {
+    const c = shift.cases[v.index];
+    if (!c) continue;
+    const name = soulName(c);
+    for (const m of v.marks ?? []) {
+      if (!marks.some((x) => x.name === name && x.hand === m.hand && x.via === m.via)) {
+        marks.push({ day: run.day, name, hand: m.hand, via: m.via });
+      }
+    }
+  }
+  return marks.length > 0 ? { ...run.trail, marks } : run.trail;
 }
 
 function applyEffects(run: RunState, effects: readonly Effect[], events: RunEvent[], content?: Content): RunState {
@@ -1434,6 +1465,22 @@ export function stepRun(run: RunState, action: RunAction, env: RunEnv): { state:
         { e: 'ended', ending },
       ],
     };
+  }
+
+  if (action.t === 'accuse') {
+    // The forger's trail (docs/tech-spec.md §71): the carver named, once, and what naming the right man (or another)
+    // does, at once, as a night scene's choices do.
+    const def = trailOf(env.content);
+    if (!def || !canAccuse(run, env.content)) return reject(run, 'no carver can be named tonight');
+    const suspect = def.suspects.find((s) => s.id === action.suspect);
+    if (!suspect) return reject(run, 'no such carver');
+    const right = suspect.id === culpritOf(def, run.seed).id;
+    const events: RunEvent[] = [{ e: 'accused', suspect: suspect.id, right }];
+    const named: RunState = {
+      ...run,
+      trail: { marks: run.trail?.marks ?? [], accused: { suspect: suspect.id, day: run.day, right } },
+    };
+    return { state: applyEffects(named, right ? def.right : def.wrong, events, env.content), events };
   }
 
   if (action.t === 'appeal') {

@@ -1,9 +1,8 @@
-# DRAFT writing. Day 13, if you named the right carver on Night 12 (the forger's
+# DRAFT writing. Day 15, if you named the right carver on Night 14 (the forger's
 # trail, docs/tech-spec.md §71): the carver, drowned in the fjord at the jarl's
-# order. His own tally is his best forgery. He wears the face of whichever carver
-# the run drew (Bjarni's is the one without a trail). Case.carver_late comes on
-# Day 15 if you named him on Night 14; case.bjarni_old if you never did.
-id: case.bjarni_drowned
+# order, as on Day 13 for a run that named him sooner. His own tally is his best
+# forgery.
+id: case.carver_late
 personas: [braggart]
 truth:
   cause: { is: drowned }
@@ -23,5 +22,4 @@ lookOf: culprit
 lines: [case.bjarni.list, case.bjarni.tally, case.bjarni.cold]
 words: { pool.weapons: seax }
 expect: RAN
-# A run from before the trail reported him at the Night 11 letter, and has no trail night.
-when: { all: [{ state: flags.reported_carver, gte: 1 }, { state: trail.night, lte: 12 }] }
+when: { all: [{ state: trail.right, gte: 1 }, { state: trail.night, gte: 13 }] }

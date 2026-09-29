@@ -43,3 +43,9 @@
   title: ach.thrice.title
   text: ach.thrice.text
   when: { at: endless, test: { all: [{ state: curses, gte: 3 }, { state: points, gte: 100 }] } }
+# The forger's trail (docs/tech-spec.md §71): the right carver named.
+- id: ach.carver
+  title: ach.carver.title
+  text: ach.carver.text
+  hidden: true
+  when: { at: run, test: { state: trail.right, gte: 1 } }

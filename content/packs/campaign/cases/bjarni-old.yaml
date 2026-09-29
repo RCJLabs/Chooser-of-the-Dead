@@ -1,10 +1,11 @@
-# DRAFT writing. Day 15, if nobody reported him (reported_carver unset): Bjarni
-# the tally carver, dead of old age. Hel's hall is full, so the clerk takes him,
+# DRAFT writing. Day 15, if nobody named him (reported_carver unset): the tally
+# carver, dead of a winter fever, wearing the face of whichever carver the run
+# drew (docs/tech-spec.md §71). Hel's hall is full, so the clerk takes him,
 # whatever his forged tally says.
 id: case.bjarni_old
 personas: [braggart]
 truth:
-  cause: { is: oldAge }
+  cause: { is: sickness }
   grip: { is: none }
   blade: { is: plain }
   woundsFront: { is: 0 }
@@ -17,6 +18,7 @@ truth:
 lies:
   - { fact: cause, claim: battle, p: 100, via: tally, motive: wantsValhalla, onQuestion: { confess: 2, excuse: 1 } }
 look: { gender: m, name: Bjarni, patronym: Sveinsson, age: 68, build: lean, beard: braided }
+lookOf: culprit
 lines: [case.bjarni.best, case.bjarni.hero, case.bjarni.bench]
 words: { pool.weapons: seax }
 expect: TRANSFER

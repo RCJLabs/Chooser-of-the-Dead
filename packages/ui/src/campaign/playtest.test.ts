@@ -1,6 +1,7 @@
 import {
   type CaseSpec,
   campaignOf,
+  culpritOf,
   type DayLedger,
   type Destination,
   ENGINE_MAJOR,
@@ -15,6 +16,9 @@ import {
   stampsFor,
   startSave,
   stepRun,
+  type TrailMark,
+  type TrailSuspect,
+  trailOf,
 } from '@cots/engine';
 import { playScene, sceneEnv } from '@cots/story';
 import { loadContent, loadScenes, scenarioSave } from '@cots/testkit';
@@ -182,6 +186,43 @@ describe('the playtest report', () => {
       '- Day 9: 1 party of 2 souls; lies about a companion caught: 1 of 1.',
       '- Day 16: 2 parties of 5 souls; lies about a companion caught: 0 of 2.',
     ]);
+  });
+
+  it('tells the forger’s trail: the carver, the marks pinned each day, and who was named (docs/tech-spec.md §71)', () => {
+    const seed = 'playtest-trail';
+    const save = played(seed, 1, right);
+    // Before the trail's first day: no section.
+    expect(report(save)).not.toContain("### The forger's trail");
+    const def = trailOf(content);
+    if (!def) throw new Error('no trail');
+    const culprit = culpritOf(def, seed);
+    const other = def.suspects.find((s) => s.id !== culprit.id) ?? culprit;
+    const name = (s: TrailSuspect) => `${s.look.name} ${s.look.patronym}`;
+    const [first = 'elderRune', second = 'mirroredRune'] = culprit.hands;
+    const marks: TrailMark[] = [
+      { day: 11, name: 'Hauk Ketilsson', hand: first, via: 'tally' },
+      { day: 12, name: 'Vagn Egilsson', hand: second, via: 'muninn' },
+    ];
+    const accused = { suspect: other.id, day: 12, right: false };
+    const at = (m: RunState): RunState => ({
+      ...m,
+      day: 13,
+      flags: { ...m.flags, hunt_carver: 1 },
+      trail: { marks, accused },
+    });
+    const text = report({ ...save, mornings: save.mornings.map(at) });
+    const section = text.slice(text.indexOf("### The forger's trail"), text.indexOf('### Appeals'));
+    expect(section.split('\n').filter((l) => l !== '')).toEqual([
+      "### The forger's trail",
+      `The carver: ${name(culprit)}. The hunt opened. Marks pinned: 2; they leave ${name(culprit)}.`,
+      `Named on Night 12: ${name(other)}, the wrong man.`,
+      `- Day 11: ${first} (tally, Hauk Ketilsson)`,
+      `- Day 12: ${second} (Muninn, Vagn Egilsson)`,
+    ]);
+    // Past its first day, a run that never asked for his name.
+    const quiet = report({ ...save, mornings: save.mornings.map((m) => ({ ...m, day: 12 })) });
+    expect(quiet).toContain(`The carver: ${name(culprit)}. The hunt never opened. Marks pinned: 0;`);
+    expect(quiet).toContain('Nobody named.');
   });
 
   it('counts the souls who asked for another hall and the kin who came, and names days not counted (docs/tech-spec.md §60)', () => {

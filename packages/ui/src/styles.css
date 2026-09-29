@@ -2273,6 +2273,62 @@ a.btn {
   font-size: 1rem;
 }
 
+/* The carvers' board (docs/tech-spec.md §71): each carver, whether the marks still leave him, and the name to give. */
+.trail {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.trail__carvers,
+.trail__marks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.trail__carver {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--accent);
+}
+
+.trail__carver p {
+  margin: 0;
+  flex: 1 1 16rem;
+}
+
+/* Ruled out by what's pinned: kept on the board, greyed, and not to be named. */
+.trail__carver--out {
+  border-left-color: var(--line);
+  color: var(--muted);
+}
+
+.trail__status {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trail__confirm {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.trail__confirm p {
+  margin: 0;
+}
+
+.trail__mark {
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--line);
+}
+
 .ending__text {
   font-size: 1.1rem;
   max-width: 65ch;

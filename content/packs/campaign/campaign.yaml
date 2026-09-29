@@ -290,6 +290,36 @@ threads:
   - { id: thread.stayHome, when: { state: flags.stay_home, gte: 1 }, text: thread.stayHome }
   - { id: thread.clerkContract, when: { state: flags.clerk_contract, gte: 1 }, text: thread.clerkContract }
   - { id: thread.truth, when: { state: flags.truth, gte: 1 }, text: thread.truth, count: flags.truth }
+  # The forger's trail (docs/tech-spec.md §71), while the carver can still be named.
+  - id: thread.carver
+    when: { all: [{ state: flags.hunt_carver, gte: 1 }, { state: trail.night, lte: 0 }, { state: day, lte: 14 }] }
+    text: thread.carver
+# The forger's trail (docs/tech-spec.md §71): one of three carvers, drawn for the run, cuts every forged tally from
+# Day 11, and his knife has two of the three habits a forgery can show; no two carvers share both. What the chooser
+# sees under the lens, and in Muninn's gaps, is pinned to a board. Once the Night 11 letter asks for his name, he can
+# be named on Night 12 or 14, once: the jarl's men drown the man named, whoever he is. The words are DRAFT.
+trail:
+  since: 11
+  when: { state: flags.hunt_carver, gte: 1 }
+  nights: [12, 14]
+  suspects:
+    - id: bjarni
+      look: { gender: m, name: Bjarni, patronym: Sveinsson, age: 68, build: lean, beard: braided }
+      hands: [elderRune, brokenFormula]
+      text: trail.bjarni
+    - id: hjalti
+      look: { gender: m, name: Hjalti, patronym: Brandsson, age: 41, build: broad, beard: short }
+      hands: [elderRune, mirroredRune]
+      text: trail.hjalti
+    - id: ljot
+      look: { gender: m, name: Ljot, patronym: Ormsson, age: 55, build: heavy, beard: long }
+      hands: [mirroredRune, brokenFormula]
+      text: trail.ljot
+  right: [{ flag: reported_carver }, { standing: odin, by: 1 }, { rings: 15 }]
+  wrong: [{ flag: carver_wrong }, { standing: odin, by: -1 }]
+  title: trail.title
+  intro: trail.intro
+  named: { right: trail.named.right, wrong: trail.named.wrong }
 # Arms for the last battle (docs/tech-spec.md §56): from the night Muninn says Odin knows how it ends, the
 # quartermaster sells arms for one front a night, each lot dearer than the last, each adding strength at its front.
 # First guesses for the sims to tune. The words are DRAFT.
@@ -450,6 +480,12 @@ epilogue:
         - { when: { state: flags.hrapp_draugr, gte: 1 }, text: epi.hrapp.draugr }
         - { when: { state: flags.hrapp_refused, gte: 1 }, text: epi.hrapp.hel }
         - { when: { state: flags.hrapp_judged, gte: 1 }, text: epi.hrapp.judged }
+    # The forger's trail (docs/tech-spec.md §71): the carver named, or another man in his place.
+    - id: epi.carver
+      section: dead
+      lines:
+        - { when: { state: flags.carver_wrong, gte: 1 }, text: epi.carver.wrong }
+        - { when: { state: flags.reported_carver, gte: 1 }, text: epi.carver.right }
     # The souls who come back (docs/tech-spec.md §60): the shieldmaiden sent home, Geir's widow, the miser's nephew, the
     # jarl's son and Thorvald's mother.
     - id: epi.svanhild

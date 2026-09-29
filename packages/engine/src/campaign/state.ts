@@ -7,7 +7,7 @@ import {
   type StatePred,
 } from '../content/types';
 import type { CaseSpec } from '../gen/types';
-import type { Assists, ShiftState } from '../shift/shift';
+import type { Assists, ShiftState, VerdictMark } from '../shift/shift';
 import type { Battle } from './battle';
 import type { DayGrade } from './grade';
 
@@ -155,6 +155,20 @@ export interface NamedSoul {
   readonly runs: boolean;
 }
 
+/** A mark on the forger's trail pinned to the board (docs/tech-spec.md §71): a habit of the carver's knife, and where. */
+export interface TrailMark extends VerdictMark {
+  readonly day: number;
+  /** The soul it was seen on. */
+  readonly name: string;
+}
+
+/** The forger's trail as the run stands (docs/tech-spec.md §71). */
+export interface RunTrail {
+  readonly marks: readonly TrailMark[];
+  /** The carver named, the night he was, and whether he was the one. */
+  readonly accused?: { readonly suspect: string; readonly day: number; readonly right: boolean };
+}
+
 /** A day event as a run drew it (docs/tech-spec.md §52): the day, and which. */
 export interface DayEventAt {
   readonly day: number;
@@ -281,6 +295,8 @@ export interface RunState {
   readonly named?: readonly NamedSoul[];
   /** The souls whose kin have come to the desk (docs/tech-spec.md §60), by name; absent until one has. */
   readonly kin?: readonly string[];
+  /** The forger's trail (docs/tech-spec.md §71): the marks pinned so far, and the carver named; absent until either. */
+  readonly trail?: RunTrail;
   readonly family: readonly FamilyMember[];
   readonly upgrades: readonly string[];
   /** Story memory across days. Integers only (Ink reads them). */
@@ -443,6 +459,10 @@ export function stateValue(run: RunState, path: string): number {
       return run.sent?.[key as Destination] ?? 0;
     case 'naglfar':
       return run.naglfar ?? 0;
+    // The forger's trail (docs/tech-spec.md §71): the night the carver was named, and whether he was the one; 0 while
+    // none is.
+    case 'trail':
+      return trailValue(run, key);
     // Lots of arms bought for the last battle (docs/tech-spec.md §56).
     case 'arms':
       return run.armsBought ?? 0;
@@ -482,6 +502,13 @@ export function stateValue(run: RunState, path: string): number {
   }
 }
 
+/** The forger's trail's numbers: the `night` the carver was named, and whether he was the one (`right`, 1 or 0). */
+function trailValue(run: RunState, key: string | undefined): number {
+  const accused = run.trail?.accused;
+  if (!accused) return 0;
+  return key === 'night' ? accused.day : accused.right ? 1 : 0;
+}
+
 export function evalState(p: StatePred, run: RunState): boolean {
   return evalPred(p, (path) => stateValue(run, path));
 }
@@ -507,7 +534,7 @@ export function predPaths(p: StatePred): string[] {
 
 /** Paths a StatePred may use (the content linter checks endings against it). */
 export const STATE_PATHS =
-  /^(day|rings|debtNights|naglfar|arms|ragnarok|oath|fronts|front\.[A-Za-z0-9_]+|(standing|lead)\.(odin|freyja|hel|loki|clerk)|einherjar\.(worthy|unworthy)|sent\.(VALHALLA|FOLKVANGR|HEL|RAN|RETURN|DETAIN|TRANSFER)|flags\.[A-Za-z0-9_]+|family\.(well|sick|home|gone)|member\.[A-Za-z0-9_]+\.(well|sick|gone|died|left)|ending\.[A-Za-z0-9_]+)$/;
+  /^(day|rings|debtNights|naglfar|arms|ragnarok|oath|fronts|trail\.(night|right)|front\.[A-Za-z0-9_]+|(standing|lead)\.(odin|freyja|hel|loki|clerk)|einherjar\.(worthy|unworthy)|sent\.(VALHALLA|FOLKVANGR|HEL|RAN|RETURN|DETAIN|TRANSFER)|flags\.[A-Za-z0-9_]+|family\.(well|sick|home|gone)|member\.[A-Za-z0-9_]+\.(well|sick|gone|died|left)|ending\.[A-Za-z0-9_]+)$/;
 
 /** Whether a StatePred reads the last battle (docs/tech-spec.md §54): what it asks can't be known before it's fought. */
 export function readsBattle(p: StatePred): boolean {

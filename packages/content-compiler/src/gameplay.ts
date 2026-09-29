@@ -84,6 +84,7 @@ import {
   scriptedCase,
   weaveDay,
   weaveSoulsOn,
+  withTrail,
   wovenContent,
 } from '@cots/engine';
 import { z } from 'zod';
@@ -256,6 +257,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('arms') ? { arms: last('arms') as NonNullable<CampaignDef['arms']> } : {}),
     ...(last('sellBack') !== undefined ? { sellBack: last('sellBack') as number } : {}),
     ...(last('reprieve') ? { reprieve: last('reprieve') as NonNullable<CampaignDef['reprieve']> } : {}),
+    ...(last('trail') ? { trail: last('trail') as NonNullable<CampaignDef['trail']> } : {}),
   };
 }
 
@@ -1128,6 +1130,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintEvents(content, key));
   problems.push(...lintWeaving(content, key));
   problems.push(...lintRagnarok(content, key));
+  problems.push(...lintTrail(content, key, walk));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1135,6 +1138,61 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
     const spec = content.days.find((x) => x.day === d);
     if (!spec) problems.push(`Campaign day ${d} has no day spec.`);
     else if (!spec.economy) problems.push(`Campaign day ${d} has no economy.`);
+  }
+  return problems;
+}
+
+/**
+ * The forger's trail (docs/tech-spec.md §71): its words; carvers with two different habits each, no two with the same
+ * two (so both seen name one man), and names no generated soul is given; nights within the campaign, from its first
+ * day on; and what naming a man does, to a family that exists.
+ */
+function lintTrail(
+  content: Content,
+  key: (k: string, where: string) => void,
+  walk: (p: StatePred, where: string) => void,
+): string[] {
+  const c = content.campaign;
+  const t = c?.trail;
+  if (!c || !t) return [];
+  const problems: string[] = [];
+  for (const k of [t.title, t.intro, t.named.right, t.named.wrong]) key(k, "the forger's trail");
+  if (t.when) walk(t.when, "the forger's trail");
+  const reserved = new Set(
+    Object.entries(content.pools)
+      .filter(([id]) => id.startsWith('names.reserved'))
+      .flatMap(([, names]) => names),
+  );
+  const ids = new Set<string>();
+  const pairs = new Set<string>();
+  for (const s of t.suspects) {
+    const where = `carver ${s.id} on the forger's trail`;
+    if (ids.has(s.id)) problems.push(`Duplicate carver "${s.id}" on the forger's trail.`);
+    ids.add(s.id);
+    key(s.text, where);
+    const [a, b] = s.hands;
+    if (a === b) problems.push(`${where} has the same habit twice: two are needed to tell him from the others.`);
+    const pair = [...s.hands].sort().join('+');
+    if (pairs.has(pair)) problems.push(`${where} has the same two habits as another carver, so none could be named.`);
+    pairs.add(pair);
+    if (!reserved.has(s.look.name)) {
+      problems.push(`${where} is named ${s.look.name}, which no names.reserved pool keeps from generated souls.`);
+    }
+  }
+  if (t.since > c.lastDay) problems.push("The forger's trail begins after the campaign's last day.");
+  const nights = new Set<number>();
+  for (const n of t.nights) {
+    if (nights.has(n)) problems.push(`The forger's trail names night ${n} twice.`);
+    nights.add(n);
+    if (n < t.since || n >= c.lastDay) {
+      problems.push(`The forger's trail names night ${n}, which isn't a night of the campaign from its first day.`);
+    }
+  }
+  const family = new Set(c.family.map((m) => m.id));
+  for (const e of [...t.right, ...t.wrong]) {
+    if ('family' in e && !family.has(e.family)) {
+      problems.push(`The forger's trail changes unknown family member "${e.family}".`);
+    }
   }
   return problems;
 }
@@ -1355,6 +1413,10 @@ function lintScripted(content: Content, strings: Readonly<Record<string, string>
       problems.push(`${where} is named ${def.look.name}, which no names.reserved pool keeps from generated souls.`);
     }
     if (def.when) walk(def.when, where);
+    // A carver's face (docs/tech-spec.md §71) is the forger's trail's to give.
+    if (def.lookOf && !content.campaign?.trail) {
+      problems.push(`${where} wears the face of a carver, but this build has no forger's trail.`);
+    }
     for (const rule of def.onStamp ?? []) for (const e of rule.effects) effect(e, where);
     // A plea (docs/tech-spec.md §51) asks for a stamp where the soul doesn't belong, in words the desk can show.
     if (def.plea) {
@@ -1377,20 +1439,38 @@ function lintScripted(content: Content, strings: Readonly<Record<string, string>
       }
       placed.add(def.id);
       if (slot.at > d.queue.count[1]) problems.push(`day ${d.day} places ${def.id} past the end of its queue.`);
+      const trail = content.campaign?.trail;
+      if (def.lookOf && trail && d.day < trail.since) {
+        problems.push(`day ${d.day} places ${def.id}, a carver's face, before the forger's trail begins.`);
+      }
+      // A carver's face, whichever carver the run draws and names (docs/tech-spec.md §71): his, and his habits.
+      const faces =
+        def.lookOf && trail && d.day >= trail.since
+          ? trail.suspects.map((s) => ({ hands: s.hands, looks: { culprit: s.look, named: s.look } }))
+          : [undefined];
       // Under every order a run can read the rules in: its own, and each weave's (docs/tech-spec.md §53).
       const orders = [
         { rules: content, under: '' },
         ...(content.campaign?.weaving?.weaves ?? []).map((w) => ({ rules: wovenContent(content, w), under: w.id })),
       ];
       for (const { rules, under } of orders) {
-        for (const choose of paramCombos(content, d.day)) {
-          const ctx = createDayContext(rules, d.day, 'lint', undefined, choose);
-          const made = scriptedCase(def, ctx, 'lint', slot.at);
-          if (!made.ok) {
-            const params = [...Object.entries(choose).map(([k, v]) => `${k}=${v}`), ...(under ? [under] : [])];
-            problems.push(`day ${d.day}: ${made.why}${params.length > 0 ? ` with ${params.join(', ')}` : ''}.`);
-            break;
+        for (const face of faces) {
+          let failed = false;
+          for (const choose of paramCombos(content, d.day)) {
+            const ctx = withTrail(createDayContext(rules, d.day, 'lint', undefined, choose), face);
+            const made = scriptedCase(def, ctx, 'lint', slot.at);
+            if (!made.ok) {
+              const params = [
+                ...Object.entries(choose).map(([k, v]) => `${k}=${v}`),
+                ...(under ? [under] : []),
+                ...(face ? [`the face of ${face.looks.culprit.name}`] : []),
+              ];
+              problems.push(`day ${d.day}: ${made.why}${params.length > 0 ? ` with ${params.join(', ')}` : ''}.`);
+              failed = true;
+              break;
+            }
           }
+          if (failed) break;
         }
       }
     }

@@ -3,7 +3,7 @@ import { DESTINATIONS } from '../content/types';
 import { companionShows, memberField, parseMemberField } from '../gen/companions';
 import { generateDay } from '../gen/generate';
 import { linkParties, lordGiven, partyAt } from '../gen/party';
-import type { CaseSpec, Field } from '../gen/types';
+import type { CaseSpec, Field, ForgeryTell } from '../gen/types';
 import { createDayContext, type DayCtx, soulCtx } from '../logic/context';
 import { type Given, isPerceivable, solve } from '../logic/solver';
 import { type PressAnswer, pressAnswer, saidFrom } from '../narrative/press';
@@ -125,7 +125,16 @@ export interface Verdict {
   readonly gave?: number;
   /** Of the lies caught, those about a companion (docs/tech-spec.md §69); absent when none. */
   readonly caughtAbout?: number;
+  /** Marks on the forger's trail seen on the soul (docs/tech-spec.md §71), on a day it runs; absent when none. */
+  readonly marks?: readonly VerdictMark[];
   readonly atMs: number;
+}
+
+/** A mark on the forger's trail (docs/tech-spec.md §71): a habit of the carver's knife, and where it was seen. */
+export interface VerdictMark {
+  readonly hand: ForgeryTell;
+  /** Under the lens on a forged tally, or in a gap in Muninn's memory. */
+  readonly via: 'tally' | 'muninn';
 }
 
 export interface ShiftClock {
@@ -515,19 +524,35 @@ function penalize(state: ShiftState, ms: number): ShiftState {
   return ms > 0 ? { ...state, clock: { ...state.clock, penaltyMs: state.clock.penaltyMs + ms } } : state;
 }
 
-function finish(state: ShiftState, endedBy: 'queue' | 'dusk', at: number): { state: ShiftState; events: ShiftEvent[] } {
+/**
+ * The shift over. The souls still in line are unjudged; what the player saw of those at the desk as the sun set still
+ * counts on the forger's trail (docs/tech-spec.md §71), with `ctx`.
+ */
+function finish(
+  state: ShiftState,
+  endedBy: 'queue' | 'dusk',
+  at: number,
+  ctx?: DayCtx,
+): { state: ShiftState; events: ShiftEvent[] } {
   const atMs = sunElapsed(state, at);
-  const unjudged: Verdict[] = state.cases.slice(state.verdicts.length).map((c, i) => ({
-    index: state.verdicts.length + i,
-    stamped: null,
-    expected: c.expect.dest,
-    rule: c.expect.rule,
-    correct: false,
-    missed: [],
-    caught: 0,
-    lies: c.lies.length,
-    atMs,
-  }));
+  const desk = state.party?.start ?? state.cursor;
+  const unjudged: Verdict[] = state.cases.slice(state.verdicts.length).map((c, i) => {
+    const index = state.verdicts.length + i;
+    const soul = ctx && state.phase === 'shift' ? memberSoul(state, index - desk) : undefined;
+    const marks = ctx && soul ? marksSeen(c, soul.seen, soulCtx(ctx, c)) : [];
+    return {
+      index,
+      stamped: null,
+      expected: c.expect.dest,
+      rule: c.expect.rule,
+      correct: false,
+      missed: [],
+      caught: 0,
+      lies: c.lies.length,
+      ...(marks.length > 0 ? { marks } : {}),
+      atMs,
+    };
+  });
   const { party: _, ...rest } = state;
   return {
     state: { ...rest, phase: 'done', endedBy, verdicts: [...state.verdicts, ...unjudged], soul: freshSoul() },
@@ -548,7 +573,7 @@ function checkSun(state: ShiftState, at: number, ctx: DayCtx): { state: ShiftSta
     events.push({ e: 'dusk' });
   }
   if (s.clock.dusk && elapsed >= s.sunMs + sunCosts(ctx.content).duskGrace) {
-    const f = finish(s, 'dusk', at);
+    const f = finish(s, 'dusk', at, ctx);
     return { state: f.state, events: [...events, ...f.events] };
   }
   return { state: s, events };
@@ -575,6 +600,7 @@ function verdictFor(
   const missedAcross = (c.meta.crossProof ?? [])
     .filter((x) => !(party[x.soul]?.seen ?? []).includes(x.field))
     .map((x) => memberField(x.soul, x.field));
+  const marks = marksSeen(c, soul.seen, ctx);
   return {
     index,
     stamped,
@@ -588,8 +614,22 @@ function verdictFor(
     ...(soul.pressed?.length ? { pressed: soul.pressed.length } : {}),
     ...(soul.gave?.length ? { gave: soul.gave.length } : {}),
     ...(crossFlagged(soul).size > 0 ? { caughtAbout: crossFlagged(soul).size } : {}),
+    ...(marks.length > 0 ? { marks } : {}),
     atMs,
   };
+}
+
+/**
+ * The marks on the forger's trail (docs/tech-spec.md §71) seen on soul `c`: its forged tally's tell, under the lens,
+ * and the knife as Muninn remembers it. None on a day the trail doesn't run.
+ */
+function marksSeen(c: CaseSpec, seen: readonly string[], ctx: DayCtx): VerdictMark[] {
+  if (!ctx.trail) return [];
+  return c.evidence.fields.flatMap((f): VerdictMark[] => {
+    if (!seen.includes(f.id)) return [];
+    if (f.tell !== undefined) return [{ hand: f.tell, via: 'tally' }];
+    return f.hand !== undefined ? [{ hand: f.hand, via: 'muninn' }] : [];
+  });
 }
 
 /**

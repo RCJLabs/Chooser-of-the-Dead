@@ -24,6 +24,11 @@ export interface Field {
   readonly about?: { readonly soul: number; readonly fact: string; readonly value: Value };
   /** A forgery sign on the soul's saga tally: seen, it makes the whole tally worthless. */
   readonly tell?: ForgeryTell;
+  /**
+   * A habit of the knife that re-cut the soul's saga, as Muninn remembers it where he can't remember the soul
+   * (docs/tech-spec.md §71): a mark on the forger's trail. It proves nothing about the soul.
+   */
+  readonly hand?: ForgeryTell;
   readonly text?: { readonly msg: string; readonly params: Readonly<Record<string, string | number>> };
 }
 

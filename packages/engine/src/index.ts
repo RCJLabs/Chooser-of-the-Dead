@@ -8,6 +8,7 @@ export * from './campaign/pleas';
 export * from './campaign/run';
 export * from './campaign/save';
 export * from './campaign/state';
+export * from './campaign/trail';
 export * from './campaign/weave';
 export * from './content/types';
 export * from './gen/companions';

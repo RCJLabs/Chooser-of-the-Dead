@@ -7,7 +7,7 @@
  * never needs floating-point math.
  */
 
-import type { Look } from '../gen/types';
+import type { ForgeryTell, Look } from '../gen/types';
 
 export type Value = string | number | boolean;
 
@@ -253,6 +253,11 @@ export interface ArchetypeDef {
   readonly lies: readonly LieSpec[];
   /** Words its souls' lines use, by pool (`{ pool.weapons: seax }`). A fact's own words still win. */
   readonly words?: Readonly<Record<string, string>>;
+  /**
+   * Its souls carry a saga tally cut by the valley's forger (docs/tech-spec.md §71): true lines about the face they
+   * wear, and a forgery's tell. Loki's borrowed faces need papers.
+   */
+  readonly papers?: 'forged';
 }
 
 export type SpeechSlot =
@@ -691,6 +696,11 @@ export interface ScriptedCaseDef {
   readonly require?: readonly Pred[];
   readonly lies: readonly LieSpec[];
   readonly look: Look;
+  /**
+   * Wears the face of a carver the forger's trail names (docs/tech-spec.md §71): the one who cut the tallies
+   * (`culprit`), or the man named for it at night (`named`). `look` stands in where there's no trail.
+   */
+  readonly lookOf?: 'culprit' | 'named';
   /** Extra lines the soul says (string keys). They claim nothing, so they can't change a judgment. */
   readonly lines?: readonly string[];
   /** Words its generated lines use, by pool: a fisherwoman's knife is a seax (`{ pool.weapons: seax }`). */
@@ -841,6 +851,39 @@ export interface CampaignDef {
   readonly sellBack?: number;
   /** Once a run, the night a debt would end it, someone pays it (docs/tech-spec.md §56); none without it. */
   readonly reprieve?: ReprieveDef;
+  /** The forger's trail (docs/tech-spec.md §71): who cuts the forged tallies, found from marks at the desk. */
+  readonly trail?: TrailDef;
+}
+
+/** A carver the forger's trail can name (docs/tech-spec.md §71). */
+export interface TrailSuspect {
+  readonly id: string;
+  /** How he looks when he comes to the desk. */
+  readonly look: Look;
+  /** The two habits his forged tallies give away: a forgery's tells. */
+  readonly hands: readonly ForgeryTell[];
+  /** How the board speaks of him (a string key). */
+  readonly text: string;
+}
+
+/**
+ * The forger's trail (campaign.yaml `trail`, docs/tech-spec.md §71). One of the suspects, drawn for the run, cuts every
+ * forged tally from `since` on; each tally's tell, a borrowed face's papers and a gap in Muninn's memory show one of
+ * his habits. On the `nights`, the chooser may name him, once.
+ */
+export interface TrailDef {
+  readonly since: number;
+  /** The hunt is on (the board shows, and he can be named) while this holds; always, without it. */
+  readonly when?: StatePred;
+  readonly nights: readonly number[];
+  readonly suspects: readonly TrailSuspect[];
+  /** What naming him does, and what naming another man does. */
+  readonly right: readonly Effect[];
+  readonly wrong: readonly Effect[];
+  /** The board's words (string keys): its heading, what it says of the hunt, and what it says once a man is named. */
+  readonly title: string;
+  readonly intro: string;
+  readonly named: { readonly right: string; readonly wrong: string };
 }
 
 /**

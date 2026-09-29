@@ -58,7 +58,7 @@ App 480 is Spacewar, Valve's test app. Every Steam account can use it.
   - Root override for Linux: `LinuxHome` with `.config/ChooserOfTheSlain/saves`. For macOS later: `MacAppSupport`.
   - A quota of a few MB and about 50 files is plenty. Three campaign slots late in the game come to under 1 MB.
 - **Achievements:**
-  - `pnpm steam:achievements` prints each achievement's API name, name, description and whether it's hidden. There are 23 in the full game; `--demo` prints the demo's 8.
+  - `pnpm steam:achievements` prints each achievement's API name, name, description and whether it's hidden. There are 25 in the full game; `--demo` prints the demo's 8.
   - Enter them as printed. The API names must match exactly: the shell unlocks by them.
   - Each needs icons, locked and unlocked. None are drawn yet.
 - **Uploading builds** (not set up): SteamPipe, with `steamcmd` by hand, or `game-ci/steam-deploy` in CI with the `STEAM_CONFIG_VDF` secret. Upload to a beta branch first.

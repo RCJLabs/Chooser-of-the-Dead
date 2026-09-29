@@ -1629,7 +1629,7 @@ Fines are what sink a novice. In a scratch run of 30 seeds, cutting every bill b
   | 8 | Hallbjorn, the smith from Day 7 | `ulf_fine_paid` or `ulf_debt` (two versions) | VALHALLA | A braggart swearing his copied Ulfberht is real |
   | 9 | Thorvald's second visit | `thorvald_returned` (Day 3) | RETURN | Still alive |
   | 10 | Bard, a shipwright from Ulf's yard | `ulf_shipyard` (Day 9) | RÁN, clipped | Drowned with long nails: the Naglfar decree |
-  | 13 or 15 | Bjarni, the tally carver from Day 11 | `reported_carver` set (Day 13, drowned by the jarl) or not (Day 15, old age) | RÁN or TRANSFER | His own forged tally claims a battle |
+  | 13 or 15 | Bjarni, the tally carver from Day 11 (since §71, whichever carver the run drew) | `reported_carver` set (Day 13, drowned by the jarl) or not (Day 15, old age; since §71, a winter fever) | RÁN or TRANSFER | His own forged tally claims a battle |
   | 17 | Thrand, an old skald | always | VALHALLA | The spear mark |
   | 19 | Halla, the midwife who delivered you | always | TRANSFER | Hel's hall is full |
 
@@ -4422,6 +4422,76 @@ The brainstorm's version, and what changed:
 - **Jarls are ordinary souls** chosen from the line, with no look of their own.
 - **Skögul's hints point only at the soul turned to.** Turned to a man, she won't point at his jarl's evidence.
 - **The numbers are guesses:** how often retinues come (a weight of 2 beside the fight's 3 and the crew's 2), their size, and the day they start.
+
+## 71. The forger's trail (game phase 5)
+
+**Why.** Game phase 5 in [`roadmap.md`](roadmap.md): an investigation that runs across days, on top of judging one soul at a time. The Day 11 letter already had a carver selling families better tallies; now he's someone to find.
+
+**The trail** (`trail` in the campaign pack's `campaign.yaml`, `campaign/trail.ts`)
+- **Three carvers**, each with a face (so a story soul can wear it), words for the board, and **two of the three habits** a forged tally can show: an old rune (ᛗ), a rune cut backwards, "reist mik" for "reist rúnar". No two share both, so the two seen together name one man.
+- **One of them, drawn for the run from its seed** (`culpritOf`, its own stream), cuts every forged tally from Day 11.
+- **Where his habits show** (a day's context carries them, `DayCtx.trail`, and so does a noon decree's):
+  - **A forged tally's tell** is one of his two habits, not any of the three. What a tell is never decides a soul: any tell shows the tally forged, as before.
+  - **Loki's borrowed faces carry papers** (`papers: forged` on `arch.loki`): a forged tally of the face's true deeds, with a tell. They prove nothing either way, but they're a mark. Endless rounds on Day 12's rules or later get them too.
+  - **A gap in Muninn's memory** on a soul whose saga was cut again (a forged tally): he can't find the soul, but he remembers the knife, and names the habit its tally doesn't show (`Field.hand`, `rv.muninn.carved.*`). It says nothing about the soul, so no rule, solver or validator reads it.
+- **A day with two marks or more shows both habits** (`markTrail`, after the line is formed). Where they'd all show the same one, the last forged tally shows the other instead. It changes only which tell a forgery shows.
+- **The Daily never changes:** its content has no trail, so no tell, paper or gap is drawn differently. The day goldens record nothing a tell's kind changes, and held.
+
+**Marks** (`Verdict.marks`, `RunState.trail`)
+- **Seen, a mark is pinned:** a tally's tell once it's under the lens, and Muninn's memory of the knife once it's read. Each verdict carries what was seen of the soul, and so does the soul still at the desk when the sun sets. The audit pins each habit seen on a soul once, with the day and the soul's name.
+- **From Day 11 to the last of the trail's nights,** until someone is named. Day 11's marks are pinned before the hunt opens, so the board has them when it does.
+- **Who the marks leave** (`suspectsLeft`): every carver whose knife shows every habit pinned. The carver is always among them.
+
+**The hunt**
+- **It opens when the Night 11 letter asks for his name** (`when: flags.hunt_carver`). That option used to report him outright; now the raven brings three names, and Skögul pins them above the desk. The other answers never open it.
+- **On Nights 12 and 14** the board offers a name, once a run (`RunAction` `accuse`), and only for a carver the marks leave. The player is asked twice.
+  - **The right man:** `reported_carver`, Odin +1, 15 rings.
+  - **Another:** `carver_wrong`, Odin −1.
+  - **Either way the jarl's men drown him,** and he comes to the desk: the day after Night 12, or on Day 15 after Night 14. The carver wears the run's carver's face (`lookOf: culprit`); the wrong man, his own (`lookOf: named`), with an honest tally.
+  - **A carver never named dies of a winter fever,** and comes to the desk on Day 15 with his forged tally, Hel's hall being full, as before. So does the carver when the wrong man was named.
+- **State:** `trail.night` (the night he was named, 0 until then) and `trail.right`, for story souls' `when`, threads, the epilogue and achievements.
+
+**Around it**
+- **At night, the carvers' board:** each carver, his habits and whether the marks leave him; the marks, a line for each habit, with the souls and days; when he can be named; and, the night he is, what came of it. Ruled-out carvers stay on the board, greyed, with no button.
+- **The audit** says how many marks the day pinned, once the hunt is on.
+- **The journal** keeps the hunt in play until someone is named or the last night passes. **The epilogue** says what came of it, and naming the right man is an achievement (hidden).
+- **The playtest report** names the carver, whether the hunt opened, the marks each day and who was named, and whether he was the one.
+- **The bots** name a carver only when the marks leave one man. One that catches a forger out also puts the tally under the lens and reads Muninn's gap. That adds no random draws, so the sims' other numbers are comparable.
+- **The story page** gets a section for the trail and reads its flags.
+- **Saves:** a run from before the trail picks it up from its next day. Its Night 11 report still drowns the carver on Day 13, now in the drawn carver's face.
+
+**Numbers** (upper bounds, since they assume every mark is seen)
+- **30 seeds, Days 11–14,** with every forged tally under the lens and every gap read:
+  - 67, 80, 56 and 68 marks on Days 11, 12, 13 and 14, about 2–3 a day.
+  - Every mark matched the carver's habits.
+  - Both habits showed on every day with two marks or more; 8 of the 30 Day 11s had fewer than two.
+  - The marks named the carver by Night 12 in all 30 runs.
+- **The sims,** 6 seeds per policy: the one story policy that asks for the name on Night 11 (Odin's) named the right man in 12 of 12 runs, expert and competent. The endings each policy reached didn't change.
+
+**Tests**
+- **Engine** (`trail.test.ts`):
+  - the carvers can be told apart, and each is drawn for some runs;
+  - the trail runs from Day 11, in the campaign only, and on a noon decree's souls;
+  - only the carver's habits show, both on any day with two marks or more, Muninn's naming the other;
+  - Loki's papers are true;
+  - the day pass;
+  - what's pinned is exactly what was seen, and what was seen when the sun set;
+  - the board opens with the letter;
+  - naming once, on a trail night, with each outcome;
+  - nothing pinned after;
+  - each story soul on its day, in the right face.
+- **Compiler** (`campaign-lint.test.ts`): carvers with one habit twice or the same two as another, a name no reserved pool keeps, missing words, a night outside the campaign, a condition on an unknown path, and a carver's face with no trail. Each story soul with a carver's face is made in each carver's.
+- **Report** (`playtest.test.ts`), and **e2e** (`trail.spec.ts`, full game, phone and desktop):
+  - Night 11's letter opens the board with Day 11's marks.
+  - On Night 12 the marks leave one carver, named after "not yet", with 15 rings and the achievement announced.
+  - On Day 13 he's at the desk, drowned, in his own face.
+
+**Known limits**
+- **Careful play solves it by Night 12.** With every forged tally under the lens, the marks named the carver by then in every run measured. The challenge is the lens's sun and remembering to look; players who skip it will be guessing, which Night 14 lets them avoid. Nobody has played it yet.
+- **The board works out who's left for the player.** The deduction is in finding the marks, not in reading them.
+- **It opens only if the letter asks.** A player who answers the letter another way never sees it.
+- **The story around it is draft,** like the rest: the letter's new lines, the carvers, the drowned man's words, the epilogue lines.
+- **Numbers are guesses:** 15 rings and Odin's ±1, three carvers, Nights 12 and 14.
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

@@ -270,6 +270,9 @@ const hasTallyLine = (ctx: DayCtx, fact: string, value: Value) =>
  * The soul's saga tally, if it carries one (Day 11 on). A forger's tally
  * carves its lie, perhaps beside one true deed, and always shows a tell; an
  * honest tally (at the day's tallyRate) records up to two decisive facts.
+ * On a campaign day of the forger's trail (docs/tech-spec.md §71) the tell is
+ * one of the carver's two habits. A soul that carries `papers` (Loki's borrowed
+ * faces) has a forged tally of true deeds: the face's, not its own.
  */
 export function planTally(
   truth: Truth,
@@ -278,15 +281,24 @@ export function planTally(
   ctx: DayCtx,
   knobs: Knobs,
   rng: Rng,
+  papers?: 'forged',
 ): TallyPlan | null {
   const truths = decisive
     .filter((f) => hasTallyLine(ctx, f, truth[f] as Value))
     .map((fact) => ({ fact, value: truth[fact] as Value }));
+  const hands = ctx.trail?.hands ?? TELLS;
   const forged = lies.findIndex((l) => l.via === 'tally');
   if (forged >= 0) {
     const lie = lies[forged] as PlannedLie;
     const extra = truths.filter((t) => t.fact !== lie.fact).slice(0, rng.chance(1, 2) ? 1 : 0);
-    return { lines: [{ fact: lie.fact, value: lie.claimed, lie: forged }, ...extra], tell: rng.pick(TELLS) };
+    return { lines: [{ fact: lie.fact, value: lie.claimed, lie: forged }, ...extra], tell: rng.pick(hands) };
+  }
+  if (papers === 'forged') {
+    // What the face it wears did, true of that face: any fact a tally can carve, in content order.
+    const deeds = [...ctx.facts.keys()]
+      .filter((f) => !ctx.facts.get(f)?.pinned && hasTallyLine(ctx, f, truth[f] as Value))
+      .map((fact) => ({ fact, value: truth[fact] as Value }));
+    if (deeds.length > 0) return { lines: deeds.slice(0, 2), tell: rng.pick(hands) };
   }
   if (!knobs.tallyRate || truths.length === 0 || !rng.chance(knobs.tallyRate, 100)) return null;
   return { lines: truths.slice(0, 2), tell: null };
@@ -399,12 +411,19 @@ export function render(input: RenderInput, ctx: DayCtx, rng: Rng): Rendered {
     const tag = input.ravens.muninn;
     const tpl = pickRaven('muninn', tag, (t) => t.tag === tag, ctx, voice, rng);
     if (tpl) {
+      const params = fillParams(tpl.params, look, ctx, shared, rng);
+      // A soul whose saga was cut again (its tally forged), on the forger's trail (docs/tech-spec.md §71): Muninn
+      // can't find it, but he remembers the knife, and names the carver's other habit.
+      const tell = input.tally?.tell;
+      const hand =
+        tag === 'forgot' && tell && ctx.trail ? (ctx.trail.hands.find((h) => h !== tell) ?? tell) : undefined;
       fields.push({
         id: 'muninn.0',
         item: 'muninn',
         salience: 3,
         cost: 2,
-        text: { msg: tpl.msg, params: fillParams(tpl.params, look, ctx, shared, rng) },
+        ...(hand ? { hand } : {}),
+        text: hand ? { msg: `rv.muninn.carved.${hand}`, params: {} } : { msg: tpl.msg, params },
       });
     }
   }

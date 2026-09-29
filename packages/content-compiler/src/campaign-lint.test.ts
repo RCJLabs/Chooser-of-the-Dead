@@ -271,3 +271,43 @@ describe('arms and the reprieve, as content', () => {
     );
   }, 60_000);
 });
+
+type Trail = NonNullable<CampaignPart['trail']>;
+
+// docs/tech-spec.md §71.
+describe('the forger’s trail, as content', () => {
+  const withTrail = (change: (t: Trail) => Trail | undefined) =>
+    compileWith((c) => {
+      if (!c.trail) return c;
+      const { trail, ...rest } = c;
+      const changed = change(trail);
+      return changed ? { ...rest, trail: changed } : rest;
+    });
+  const suspect = (edit: (s: Trail['suspects'][number]) => Trail['suspects'][number]) =>
+    withTrail((t) => ({ ...t, suspects: t.suspects.map((s, i) => (i === 0 ? edit(s) : s)) }));
+  it('compiles as shipped, and refuses carvers that can’t be told apart, strangers’ names, or bad nights', () => {
+    expect(withTrail((t) => t)).not.toThrow();
+    expect(suspect((s) => ({ ...s, hands: [s.hands[0] ?? 'elderRune', s.hands[0] ?? 'elderRune'] }))).toThrow(
+      /carver \w+ on the forger's trail has the same habit twice/,
+    );
+    expect(
+      withTrail((t) => ({ ...t, suspects: t.suspects.map((s) => ({ ...s, hands: t.suspects[0]?.hands ?? s.hands })) })),
+    ).toThrow(/has the same two habits as another carver/);
+    expect(suspect((s) => ({ ...s, look: { ...s.look, name: 'Ketil' } }))).toThrow(
+      /is named Ketil, which no names\.reserved pool keeps from generated souls/,
+    );
+    expect(suspect((s) => ({ ...s, text: 'trail.nobody' }))).toThrow(/uses missing string "trail\.nobody"/);
+    expect(withTrail((t) => ({ ...t, suspects: [...t.suspects, ...t.suspects.slice(0, 1)] }))).toThrow(
+      /Duplicate carver "\w+" on the forger's trail/,
+    );
+    expect(withTrail((t) => ({ ...t, nights: [t.since - 1] }))).toThrow(/names night \d+, which isn't a night/);
+    expect(withTrail((t) => ({ ...t, nights: [20] }))).toThrow(/names night 20, which isn't a night/);
+    expect(withTrail((t) => ({ ...t, when: { state: 'trail.moon', gte: 1 } }))).toThrow(
+      /the forger's trail reads unknown run state "trail\.moon"/,
+    );
+  }, 60_000);
+
+  it('refuses a carver’s face on a story soul where no trail gives one', () => {
+    expect(withTrail(() => undefined)).toThrow(/wears the face of a carver, but this build has no forger's trail/);
+  }, 60_000);
+});

@@ -123,6 +123,8 @@
     alive: { is: false }
   lies:
     - { fact: trickster, claim: false, p: 100, motive: mischief, onQuestion: { deflect: 1 } }
+  # A borrowed face needs papers: a saga tally of the face's true deeds, cut by the valley's forger (§71).
+  papers: forged
 # Day 14's teaching soul: an honest straw death, now the clerk's while Hel's hall is full.
 - id: arch.bedridden
   since: 14

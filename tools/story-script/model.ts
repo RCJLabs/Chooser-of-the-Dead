@@ -105,6 +105,15 @@ export interface ScriptModel {
   readonly epilogue: readonly EpilogueDoc[];
   /** The vertical slice's jump, when the build has one: the day it jumps to and the flags it sets. */
   readonly slice?: { readonly after: number; readonly day: number; readonly flags: readonly string[] };
+  /** The forger's trail (docs/tech-spec.md §71), when the build has one. */
+  readonly trail?: {
+    readonly since: number;
+    readonly when?: StatePred;
+    readonly nights: readonly number[];
+    readonly suspects: readonly { readonly name: string; readonly text: string; readonly hands: readonly string[] }[];
+    readonly right: readonly Effect[];
+    readonly wrong: readonly Effect[];
+  };
   /** The family by id ("brother"), with the names the strings give them ("Ulf, your brother"). */
   readonly family: readonly { readonly id: string; readonly name: string }[];
   readonly strings: Readonly<Record<string, string>>;
@@ -301,6 +310,27 @@ export function buildModel(build: {
       detail: 'the first night a debt would have ended the run',
     });
   }
+  // The forger's trail (docs/tech-spec.md §71): the board opens while its `when` holds, and naming a carver sets flags.
+  const trail = content.campaign?.trail;
+  if (trail) {
+    for (const f of trail.when ? stateFlags(trail.when) : []) {
+      add(read, f, {
+        day: trail.since,
+        where: 'The forger’s trail',
+        anchor: 'trail',
+        detail: 'the board opens only if',
+      });
+    }
+    const named = [
+      ['naming the right carver', trail.right],
+      ['naming another carver', trail.wrong],
+    ] as const;
+    for (const [detail, effects] of named) {
+      for (const e of effects) {
+        if ('flag' in e) add(set, e.flag, { where: 'The forger’s trail', anchor: 'trail', detail });
+      }
+    }
+  }
   for (const e of endings) {
     for (const f of e.when ? stateFlags(e.when) : []) {
       add(read, f, { where: `Ending: ${e.title}`, anchor: endingAnchor(e.id) });
@@ -345,6 +375,22 @@ export function buildModel(build: {
       lines: s.lines.map((l) => ({ text: t(l.text), ...(l.when ? { when: l.when } : {}) })),
     })),
     ...(slice ? { slice: { after: slice.after, day: slice.day, flags: Object.keys(slice.preset.flags ?? {}) } } : {}),
+    ...(trail
+      ? {
+          trail: {
+            since: trail.since,
+            ...(trail.when ? { when: trail.when } : {}),
+            nights: trail.nights,
+            suspects: trail.suspects.map((s) => ({
+              name: `${s.look.name} ${s.look.patronym}`,
+              text: t(s.text),
+              hands: s.hands.map((h) => t(`trail.hand.${h}`)),
+            })),
+            right: trail.right,
+            wrong: trail.wrong,
+          },
+        }
+      : {}),
     family: (content.campaign?.family ?? []).map((m) => ({ id: m.id, name: t(m.name) })),
     strings,
     totals: {

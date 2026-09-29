@@ -1,0 +1,23 @@
+# DRAFT writing. Day 15, if you named the wrong carver on Night 14 (the forger's
+# trail, docs/tech-spec.md §71): the man you named, drowned at the jarl's order,
+# on the day the real carver dies of a fever (case.bjarni_old).
+id: case.carver_innocent_late
+personas: [honest]
+truth:
+  cause: { is: drowned }
+  grip: { is: none }
+  blade: { is: plain }
+  woundsFront: { is: 0 }
+  woundsBack: { is: 0 }
+  alive: { is: false }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+lies: []
+look: { gender: m, name: Hjalti, patronym: Brandsson, age: 41, build: broad, beard: short }
+lookOf: named
+lines: [case.carver.honest, case.carver.named, case.carver.cold]
+words: { pool.weapons: seax }
+expect: RAN
+when: { all: [{ state: trail.night, gte: 13 }, { state: trail.right, lte: 0 }] }

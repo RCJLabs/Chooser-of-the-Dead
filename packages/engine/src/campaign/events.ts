@@ -4,6 +4,7 @@ import type { CaseSpec } from '../gen/types';
 import { createDayContext, type DayCtx } from '../logic/context';
 import { Rng } from '../rng/rng';
 import type { DayEventAt, RunState } from './state';
+import { trailCtx, withTrail } from './trail';
 import { weaveOf, weaveSoulsOn, wovenContent } from './weave';
 
 /*
@@ -167,7 +168,7 @@ export function daySpecFor(content: Content, run: Pick<RunState, 'events'>, day:
  */
 export function unwovenContext(
   content: Content,
-  run: Pick<RunState, 'seed' | 'events' | 'weave'>,
+  run: Pick<RunState, 'seed' | 'events' | 'weave' | 'trail'>,
   day: number,
 ): DayCtx | undefined {
   if (!run.weave) return undefined;
@@ -176,9 +177,19 @@ export function unwovenContext(
 }
 
 /**
- * The context the run plays `day` in, its event included, and its rules in the order of its weave (docs/tech-spec.md
- * §53) if it was begun woven (`runContext` is today's).
+ * The context the run plays `day` in, its event included, its rules in the order of its weave (docs/tech-spec.md §53)
+ * if it was begun woven, and on the forger's trail (§71) once that begins (`runContext` is today's).
  */
-export function dayContext(content: Content, run: Pick<RunState, 'seed' | 'events' | 'weave'>, day: number): DayCtx {
-  return createDayContext(wovenContent(content, weaveOf(run, content)), day, run.seed, daySpecFor(content, run, day));
+export function dayContext(
+  content: Content,
+  run: Pick<RunState, 'seed' | 'events' | 'weave' | 'trail'>,
+  day: number,
+): DayCtx {
+  const ctx = createDayContext(
+    wovenContent(content, weaveOf(run, content)),
+    day,
+    run.seed,
+    daySpecFor(content, run, day),
+  );
+  return withTrail(ctx, trailCtx(content, run, day));
 }

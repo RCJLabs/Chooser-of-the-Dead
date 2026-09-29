@@ -35,6 +35,7 @@ import {
   hostMarks,
   hostParts,
   hostsAt,
+  huntOn,
   type JournalEntry,
   type NamedSoul,
   type NightOutlook,
@@ -54,7 +55,10 @@ import {
   stampRings,
   standingFx,
   standingLead,
+  type TrailMark,
+  type TrailSuspect,
   threadsInPlay,
+  trailBoard,
   weaveDay,
   weaveOf,
   weaveOpen,
@@ -1767,6 +1771,7 @@ function Audit() {
       {ledger.grade ? <DayMark grade={ledger.grade} day={a.run.day} /> : null}
       <StandingTable run={a.run} ledger={ledger} />
       <RequestResults ledger={ledger} day={a.run.day} />
+      <TrailPinned run={a.run} />
       <ol class="verdicts">
         {shift.verdicts.map((v) => {
           const c = shift.cases[v.index];
@@ -2281,6 +2286,140 @@ function ArmsCard({ run }: { run: RunState }) {
   );
 }
 
+/** What the desk pinned to the carvers' board today (docs/tech-spec.md §71), once the hunt is on. */
+function TrailPinned({ run }: { run: RunState }) {
+  const n = (run.trail?.marks ?? []).filter((m) => m.day === run.day).length;
+  if (n === 0 || !huntOn(run, gameContent)) return null;
+  return (
+    <p class="muted" data-testid="audit-trail">
+      {t('ui.trail.audit', { n })}
+    </p>
+  );
+}
+
+/** A carver as the board names him. */
+const carverName = (s: TrailSuspect) => `${s.look.name} ${s.look.patronym}`;
+
+/** One of a carver's habits, as the board says it. */
+const handName = (h: string) => t(`trail.hand.${h}`);
+
+/** The marks pinned, a line for each habit seen: where it was seen, and when. */
+function markLines(marks: readonly TrailMark[]): string[] {
+  const hands = [...new Set(marks.map((m) => m.hand))];
+  return hands.map((h) =>
+    t('ui.trail.markLine', {
+      hand: handName(h),
+      souls: listText(
+        marks
+          .filter((m) => m.hand === h)
+          .map((m) =>
+            t(m.via === 'tally' ? 'ui.trail.mark.tally' : 'ui.trail.mark.muninn', { name: m.name, day: m.day }),
+          ),
+      ),
+    }),
+  );
+}
+
+/**
+ * The carvers' board (docs/tech-spec.md §71): who could have cut the forged tallies, his knife's two habits, and the
+ * marks pinned from the desk, which rule men out. On the trail's nights, a name to give, once, asked twice, among the men
+ * the marks leave (the board is never wrong about who they rule out); on the night one is given, what came of it.
+ */
+function TrailCard({ run }: { run: RunState }) {
+  const board = trailBoard(run, gameContent);
+  const [naming, setNaming] = useState<string | null>(null);
+  if (!board) return null;
+  const { def, named } = board;
+  return (
+    <section class="card trail" data-testid="trail">
+      <h2>{t(def.title)}</h2>
+      {named ? (
+        <p data-testid="trail-named" data-right={named.right ? 'yes' : 'no'}>
+          {t('ui.trail.named', { name: carverName(named.suspect) })}{' '}
+          {t(named.right ? def.named.right : def.named.wrong, { name: carverName(named.suspect) })}
+        </p>
+      ) : (
+        <p class="muted">{t(def.intro)}</p>
+      )}
+      <ul class="trail__carvers">
+        {board.suspects.map(({ suspect, possible }) => (
+          <li
+            key={suspect.id}
+            class={possible ? 'trail__carver' : 'trail__carver trail__carver--out'}
+            data-testid="trail-carver"
+            data-carver={suspect.id}
+            data-possible={possible ? 'yes' : 'no'}
+          >
+            <p>
+              <b>{carverName(suspect)}</b>: {t(suspect.text)}{' '}
+              <span class="muted">
+                {t('ui.trail.hands', { a: handName(suspect.hands[0] ?? ''), b: handName(suspect.hands[1] ?? '') })}
+              </span>{' '}
+              <span class="trail__status">{t(possible ? 'ui.trail.possible' : 'ui.trail.ruledOut')}</span>
+            </p>
+            {board.tonight && possible && naming !== suspect.id ? (
+              <button
+                type="button"
+                class="btn btn--small"
+                data-testid={`name-${suspect.id}`}
+                aria-label={t('ui.trail.nameLabel', { name: carverName(suspect) })}
+                onClick={() => setNaming(suspect.id)}
+              >
+                {t('ui.trail.name')}
+              </button>
+            ) : null}
+            {board.tonight && possible && naming === suspect.id ? (
+              <div class="trail__confirm" data-testid="trail-confirm">
+                <p>{t('ui.trail.confirm', { name: carverName(suspect) })}</p>
+                <div class="row">
+                  <button
+                    type="button"
+                    class="btn btn--small"
+                    data-testid="trail-confirm-yes"
+                    onClick={() => {
+                      setNaming(null);
+                      dispatch({ t: 'accuse', suspect: suspect.id });
+                    }}
+                  >
+                    {t('ui.trail.confirmYes', { name: carverName(suspect) })}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn--small btn--quiet"
+                    data-testid="trail-confirm-no"
+                    onClick={() => setNaming(null)}
+                  >
+                    {t('ui.trail.confirmNo')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <p data-testid="trail-marks">{t('ui.trail.marks', { n: board.marks.length })}</p>
+      {board.marks.length > 0 ? (
+        <ul class="trail__marks">
+          {markLines(board.marks).map((line) => (
+            <li key={line} class="trail__mark">
+              {line}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {named ? null : board.tonight ? (
+        <p data-testid="trail-when">
+          <b>{t('ui.trail.tonight')}</b>
+        </p>
+      ) : board.next !== undefined ? (
+        <p class="muted" data-testid="trail-when">
+          {t('ui.trail.later', { n: board.next })}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function Night() {
   const a = active.value;
   if (!a) return null;
@@ -2305,6 +2444,7 @@ function Night() {
             <FavoursTonight run={run} />
             <EventNight run={run} />
           </section>
+          <TrailCard run={run} />
           <BillsCard run={run} outlook={outlook} />
           <RankCard run={run} />
           <ShopCard run={run} />

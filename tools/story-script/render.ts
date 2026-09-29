@@ -256,6 +256,13 @@ function stateWords(p: StatePred, w: Words): string {
       return p.lte === 0 ? `${w.front(p.state)} didn't hold` : `${w.front(p.state)} held`;
     case 'ending':
       return p.lte === 0 ? `the run didn't end in ${w.ending(p.state)}` : `the run ended in ${w.ending(p.state)}`;
+    // The forger's trail (docs/tech-spec.md §71): the night a carver was named, and whether he was the one.
+    case 'trail':
+      if (key === 'right') return p.lte === 0 ? "the carver named wasn't the one" : 'the carver named was the one';
+      if (p.gte !== undefined && p.lte === undefined) return `a carver was named on Night ${p.gte} or later`;
+      if (p.gte !== undefined && p.lte !== undefined)
+        return `a carver was named between Night ${p.gte} and Night ${p.lte}`;
+      return p.lte === 0 ? 'no carver has been named' : `no carver was named after Night ${p.lte}`;
     case 'member': {
       const how = p.state.split('.')[2] ?? '';
       const is = { well: 'is well', sick: 'is sick', gone: 'is gone', died: 'died', left: 'went to relatives' }[how];
@@ -332,6 +339,25 @@ function endingHtml(e: EndingDoc, w: Words): string {
     .map((p) => `<p class="ending-text">${esc(p)}</p>`)
     .join('')}
 </article>`;
+}
+
+/** The forger's trail (docs/tech-spec.md §71): who can be the carver, when he can be named, and what naming does. */
+function trailHtml(t: NonNullable<ScriptModel['trail']>, w: Words): string {
+  const nights = t.nights.map((n) => `Night ${n}`).join(' or ');
+  const suspects = t.suspects
+    .map(
+      (s) =>
+        `<li><b>${esc(s.name)}</b>: ${esc(s.text)} <span class="muted">(${s.hands.map(esc).join(' and ')})</span></li>`,
+    )
+    .join('');
+  return `
+    <section class="appendix" id="trail">
+      <h2>The forger’s trail</h2>
+      <p>From Day ${t.since}, one of these carvers, drawn for the run, cuts every forged tally, and each forged tally shows one of his two habits. ${t.when ? `The board opens when ${stateWords(t.when, w)}; on` : 'On'} ${nights} he can be named, once.</p>
+      <ol class="threads">${suspects}</ol>
+      <p class="only">Naming the right carver:</p><p>${effectChips(t.right, w) || 'nothing'}</p>
+      <p class="only">Naming another:</p><p>${effectChips(t.wrong, w) || 'nothing'}</p>
+    </section>`;
 }
 
 const SECTION_NAMES: Readonly<Record<string, string>> = {
@@ -738,7 +764,7 @@ export function renderScript(model: ScriptModel, generated: string): { body: str
 <div class="shell">
   <nav class="rail" aria-label="Days">
     <ol>${rail}</ol>
-    <div class="rail-more"><a href="#flags">Flags</a><a href="#endings">Endings</a><a href="#epilogue">Epilogue</a><a href="#threads">Journal threads</a></div>
+    <div class="rail-more"><a href="#flags">Flags</a><a href="#endings">Endings</a><a href="#epilogue">Epilogue</a><a href="#threads">Journal threads</a>${model.trail ? '<a href="#trail">The forger’s trail</a>' : ''}</div>
   </nav>
   <main class="script">
     ${model.days.map((d) => dayHtml(d, w)).join('')}
@@ -767,6 +793,7 @@ export function renderScript(model: ScriptModel, generated: string): { body: str
       <p>What the journal lists as still in play, while its condition holds.</p>
       <ul class="threads">${model.threads.map((th) => `<li>${esc(th.text.replace(/\{n\}/g, 'N'))} <span class="muted">(while ${stateWords(th.when, w)})</span></li>`).join('')}</ul>
     </section>
+    ${model.trail ? trailHtml(model.trail, w) : ''}
   </main>
 </div>
 <div class="bar" role="region" aria-label="Your review">

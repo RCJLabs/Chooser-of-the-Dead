@@ -8,6 +8,7 @@ import {
   type CaseSpec,
   type Content,
   campaignOf,
+  canAccuse,
   companionShows,
   createDayContext,
   type DayCtx,
@@ -15,6 +16,7 @@ import {
   type Destination,
   defaultBills,
   deskVisit,
+  type Effect,
   earnedAt,
   economyOf,
   epilogueFor,
@@ -44,6 +46,8 @@ import {
   startSave,
   stepRun,
   storyOffer,
+  suspectsLeft,
+  trailOf,
 } from '@cots/engine';
 import { type ScenePath, sceneEnv, scenePaths } from '@cots/story';
 
@@ -285,6 +289,22 @@ export function catchCrossLie(members: readonly CaseSpec[], k: number, ctx: DayC
   return [];
 }
 
+/**
+ * What a careful player does on the forger's trail (docs/tech-spec.md §71) with a soul it has caught out: turn a tally
+ * that looks off under the lens (unless catching the lie already did), and read what Muninn remembers of its knife.
+ * Nothing off the trail, or for a soul with neither.
+ */
+export function lookForMarks(c: CaseSpec, ctx: DayCtx, at: number, done: readonly ShiftAction[] = []): ShiftAction[] {
+  if (!soulCtx(ctx, c).trail) return [];
+  const lens = c.evidence.fields.find((f) => f.tell)?.tool;
+  const used = done.some((a) => a.t === 'tool' && a.tool === lens);
+  const muninn = c.evidence.fields.filter((f) => f.hand).map((f) => f.id);
+  return [
+    ...(lens && !used ? [{ t: 'tool' as const, tool: lens, at }] : []),
+    ...(muninn.length > 0 ? [{ t: 'inspect' as const, fields: muninn, at }] : []),
+  ];
+}
+
 /** The sun a bot spends on each soul unless told otherwise: under every day's sun per soul, so none is left. */
 export const BOT_PACE_S = 25;
 
@@ -323,6 +343,7 @@ function shiftActions(
       const caught =
         own.length > 0 || !party ? own : catchCrossLie(cases.slice(party.start, party.start + party.size), k, ctx, at);
       for (const action of caught) actions.push({ t: 'shift', action });
+      for (const action of lookForMarks(c, ctx, at, caught)) actions.push({ t: 'shift', action });
     }
     const wrongs = stamps.filter((d) => d !== c.expect.dest);
     // A soul the bot knows belongs where a favour asks for souls from goes where the favour asks instead.
@@ -447,6 +468,10 @@ function nightActions(
     actions.push({ t: 'sell', item: u.id });
     rings += back;
   }
+  // The forger's trail (docs/tech-spec.md §71): the carver named once the marks leave one man, never on a guess.
+  const trail = trailOf(content);
+  const left = trail && canAccuse(run, content) ? suspectsLeft(trail, run.trail?.marks ?? []) : [];
+  if (left.length === 1 && left[0]) actions.push({ t: 'accuse', suspect: left[0].id });
   actions.push({ t: 'bills', bills }, { t: 'endNight' });
   return actions;
 }
@@ -484,6 +509,8 @@ export interface RunResult {
   /** Lots of arms bought, and whether a reprieve paid a debt (docs/tech-spec.md §56). */
   readonly arms: number;
   readonly reprieved: boolean;
+  /** The forger's trail (docs/tech-spec.md §71): marks pinned, and whether the carver named was the one (null: none). */
+  readonly trail: { readonly marks: number; readonly right: boolean | null };
 }
 
 export interface SimOptions {
@@ -646,6 +673,7 @@ export function simulateRun(
     epilogue: epilogueFor(run, content.campaign).map((l) => l.text),
     arms: run.armsBought ?? 0,
     reprieved: run.ledger.some((l) => (l.night?.reprieve ?? 0) !== 0),
+    trail: { marks: run.trail?.marks.length ?? 0, right: run.trail?.accused?.right ?? null },
   };
 }
 
@@ -757,6 +785,14 @@ export function simulateCampaign(
   return out;
 }
 
+/** What a scenario save does besides judging every soul rightly (see scenarioSave). */
+export interface ScenarioOptions {
+  /** Looks for marks on the forger's trail at the desk (docs/tech-spec.md §71), as a careful player does. */
+  readonly careful?: boolean;
+  /** Scenes played as their turn comes, by id, with the effects of the choices they stand for. */
+  readonly scenes?: Readonly<Record<string, readonly Effect[]>>;
+}
+
 /**
  * A scenario jumper for tests (docs/build-plan.md §11): a save on the morning
  * of `day`, with every earlier soul judged rightly and every bill paid; or, `at`
@@ -769,6 +805,7 @@ export function scenarioSave(
   day: number,
   engine: number,
   at: 'morning' | 'night' = 'morning',
+  opts: ScenarioOptions = {},
 ): RunSave {
   let save = startSave(content, seed, engine);
   let run = save.mornings[0] as RunState;
@@ -778,11 +815,19 @@ export function scenarioSave(
     save = recordAction(save, run, action, next);
     run = next;
   };
+  const scene = (which: 'morning' | 'night') => {
+    const id = content.days.find((d) => d.day === run.day)?.scenes?.[which];
+    const effects = id ? opts.scenes?.[id] : undefined;
+    if (id && effects) apply({ t: 'scene', id, effects });
+  };
   const shift = () => {
+    scene('morning');
     apply({ t: 'beginShift', at: 0 });
+    const ctx = runContext(content, run);
     let at = 0;
     for (const c of run.shift?.cases ?? []) {
       at += 1000;
+      if (opts.careful) for (const action of lookForMarks(c, ctx, at)) apply({ t: 'shift', action });
       apply({ t: 'shift', action: { t: 'stamp', dest: c.expect.dest, at } });
       apply({ t: 'shift', action: { t: 'send', at } });
     }
@@ -795,6 +840,7 @@ export function scenarioSave(
       break;
     }
     shift();
+    scene('night');
     apply({ t: 'endNight' });
   }
   // The night of `day`, its scene still to play.

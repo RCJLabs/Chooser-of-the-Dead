@@ -1,4 +1,4 @@
 # Names the campaign's story souls have (Geir on Day 6, Loki's Hrafn on Day 12, and the souls in cases/); see demo/pools.yaml.
-names.reserved.campaign: [Geir, Hrafn, Hrolf, Solveig, Hallbjorn, Bard, Bjarni, Thrand, Halla, Asgaut, Kari, Hrapp, Svanhild, Jofrid, Kolskegg, Thorolf, Gudrid]
+names.reserved.campaign: [Geir, Hrafn, Hrolf, Solveig, Hallbjorn, Bard, Bjarni, Thrand, Halla, Asgaut, Kari, Hrapp, Svanhild, Jofrid, Kolskegg, Thorolf, Gudrid, Hjalti, Ljot]
 # The ships a party's crew sailed in (docs/tech-spec.md §69).
 pool.ships: [Long Serpent, Crane, Sea-Stallion, Grey Goose, Bison, Wave-Horse, Short Serpent, Red Shield]
