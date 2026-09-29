@@ -33,11 +33,15 @@ async function load(page: Page, save: RunSave) {
   await page.getByTestId('continue-0').click();
 }
 
+/** Plays the scenes showing through their first options: the day's own, then any letter from home (docs/tech-spec.md §74). */
 async function playScene(page: Page) {
   await expect(page.getByTestId('scene')).toBeVisible();
-  while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
-  await page.getByTestId('scene-done').click();
-  await expect(page.getByTestId('scene')).toHaveCount(0);
+  while ((await page.getByTestId('scene').count()) > 0) {
+    const id = await page.getByTestId('scene').getAttribute('data-scene');
+    while ((await page.getByTestId('scene-done').count()) === 0) await page.getByTestId('scene-choice').first().click();
+    await page.getByTestId('scene-done').click();
+    await expect(page.locator(`[data-testid="scene"][data-scene="${id}"]`)).toHaveCount(0);
+  }
 }
 
 const isDrawer = async (page: Page) => (await page.locator('.shift--drawer').count()) > 0;

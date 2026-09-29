@@ -1,10 +1,18 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–73.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–74.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 8 (below), in the full game only:
+
+- **8. The household as people** ([`tech-spec.md`](tech-spec.md) §74). Letters from home are scenes of their own now, played after the night's scene on the runs their conditions hold for.
+  - **Your mother's errand.** On Night 6 she asks you to send her friend Oddny, dead of the coughing sickness, to Freyja's meadow. Oddny comes to the desk on Day 7 and asks for it herself. Granted, it's a mistake with its usual costs; either way your mother writes that night.
+  - **Ulf's errand.** On Night 8 he asks you to look at his friend Steinar's back. On Day 10 the desk says so while Steinar is there, and turning him over to look is what lets you answer Ulf on Night 10, with the truth or a kind lie.
+  - **Night 14.** Home writes what the well says of you, from the word among the dead and the souls you've sent wrong.
+  - The bots meet both souls in almost every run. Experts earn about 20 rings more for two more souls; novices are demoted about as often as before. The scenes are drafts.
 
 Game phase 7 (below), in the full game only:
 
@@ -46,9 +54,8 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–6 (above).
-- **Unblocked:** 7 and 8. They were held for your story sign-off, since they're heavy on writing. You said to treat the story as good and go on, so they go ahead in order. Their scenes are still drafts, marked `# draft` like the rest.
-- **Next:** 7, then 8; then the build and platform work queued below.
+- **Done:** 1–8 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
+- **Next:** the build and platform work queued below.
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
@@ -59,7 +66,7 @@ From the gameplay brainstorm, in the order agreed.
 5. **The forger's trail** (done, [`tech-spec.md`](tech-spec.md) §71). One of three carvers, drawn for the run, cuts the forged tallies. His knife's habits show on each forged tally, on the papers Loki's borrowed faces carry, and in Muninn's gaps, and what the desk sees is pinned to a board. Once the Night 11 letter asks for his name, name him on Night 12 or 14, once; the right man and the wrong one each come to the desk.
 6. **Valkyrie origins** (done, [`tech-spec.md`](tech-spec.md) §72). Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, someone more at home who keeps themselves while well, and three scenes of its own.
 7. **Mercy has memory** (done, [`tech-spec.md`](tech-spec.md) §73). Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.
-8. **The household as people.** Your family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
+8. **The household as people** (done, [`tech-spec.md`](tech-spec.md) §74). Your family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
 
 **Two rules for all of them:**
 - **The live Daily doesn't change.** Anything that changes how souls are generated (1 and 3) starts in the campaign and Endless, or waits for a planned change to how Dailies are generated.

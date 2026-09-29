@@ -399,3 +399,30 @@ describe('word among the dead, as content', () => {
     ).toThrow(/The word among the dead sets how often souls ask, but the campaign has no pleas\./);
   }, 60_000);
 });
+
+type Letters = NonNullable<CampaignPart['letters']>;
+
+// docs/tech-spec.md §74.
+describe('letters from home, as content', () => {
+  const withLetters = (change: (list: Letters) => Letters) =>
+    compileWith((c) => ({ ...c, letters: change(c.letters ?? []) }));
+  const talk = { day: 14, at: 'night' as const, scene: 'scene.e.talk' };
+  it('compiles as shipped, and refuses a letter after the last day, sent twice, or reading what a run lacks', () => {
+    expect(withLetters((list) => list)).not.toThrow();
+    expect(withLetters((list) => [...list, { ...talk, day: 21 }])).toThrow(
+      /the letter scene\.e\.talk on the night of day 21 comes after the campaign's last day/,
+    );
+    expect(withLetters((list) => [...list, talk])).toThrow(
+      /the letter scene\.e\.talk on the night of day 14 is sent twice/,
+    );
+    expect(withLetters((list) => [...list, { ...talk, day: 15, when: { state: 'mood.odin', gte: 1 } }])).toThrow(
+      /the letter scene\.e\.talk on the night of day 15 reads unknown run state "mood\.odin"/,
+    );
+  }, 60_000);
+
+  it('refuses a letter whose scene is missing', () => {
+    expect(withLetters((list) => [...list, { ...talk, scene: 'scene.e.nowhere' }])).toThrow(
+      /the letter on the night of day 14 plays missing scene "scene\.e\.nowhere"/,
+    );
+  }, 60_000);
+});

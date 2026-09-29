@@ -18,9 +18,11 @@ import { renderScript } from './render';
 
 const built = buildTarget(TARGETS['dev-full'], loadPacks(resolve(import.meta.dirname, '../../content/packs')));
 const model = buildModel({ ...built, target: 'dev-full' });
-// The days' scenes, and the origins' (docs/tech-spec.md §72).
+// The days' scenes and letters from home (docs/tech-spec.md §74), and the origins' (§72).
 const scenes: SceneDoc[] = [
-  ...model.days.flatMap((d) => [d.morning, ...(d.desk ?? []), d.night].filter((s): s is SceneDoc => !!s)),
+  ...model.days.flatMap((d) =>
+    [d.morning, ...(d.desk ?? []), d.night, ...(d.letters ?? [])].filter((s): s is SceneDoc => !!s),
+  ),
   ...model.origins.flatMap((o) => o.scenes),
 ];
 
@@ -159,8 +161,17 @@ function envs(day: number): SceneEnv[] {
   const every = (n: number): Record<string, number> => new Proxy({}, { get: () => n });
   const status = (s: (i: number) => string) => Object.fromEntries(family.map((id, i) => [id, s(i)]));
   return [
-    { seed: 1, day, rings: 10, flags: {}, standing: standing(0), family: status(() => 'well') },
-    { seed: 2, day, rings: -25, flags: every(1), standing: standing(-3), family: status(() => 'sick') },
+    { seed: 1, day, rings: 10, flags: {}, standing: standing(0), family: status(() => 'well'), word: 0, wrong: 0 },
+    {
+      seed: 2,
+      day,
+      rings: -25,
+      flags: every(1),
+      standing: standing(-3),
+      family: status(() => 'sick'),
+      word: -3,
+      wrong: 30,
+    },
     {
       seed: 3,
       day,
@@ -168,6 +179,8 @@ function envs(day: number): SceneEnv[] {
       flags: every(3),
       standing: standing(4),
       family: status((i) => (i === 0 ? 'gone' : 'well')),
+      word: 3,
+      wrong: 2,
     },
   ];
 }
@@ -232,6 +245,30 @@ group('the script against the game', () => {
     expect(flag('wood')?.readBy.map((m) => m.where)).toContain('Ending: The green earth');
     // Every flag something reads is set somewhere.
     expect(model.flags.filter((f) => f.setBy.length === 0).map((f) => f.name)).toEqual([]);
+  });
+
+  it('shows letters from home after the night’s scene, when each is sent, and what looking at a soul does (docs/tech-spec.md §74)', () => {
+    const day = (n: number) => model.days.find((d) => d.day === n);
+    expect(day(10)?.letters?.map((s) => [s.name, s.when, s.letter])).toEqual([['e.steinar.answer', 'night', true]]);
+    expect(day(14)?.letters?.map((s) => [s.name, s.only])).toEqual([['e.talk', undefined]]);
+    const flag = (name: string) => model.flags.find((f) => f.name === name);
+    expect(flag('oddny_judged')?.readBy).toContainEqual(
+      expect.objectContaining({ where: 'Day 7, night (a letter from home)', detail: 'sent only if' }),
+    );
+    expect(flag('errand_steinar')?.setBy.map((m) => m.where)).toEqual(['Day 8, night (a letter from home)']);
+    expect(flag('steinar_back')?.setBy).toEqual([
+      expect.objectContaining({ where: 'Day 10, Steinar Kolsson', detail: 'looked at: wounds back' }),
+    ]);
+    const steinar = day(10)?.souls.find((s) => s.id === 'case.steinar');
+    expect(steinar?.errand).toEqual({
+      from: 'Ulf',
+      text: "Ulf, your brother, asked you to look at Steinar Kolsson's back: did he run at the ford?",
+    });
+    const page = renderScript(model, 'test').document;
+    expect(page).toContain('Night, a letter from home');
+    expect(page).toContain('Sent only if');
+    expect(page).toContain('An errand from Ulf.');
+    expect(page).toContain('Looked at: wounds back');
   });
 });
 

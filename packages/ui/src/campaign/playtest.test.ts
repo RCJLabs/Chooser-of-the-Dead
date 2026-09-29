@@ -643,6 +643,24 @@ describe('the playtest report', () => {
     expect(text).toMatch(new RegExp(`- Day ${visit.day}, at the desk: \\S`));
   });
 
+  it('names a letter from home as such (docs/tech-spec.md §74)', () => {
+    const save = played('playtest-letter', 1, right);
+    const morning = save.mornings[0] as RunState;
+    const letter = content.campaign?.letters?.[0];
+    if (!letter) throw new Error('no letters from home in this build');
+    const entry: JournalEntry = {
+      day: letter.day,
+      scene: letter.scene,
+      choices: [0],
+      rings: morning.rings,
+      flags: {},
+      standing: morning.standing,
+      family: Object.fromEntries(morning.family.map((m) => [m.id, m.status])),
+    };
+    const text = report({ ...save, journal: [...(save.journal ?? []), entry] });
+    expect(text).toMatch(new RegExp(`- Day ${letter.day}, ${letter.at}, a letter from home: \\S`));
+  });
+
   it('reads back the options picked in each scene, as the journal does', () => {
     const save = played('playtest-story', 1, right, true);
     const entry = save.journal?.[0];

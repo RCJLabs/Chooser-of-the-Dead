@@ -26,6 +26,9 @@ export interface SceneDoc {
   readonly when: 'morning' | 'desk' | 'night';
   /** At the desk: once this many souls have been sent (docs/tech-spec.md §46). */
   readonly at?: number;
+  /** A letter from home (docs/tech-spec.md §74): played after the day's own scene, on runs where `only` holds. */
+  readonly letter?: boolean;
+  readonly only?: StatePred;
   readonly draft: boolean;
   /** Ink's own count, as the writing budget uses. */
   readonly words: number;
@@ -48,6 +51,10 @@ export interface SoulDoc {
   readonly lines: readonly string[];
   readonly when?: StatePred;
   readonly onStamp: readonly { readonly stamped: Destination | '*'; readonly effects: readonly Effect[] }[];
+  /** The favour someone at home asked about the soul (docs/tech-spec.md §74): who asked, and the desk's words. */
+  readonly errand?: { readonly from: string; readonly text: string };
+  /** What looking at the soul does (docs/tech-spec.md §74): an observation seen at the desk, and its effects. */
+  readonly onSeen: readonly { readonly obs: string; readonly effects: readonly Effect[] }[];
 }
 
 export interface DayDoc {
@@ -58,6 +65,8 @@ export interface DayDoc {
   /** Scenes at the desk, between the souls, in the order they come (docs/tech-spec.md §46). */
   readonly desk?: readonly SceneDoc[];
   readonly night?: SceneDoc;
+  /** Letters from home (docs/tech-spec.md §74), each after the morning's or the night's own scene. */
+  readonly letters?: readonly SceneDoc[];
   readonly souls: readonly SoulDoc[];
 }
 
@@ -166,6 +175,9 @@ export function rowConditions(r: Row): Expr[] {
 
 const unique = <T>(xs: readonly T[]) => [...new Set(xs)];
 
+/** An observation's key in words: `woundsBack` is "wounds back". */
+export const obsWords = (key: string) => key.replace(/([A-Z])/g, ' $1').toLowerCase();
+
 /** Builds the script from a compiled build and the scenes' sources. */
 export function buildModel(build: {
   readonly content: Content;
@@ -207,25 +219,62 @@ export function buildModel(build: {
     };
   };
 
+  // Someone in the household by id, by the name used inside a sentence ("Ulf" rather than "Ulf, your brother").
+  const household = [
+    ...(content.campaign?.family ?? []),
+    ...(content.campaign?.origins ?? []).flatMap((o) => o.member ?? []),
+  ];
+  const shortName = (id: string) => {
+    const key = household.find((m) => m.id === id)?.name ?? id;
+    return strings[`${key}.short`] ?? t(key);
+  };
+  const letters = content.campaign?.letters ?? [];
+
   const days: DayDoc[] = content.days
-    .filter((d) => d.scenes || (d.queue.scripted ?? []).length > 0 || (d.queue.visits ?? []).length > 0)
+    .filter(
+      (d) =>
+        d.scenes ||
+        (d.queue.scripted ?? []).length > 0 ||
+        (d.queue.visits ?? []).length > 0 ||
+        letters.some((l) => l.day === d.day),
+    )
     .map((d) => {
       const morning = sceneDoc(d.scenes?.morning, d.day, 'morning');
       const desk = [...(d.queue.visits ?? [])]
         .sort((a, b) => a.at - b.at)
         .flatMap((v) => sceneDoc(v.scene, d.day, 'desk', v.at) ?? []);
       const night = sceneDoc(d.scenes?.night, d.day, 'night');
+      // Letters from home (docs/tech-spec.md §74), the morning's before the night's, each in the order it's sent.
+      const sent = [
+        ...letters.filter((l) => l.day === d.day && l.at === 'morning'),
+        ...letters.filter((l) => l.day === d.day && l.at === 'night'),
+      ].flatMap((l) => {
+        const doc = sceneDoc(l.scene, d.day, l.at);
+        return doc ? [{ ...doc, letter: true, ...(l.when ? { only: l.when } : {}) }] : [];
+      });
       const souls = (d.queue.scripted ?? []).map(({ case: id }): SoulDoc => {
         const c = scripted.get(id);
         if (!c) throw new Error(`Day ${d.day} places ${id}, which this build doesn't have`);
+        const name = `${c.look.name} ${c.look.patronym}`;
         return {
           id,
           day: d.day,
-          name: `${c.look.name} ${c.look.patronym}`,
+          name,
           expect: c.expect,
           lines: (c.lines ?? []).map(t),
           ...(c.when ? { when: c.when } : {}),
           onStamp: c.onStamp ?? [],
+          ...(c.errand
+            ? {
+                errand: {
+                  from: shortName(c.errand.from),
+                  text: t(c.errand.text)
+                    .replace(/\{from\}/g, shortName(c.errand.from))
+                    .replace(/\{name\}/g, name),
+                },
+              }
+            : {}),
+          onSeen: c.onSeen ?? [],
         };
       });
       return {
@@ -234,6 +283,7 @@ export function buildModel(build: {
         ...(morning ? { morning } : {}),
         ...(desk.length > 0 ? { desk } : {}),
         ...(night ? { night } : {}),
+        ...(sent.length > 0 ? { letters: sent } : {}),
         souls,
       };
     })
@@ -265,7 +315,8 @@ export function buildModel(build: {
     if (!list.some(same)) list.push(m);
     map.set(flag, list);
   };
-  const dayName = (s: SceneDoc) => `Day ${s.day}, ${s.when === 'desk' ? 'at the desk' : s.when}`;
+  const dayName = (s: SceneDoc) =>
+    `Day ${s.day}, ${s.when === 'desk' ? 'at the desk' : s.when}${s.letter ? ' (a letter from home)' : ''}`;
   const indexScene = (s: SceneDoc, where: string) => {
     // The options open at each depth, so a setter can say which choice it follows.
     const path: string[] = [];
@@ -289,8 +340,26 @@ export function buildModel(build: {
   };
 
   for (const d of days) {
-    for (const s of [d.morning, ...(d.desk ?? []), d.night]) if (s) indexScene(s, dayName(s));
+    for (const s of [d.morning, ...(d.desk ?? []), d.night, ...(d.letters ?? [])]) if (s) indexScene(s, dayName(s));
+    // A letter is sent only on runs its condition holds for (docs/tech-spec.md §74).
+    for (const s of d.letters ?? []) {
+      for (const f of s.only ? stateFlags(s.only) : []) {
+        add(read, f, { day: d.day, where: dayName(s), anchor: sceneAnchor(s.name), detail: 'sent only if' });
+      }
+    }
     for (const soul of d.souls) {
+      // What looking at the soul does (docs/tech-spec.md §74).
+      for (const on of soul.onSeen) {
+        for (const e of on.effects) {
+          if (!('flag' in e)) continue;
+          add(set, e.flag, {
+            day: d.day,
+            where: `Day ${d.day}, ${soul.name}`,
+            anchor: soulAnchor(soul.id),
+            detail: `looked at: ${obsWords(on.obs)}`,
+          });
+        }
+      }
       for (const on of soul.onStamp) {
         for (const e of on.effects) {
           if (!('flag' in e)) continue;
@@ -379,7 +448,9 @@ export function buildModel(build: {
     .map((name) => ({ name, setBy: set.get(name) ?? [], readBy: read.get(name) ?? [] }));
 
   const scenes = [
-    ...days.flatMap((d) => [d.morning, ...(d.desk ?? []), d.night].filter((s): s is SceneDoc => s !== undefined)),
+    ...days.flatMap((d) =>
+      [d.morning, ...(d.desk ?? []), d.night, ...(d.letters ?? [])].filter((s): s is SceneDoc => s !== undefined),
+    ),
     ...origins.flatMap((o) => o.scenes),
   ];
   const souls = days.flatMap((d) => d.souls);
@@ -416,10 +487,7 @@ export function buildModel(build: {
       : {}),
     origins,
     // The family, and whoever an origin brings home (docs/tech-spec.md §72).
-    family: [
-      ...(content.campaign?.family ?? []),
-      ...(content.campaign?.origins ?? []).flatMap((o) => o.member ?? []),
-    ].map((m) => ({ id: m.id, name: t(m.name) })),
+    family: household.map((m) => ({ id: m.id, name: t(m.name) })),
     strings,
     totals: {
       scenes: scenes.length,

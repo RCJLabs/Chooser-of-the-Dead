@@ -15,6 +15,8 @@ const env = (over: Partial<SceneEnv> = {}): SceneEnv => ({
   flags: {},
   standing: Object.fromEntries(FACTIONS.map((f) => [f, 0])) as SceneEnv['standing'],
   family: { mother: 'well', sister: 'sick', brother: 'gone' },
+  word: 0,
+  wrong: 0,
   ...over,
 });
 
@@ -49,6 +51,27 @@ describe('playScene', () => {
   it('reads the run through externals', () => {
     const f = playScene(compile(SCENE), env({ flags: { met_loki: 1 }, family: { sister: 'well' } }), []);
     expect(f.lines.map((l) => l.text)).toEqual(['Skögul waits by the gate.', 'She has heard about Loki.']);
+  });
+
+  it('reads the word among the dead and the souls sent wrong so far (docs/tech-spec.md §74)', () => {
+    const json = compile(
+      [
+        'EXTERNAL word()',
+        'EXTERNAL wrong()',
+        '{ word() <= -2: They say you can’t be moved. }',
+        '{ word() >= 2: They say you can be moved. }',
+        '{ wrong() >= 15: Do you sleep? }',
+        'The raven waits.',
+      ].join('\n'),
+    );
+    const said = (over: Partial<SceneEnv>) => playScene(json, env(over), []).lines.map((l) => l.text);
+    expect(said({ word: -3, wrong: 20 })).toEqual([
+      'They say you can’t be moved.',
+      'Do you sleep?',
+      'The raven waits.',
+    ]);
+    expect(said({ word: 2, wrong: 14 })).toEqual(['They say you can be moved.', 'The raven waits.']);
+    expect(said({})).toEqual(['The raven waits.']);
   });
 
   it('collects effects in order along the chosen path', () => {
@@ -189,7 +212,7 @@ describe('what an option costs', () => {
 
 describe('journalEnv', () => {
   it('gives a scene the view it had when it was played', () => {
-    const e = env({ flags: { met_loki: 1 }, rings: 30 });
+    const e = env({ flags: { met_loki: 1 }, rings: 30, word: -2, wrong: 5 });
     const entry: JournalEntry = {
       day: e.day,
       scene: 'scene.d3.night',
@@ -198,12 +221,37 @@ describe('journalEnv', () => {
       flags: e.flags,
       standing: e.standing,
       family: e.family as JournalEntry['family'],
+      word: e.word,
+      wrong: e.wrong,
     };
-    const run = { seed: 'journal-seed', day: e.day, rings: e.rings, flags: e.flags, standing: e.standing, family: [] };
+    const run = {
+      seed: 'journal-seed',
+      day: e.day,
+      rings: e.rings,
+      flags: e.flags,
+      standing: e.standing,
+      family: [],
+      word: e.word,
+      ledger: [{ wrong: 2 }, { wrong: 3 }],
+    };
     expect(journalEnv('journal-seed', entry)).toEqual({
       ...sceneEnv(run as never, 'scene.d3.night'),
       family: e.family,
     });
+  });
+
+  it('reads an entry kept before the journal held the word and the souls sent wrong as neither yet', () => {
+    const e = env();
+    const entry: JournalEntry = {
+      day: e.day,
+      scene: 'scene.d3.night',
+      choices: [],
+      rings: e.rings,
+      flags: e.flags,
+      standing: e.standing,
+      family: e.family as JournalEntry['family'],
+    };
+    expect(journalEnv('journal-seed', entry)).toMatchObject({ word: 0, wrong: 0 });
   });
 });
 

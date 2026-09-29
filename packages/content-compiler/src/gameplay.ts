@@ -209,7 +209,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     for (let i = parts.length - 1; i >= 0; i--) if (parts[i]?.[k] !== undefined) return parts[i]?.[k];
     return undefined;
   };
-  const all = <K extends 'standing' | 'shop' | 'endings' | 'aliases' | 'threads' | 'favours'>(k: K) =>
+  const all = <K extends 'standing' | 'shop' | 'endings' | 'aliases' | 'threads' | 'favours' | 'letters'>(k: K) =>
     parts.flatMap((p) => (p[k] ?? []) as NonNullable<CampaignPart[K]>[number][]);
   const required = [
     'lastDay',
@@ -260,6 +260,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('reprieve') ? { reprieve: last('reprieve') as NonNullable<CampaignDef['reprieve']> } : {}),
     ...(last('trail') ? { trail: last('trail') as NonNullable<CampaignDef['trail']> } : {}),
     ...(last('origins') ? { origins: last('origins') as NonNullable<CampaignDef['origins']> } : {}),
+    ...(all('letters').length > 0 ? { letters: all('letters') } : {}),
   };
 }
 
@@ -1137,6 +1138,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintTrail(content, key, walk));
   problems.push(...lintOrigins(content, key));
   problems.push(...lintWord(content, key));
+  problems.push(...lintLetters(content, walk));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1185,6 +1187,26 @@ function lintWord(content: Content, key: (k: string, where: string) => void): st
     if (o.from === o.to) problems.push(`The ${where} pays for the hall the soul already belongs in.`);
     if (o.to === 'RETURN' || o.to === 'DETAIN') problems.push(`The ${where} pays for a stamp no soul asks for.`);
     if (!pleading.has(o.from)) problems.push(`The ${where} comes from a hall whose souls never plead.`);
+  }
+  return problems;
+}
+
+/**
+ * Letters from home (docs/tech-spec.md §74): each on a day of the campaign, reading only what the run can. Whether its
+ * scene exists, and every path through it, is the scene lint's (scenes.ts).
+ */
+function lintLetters(content: Content, walk: (p: StatePred, where: string) => void): string[] {
+  const c = content.campaign;
+  if (!c?.letters) return [];
+  const problems: string[] = [];
+  const slots = new Set<string>();
+  for (const l of c.letters) {
+    const where = `the letter ${l.scene} on the ${l.at} of day ${l.day}`;
+    if (l.day > c.lastDay) problems.push(`${where} comes after the campaign's last day.`);
+    const slot = `${l.day}/${l.at}/${l.scene}`;
+    if (slots.has(slot)) problems.push(`${where} is sent twice.`);
+    slots.add(slot);
+    if (l.when) walk(l.when, where);
   }
   return problems;
 }
@@ -1472,6 +1494,7 @@ function lintScripted(content: Content, strings: Readonly<Record<string, string>
   const problems: string[] = [];
   const defs = new Map<string, ScriptedCaseDef>();
   const facts = new Set(content.facts.map((f) => f.id));
+  const observations = new Set(content.observations.map((o) => o.key));
   const family = new Set((content.campaign?.family ?? []).map((m) => m.id));
   // A story soul's name is kept from generated souls (engine gen/look.ts), so nobody else in the queue has it.
   const reserved = new Set(
@@ -1509,6 +1532,18 @@ function lintScripted(content: Content, strings: Readonly<Record<string, string>
     if (def.plea) {
       if (def.plea.stamp === def.expect) problems.push(`${where} pleads for ${def.expect}, where it belongs anyway.`);
       if (!(def.plea.text in strings)) problems.push(`${where} uses missing string "${def.plea.text}".`);
+    }
+    // An errand (docs/tech-spec.md §74) is asked by someone in the family, in words the desk can show; what looking
+    // at the soul does reads observations the desk has.
+    if (def.errand) {
+      if (!family.has(def.errand.from)) {
+        problems.push(`${where} is an errand from unknown family member "${def.errand.from}".`);
+      }
+      if (!(def.errand.text in strings)) problems.push(`${where} uses missing string "${def.errand.text}".`);
+    }
+    for (const rule of def.onSeen ?? []) {
+      if (!observations.has(rule.obs)) problems.push(`${where} reads unknown observation "${rule.obs}" when seen.`);
+      for (const e of rule.effects) effect(e, where);
     }
   }
   const placed = new Set<string>();

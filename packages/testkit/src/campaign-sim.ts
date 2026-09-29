@@ -201,7 +201,8 @@ export function scorePath(path: ScenePath, run: RunState, policy: StoryPolicy): 
 
 /**
  * Plays today's morning or night scenes the way the policy wants (the first best path on a tie): the day's own, then
- * its origin's (docs/tech-spec.md §72).
+ * its origin's (docs/tech-spec.md §72), then the letters from home (§74). As the game does, the next is the first
+ * still to play, read afresh after each, so a letter's `when` sees what the scenes before it did.
  */
 function playStory(
   run: RunState,
@@ -212,8 +213,13 @@ function playStory(
   policy: StoryPolicy,
 ): RunState {
   let r = run;
-  for (const id of scenesFor(run, content, which)) r = playScene(r, content, ctx, scenes, id, policy);
-  return r;
+  const tried = new Set<string>();
+  for (;;) {
+    const id = scenesFor(r, content, which).find((x) => !r.scenes.includes(x) && !tried.has(x));
+    if (!id) return r;
+    tried.add(id);
+    r = playScene(r, content, ctx, scenes, id, policy);
+  }
 }
 
 /** Plays a scene the way the policy wants (the first best path on a tie), unless it's been played. */

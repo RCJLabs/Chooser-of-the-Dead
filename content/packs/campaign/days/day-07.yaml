@@ -21,6 +21,7 @@ queue:
   scripted:
     # A shieldmaiden carried from the ford before she was quite dead (docs/tech-spec.md §60); she comes back on Day 15 if sent home.
     - { case: case.svanhild7, at: 5 }
+    - { case: case.oddny, at: 8 }
   archetypes:
     - { id: arch.honest_warrior, w: 3 }
     - { id: arch.freyja_pick, w: 2 }

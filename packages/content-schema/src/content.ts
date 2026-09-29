@@ -558,6 +558,12 @@ export const ScriptedCaseSchema: z.ZodType<ScriptedCaseDef> = z.strictObject({
     .optional(),
   // A plea at the desk (docs/tech-spec.md §51).
   plea: z.strictObject({ stamp: DestinationSchema, text: Key }).optional(),
+  // A favour the household asked for this soul, and what looking at it does to the story (docs/tech-spec.md §74).
+  errand: z.strictObject({ from: z.string().min(1), text: Key }).optional(),
+  onSeen: z
+    .array(z.strictObject({ obs: z.string().min(1), effects: z.array(EffectSchema).min(1) }))
+    .min(1)
+    .optional(),
 });
 
 const FamilyDefSchema: z.ZodType<FamilyDef> = z.strictObject({
@@ -853,6 +859,18 @@ export const CampaignPartSchema = z.strictObject({
         }),
         member: FamilyDefSchema.optional(),
         scenes: z.array(z.strictObject({ day: Day, at: z.enum(['morning', 'night']), scene: Id })),
+      }),
+    )
+    .min(1)
+    .optional(),
+  // Letters from home (docs/tech-spec.md §74): scenes after the day's own, on the runs their `when` holds for.
+  letters: z
+    .array(
+      z.strictObject({
+        day: Day,
+        at: z.enum(['morning', 'night']),
+        scene: Id,
+        when: z.lazy(() => StatePredSchema).optional(),
       }),
     )
     .min(1)

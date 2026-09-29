@@ -1,7 +1,7 @@
 /*
  * The conditions scenes are written with (docs/story-drafts.md, "Reading the
  * run"): calls to the game's externals (flag, standing, rings, day, home,
- * sick), numbers and strings, not / and / or, comparisons and brackets. Parsed
+ * sick, word, wrong), numbers and strings, not / and / or, comparisons and brackets. Parsed
  * so the script can say them in words and list the flags each one reads.
  */
 
@@ -214,6 +214,10 @@ function term(e: { readonly call: string; readonly args: readonly (string | numb
       return `${w.power(arg)}'s standing`;
     case 'day':
       return 'the day';
+    case 'word':
+      return 'the word among the dead';
+    case 'wrong':
+      return 'the souls sent wrong so far';
     default:
       return `${e.call}(${e.args.map((x) => JSON.stringify(x)).join(', ')})`;
   }
@@ -251,6 +255,11 @@ function called(
       if (op === '<') return `it's before Day ${n}`;
       if (op === '==') return `it's Day ${n}`;
       return `the day is ${amount(op, n)}`;
+    // The word among the dead (docs/tech-spec.md §73) runs from stern (below 0) to soft (above).
+    case 'word':
+      return `the word among the dead is ${amount(op, n)}`;
+    case 'wrong':
+      return `${amount(op, n, n === 1 ? 'soul' : 'souls')} sent wrong so far`;
   }
   return `${e.call}(${e.args.map((x) => JSON.stringify(x)).join(', ')}) is ${amount(op, n)}`;
 }

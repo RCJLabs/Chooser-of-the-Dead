@@ -1,0 +1,27 @@
+# DRAFT writing (game phase 8, docs/tech-spec.md §74). Day 7, if your mother wrote on Night 6 (errand_oddny): Oddny
+# Grimsdottir, who grew up on the next farm with Ragna, died of the coughing sickness. Hel's, plainly. When they were
+# girls she said she'd dance in Freyja's meadow, and your mother asked you to send her there: a plea from home, which
+# Oddny makes at the desk too. The stamp is the answer. FÓLKVANGR grants it, a wrong stamp all the same, with its usual
+# costs; HEL refuses it. Your mother writes that night (scene.e.oddny.answer).
+id: case.oddny
+personas: [honest]
+truth:
+  alive: { is: false }
+  cause: { is: sickness }
+  grip: { is: none }
+  blade: { is: plain }
+  woundsFront: { is: 0 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+lies: []
+look: { gender: f, name: Oddny, patronym: Grimsdottir, age: 57, build: lean, beard: none }
+lines: [case.oddny.ragna, case.oddny.meadow, case.oddny.cough]
+words: { pool.weapons: seax }
+expect: HEL
+when: { state: flags.errand_oddny, gte: 1 }
+plea: { stamp: FOLKVANGR, text: case.oddny.plea }
+errand: { from: mother, text: errand.oddny }
+onStamp:
+  - { stamped: '*', effects: [{ flag: oddny_judged }] }
+  - { stamped: FOLKVANGR, effects: [{ flag: oddny_meadow }] }
+  - { stamped: HEL, effects: [{ flag: oddny_hel }] }

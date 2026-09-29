@@ -4,6 +4,7 @@ import {
   caughtLies,
   currentCase,
   type Destination,
+  errandOf,
   type Field,
   factionKey,
   freeQuestion,
@@ -12,6 +13,7 @@ import {
   hintsLeft,
   kinRelation,
   type Lesson,
+  memberDef,
   memberField,
   memberSoul,
   nextHint,
@@ -42,7 +44,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import { art, usePixelFrame } from '../art';
 import { campaignUi } from '../campaign/lazy';
 import { padInUse } from '../gamepad';
-import { clockText, listText, t } from '../i18n';
+import { clockText, hasText, listText, t } from '../i18n';
 import { openReport, reportFor, reportTitle, reportUrl, type SoulReport } from '../report';
 import { toTop } from '../scroll';
 import {
@@ -1459,6 +1461,23 @@ function KinNote({ s, c }: { s: Session; c: CaseSpec }) {
 }
 
 /**
+ * A favour asked from home (docs/tech-spec.md §74), said while the soul it's about is at the desk: whoever asked, by
+ * the name used inside a sentence ("Ulf" rather than "Ulf, your brother").
+ */
+function ErrandNote({ s, c }: { s: Session; c: CaseSpec }) {
+  const errand = errandOf(s.content, c);
+  if (!errand) return null;
+  const { name, patronym, gender } = c.evidence.look;
+  const key = memberDef(s.content, errand.from)?.name ?? errand.from;
+  const from = hasText(`${key}.short`) ? t(`${key}.short`) : t(key);
+  return (
+    <p class="shift__note" data-testid="errand-banner">
+      {t(errand.text, { name: `${name} ${patronym}`, gender, from })}
+    </p>
+  );
+}
+
+/**
  * A noon decree (docs/tech-spec.md §45): from `notice` souls before it holds, the raven's news on the desk with the
  * new choices, and once it holds, a line to say what changed at noon. The rulebook shows the rules of the soul at
  * the desk throughout.
@@ -1581,12 +1600,14 @@ export function ShiftScreen() {
             {t('ui.line.waited', { n: c.day })}
           </p>
         ) : null}
-        {/* What the soul says of itself: an offer, whose kin it is, a plea. One box, empty (and hidden) for most. */}
+        {/* What the soul says of itself (an offer, whose kin it is, a plea) and what home asked of it. One box, empty
+            (and hidden) for most. */}
         {s.mode.kind === 'campaign' && c ? (
           <div class="shift__notes">
             <OfferNote s={s} c={c} />
             <KinNote s={s} c={c} />
             <PleaNote s={s} c={c} />
+            <ErrandNote s={s} c={c} />
           </div>
         ) : null}
         <CoachBar s={s} lesson={lesson} />
