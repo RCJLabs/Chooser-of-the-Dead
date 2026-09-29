@@ -57,8 +57,18 @@ export interface Report {
   readonly device?: string;
   readonly days: readonly ReportDay[];
   readonly mistakes: readonly ReportMistake[];
-  /** The pleas section's sums; absent in builds without pleas or kin. */
-  readonly pleas?: { readonly asked: number; readonly granted: number; readonly kin: number };
+  /**
+   * The pleas section's sums; absent in builds without pleas or kin. Offers taken and souls found out lying (docs/tech-
+   * spec.md §73) where the report counts them.
+   */
+  readonly pleas?: {
+    readonly asked: number;
+    readonly granted: number;
+    readonly kin: number;
+    readonly offers?: number;
+    readonly taken?: number;
+    readonly lied?: number;
+  };
 }
 
 const START = '## Playtest report';
@@ -186,7 +196,16 @@ function parsePleas(lines: readonly string[]): Report['pleas'] {
   if (body.length === 0) return undefined;
   if (body.some((l) => l.trim() === 'Nobody asked yet.')) return { asked: 0, granted: 0, kin: 0 };
   const m = body.map((l) => /^Pleas: (\d+), granted: (\d+)\. Kin who came: (\d+)\.$/.exec(l.trim())).find(Boolean);
-  return m ? { asked: Number(m[1]), granted: Number(m[2]), kin: Number(m[3]) } : undefined;
+  if (!m) return undefined;
+  const offers = body.map((l) => /^Offers: (\d+), taken: (\d+)\.$/.exec(l.trim())).find(Boolean);
+  const lied = body.map((l) => /^Found out lying: (\d+)\.$/.exec(l.trim())).find(Boolean);
+  return {
+    asked: Number(m[1]),
+    granted: Number(m[2]),
+    kin: Number(m[3]),
+    ...(offers ? { offers: Number(offers[1]), taken: Number(offers[2]) } : {}),
+    ...(lied ? { lied: Number(lied[1]) } : {}),
+  };
 }
 
 function parseReport(lines: readonly string[], label: string, device: string | undefined): Report {

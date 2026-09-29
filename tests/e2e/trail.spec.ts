@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { type CaseSpec, culpritOf, ENGINE_MAJOR, resumeSave, suspectsLeft, trailOf } from '@cots/engine';
+import { type CaseSpec, culpritOf, ENGINE_MAJOR, type RunSave, resumeSave, suspectsLeft, trailOf } from '@cots/engine';
 import { loadContent, scenarioSave } from '@cots/testkit';
 import { expect, type Page, test } from '@playwright/test';
 import { FULL } from './urls';
@@ -16,16 +16,26 @@ test.use({ baseURL: FULL });
 const content = loadContent('dev-full');
 const def = trailOf(content);
 if (!def) throw new Error('no forger’s trail');
-const SEED = 'e2e-trail-0';
-const culprit = culpritOf(def, SEED);
 const nameOf = (s: { look: { name: string; patronym: string } }) => `${s.look.name} ${s.look.patronym}`;
 // Night 11's letter, answered by asking for his name, as a scene played before the save stands for.
 const asked = { 'scene.d11.night': [{ flag: 'hunt_carver' }, { standing: 'odin' as const, by: 1 }] };
-const night11 = scenarioSave(content, SEED, 11, ENGINE_MAJOR, 'night', { careful: true });
-const night12 = scenarioSave(content, SEED, 12, ENGINE_MAJOR, 'night', { careful: true, scenes: asked });
-const marksOn = (save: typeof night11) => resumeSave(save, content, ENGINE_MAJOR).run.trail?.marks ?? [];
+const marksOn = (save: RunSave) => resumeSave(save, content, ENGINE_MAJOR).run.trail?.marks ?? [];
+// The first seed whose Day 11 pins two marks or more, and whose marks leave only the carver by Night 12. (A strict
+// player's days hold fewer liars, and so fewer forged tallies, once the word among the dead goes stern: §73.)
+const { SEED, night11, night12 } = (() => {
+  for (let i = 0; i < 20; i++) {
+    const seed = `e2e-trail-${i}`;
+    const n11 = scenarioSave(content, seed, 11, ENGINE_MAJOR, 'night', { careful: true });
+    if (marksOn(n11).length < 2) continue;
+    const n12 = scenarioSave(content, seed, 12, ENGINE_MAJOR, 'night', { careful: true, scenes: asked });
+    if (suspectsLeft(def, marksOn(n12)).length !== 1) continue;
+    return { SEED: seed, night11: n11, night12: n12 };
+  }
+  throw new Error('No seed in 20 pins two marks on Day 11 and leaves only the carver by Night 12');
+})();
+const culprit = culpritOf(def, SEED);
 
-async function load(page: Page, save: typeof night11) {
+async function load(page: Page, save: RunSave) {
   await page.addInitScript(
     (record) => localStorage.setItem('cots.campaign.0', record),
     JSON.stringify({ v: 1, rev: 1, savedAt: 0, save }),

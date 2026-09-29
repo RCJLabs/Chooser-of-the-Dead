@@ -33,6 +33,7 @@ import {
   favoursFor,
   fedAtHome,
   fight,
+  genderOfName,
   hostMarks,
   hostParts,
   hostsAt,
@@ -68,6 +69,7 @@ import {
   weaveOf,
   weaveOpen,
   withEffects,
+  wordLevel,
 } from '@cots/engine';
 import { journalEnv, playScene, type SceneLine, sceneEnv } from '@cots/story';
 import { effect, signal } from '@preact/signals';
@@ -1313,6 +1315,7 @@ function Morning() {
         </div>
       ) : null}
       <NightNews events={lastNight.value} />
+      <FoundNews run={run} />
       {scene ? (
         <SceneView key={scene} id={scene} run={run} />
       ) : (
@@ -1327,6 +1330,7 @@ function Morning() {
             <RulebookChanges day={run.day} />
             <WaitingNote run={run} />
             <FavoursToday run={run} noFines={assists.noFines === true} />
+            <WordLine run={run} />
             <p class="briefing__queue">
               {run.story
                 ? t('ui.campaign.untimed')
@@ -1371,6 +1375,58 @@ function Morning() {
       </div>
       {journalOpen.value ? <JournalView /> : null}
     </main>
+  );
+}
+
+// ---------- word among the dead ----------
+
+/**
+ * The false asks found out this morning (docs/tech-spec.md §73): each soul that lied at the desk and was given the hall
+ * it asked for, in the dead's words. From the run itself, so the news is still there when the game is opened again.
+ */
+function FoundNews({ run }: { run: RunState }) {
+  const def = campaignOf(gameContent).word;
+  const found = (run.found ?? []).filter((f) => f.on === run.day);
+  if (!def || found.length === 0) return null;
+  return (
+    <section class="card card--news" data-testid="found-news">
+      {found.map((f) => (
+        <p key={`${f.name}|${f.day}`} data-testid="found">
+          {t(def.found.text, { name: f.name, hall: f.hall, day: f.day, gender: genderOfName(f.name) })}
+        </p>
+      ))}
+    </section>
+  );
+}
+
+/**
+ * Word among the dead on the morning (docs/tech-spec.md §73): its level, and what it brings to the gate. From the pleas'
+ * first day, or once it has moved.
+ */
+function WordLine({ run }: { run: RunState }) {
+  const campaign = campaignOf(gameContent);
+  const def = campaign.word;
+  if (!def || (run.word === undefined && run.day < (campaign.pleas?.from ?? Number.POSITIVE_INFINITY))) return null;
+  const level = wordLevel(def, run.word ?? 0);
+  return (
+    <p class="muted" data-testid="word-line">
+      {t('ui.word.line', { level: t(level.name), text: t(level.text) })}
+    </p>
+  );
+}
+
+/** How far the day's asks moved the word (docs/tech-spec.md §73), at the audit of a day someone asked or it moved. */
+function WordMoved({ ledger }: { ledger: DayLedger }) {
+  const def = campaignOf(gameContent).word;
+  const w = ledger.word;
+  if (!def || !w) return null;
+  if (w.by === 0 && !(ledger.pleas ?? []).some((p) => p.to !== undefined)) return null;
+  const dir = w.by > 0 ? 'softer' : w.by < 0 ? 'sterner' : 'holds';
+  return (
+    <section class="card" data-testid="word-moved">
+      <p>{t('ui.word.moved', { dir, n: Math.abs(w.by), level: t(wordLevel(def, w.now).name) })}</p>
+      <p class="muted">{t('ui.word.why')}</p>
+    </section>
   );
 }
 
@@ -1860,6 +1916,7 @@ function Audit() {
       {ledger.grade ? <DayMark grade={ledger.grade} day={a.run.day} /> : null}
       <StandingTable run={a.run} ledger={ledger} />
       <RequestResults ledger={ledger} day={a.run.day} />
+      <WordMoved ledger={ledger} />
       <TrailPinned run={a.run} />
       <ol class="verdicts">
         {shift.verdicts.map((v) => {

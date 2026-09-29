@@ -873,8 +873,9 @@ select {
   border-style: solid;
 }
 
+/* White on a darker red than --bad, which is made to be read on the dark panels: 6:1, where --bad gives 3.4:1. */
 .evidence__badge {
-  background: var(--bad);
+  background: #a8432f;
   color: #fff;
   border-radius: 4px;
   padding: 0 0.45rem;

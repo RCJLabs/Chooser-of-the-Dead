@@ -25,6 +25,7 @@ import {
   suspectsLeft,
   type TrailSuspect,
   trailOf,
+  wordLevel,
 } from '@cots/engine';
 import { journalEnv, playScene } from '@cots/story';
 
@@ -209,9 +210,9 @@ function mistakeLine(p: PlaytestInput, day: number, m: DayMistake): string {
   const skip = skipped.length > 0 ? ` Skipped: ${skipped.join(', ')}.` : '';
   // A soul after the day's noon decree (docs/tech-spec.md §45) was judged under it.
   const noon = m.noon ? ' After the noon decree.' : '';
-  // A stamp a story soul paid for (docs/tech-spec.md §47) was a choice, not a slip.
+  // A stamp a soul paid for (docs/tech-spec.md §47, §73) was a choice, not a slip.
   const paid = m.paid ? ` A bribe: ${m.paid} rings for the stamp.` : '';
-  // A stamp a story soul asked for (docs/tech-spec.md §51) was a kindness, not a slip.
+  // A stamp a soul asked for (docs/tech-spec.md §51, §59) was a kindness, not a slip.
   const pled = m.pled ? ' A plea granted.' : '';
   if (m.stamped === m.expected)
     return `- Day ${day}: the right stamp, ${t(`dest.${m.stamped}`)}, but a step skipped.${skip}${noon}`;
@@ -297,9 +298,11 @@ function trail(p: PlaytestInput): string[] {
 }
 
 /**
- * The souls who asked for another hall (docs/tech-spec.md §51, §59) and the kin who came for a soul sent wrong (§60):
- * how many, and each by day with where it belonged, what it asked, and whether it was given it. A refused plea is a
- * right stamp, so nothing else in the report shows it. Days played on a build that didn't keep them are named.
+ * The souls who asked for another hall (docs/tech-spec.md §51, §59), those who offered rings for one (§47, §73) and the
+ * kin who came for a soul sent wrong (§60): how many, and each by day with where it belonged, what it asked, whether it
+ * was given it, and whether it had lied at the desk (§73). A refused plea is a right stamp, so nothing else in the report
+ * shows it. Where the build keeps the word among the dead (§73), where it stood after each audit. Days played on a build
+ * that didn't keep them are named.
  */
 function pleas(p: PlaytestInput): string[] {
   const campaign = campaignOf(p.content);
@@ -312,15 +315,26 @@ function pleas(p: PlaytestInput): string[] {
   const all = p.run.ledger.flatMap((l) => (l.pleas ?? []).map((x) => ({ day: l.day, ...x })));
   const lines = all.map((x) => {
     const who = `${x.name}${x.story ? ' (a story soul)' : ''}${x.kin ? `, kin of ${x.kin}` : ''}`;
+    const lied = x.lied ? ' It had lied at the desk: found out later.' : '';
     if (!x.to) return `- Day ${x.day}: ${who}, came and asked nothing, belonging in ${dest(x.belongs)} anyway.`;
-    return `- Day ${x.day}: ${who}, asked for ${dest(x.to)}, belonging in ${dest(x.belongs)}: ${x.granted ? 'granted' : 'refused'}.`;
+    if (x.offer !== undefined)
+      return `- Day ${x.day}: ${who}, offered ${x.offer} rings for ${dest(x.to)}, belonging in ${dest(x.belongs)}: ${x.granted ? 'taken' : 'refused'}.${lied}`;
+    return `- Day ${x.day}: ${who}, asked for ${dest(x.to)}, belonging in ${dest(x.belongs)}: ${x.granted ? 'granted' : 'refused'}.${lied}`;
   });
-  const asked = all.filter((x) => x.to !== undefined);
+  const asked = all.filter((x) => x.to !== undefined && x.offer === undefined);
+  const offered = all.filter((x) => x.offer !== undefined);
+  const lied = all.filter((x) => x.lied).length;
   const kin = all.filter((x) => x.kin !== undefined).length;
   const summary =
     all.length === 0
-      ? 'Nobody asked yet.'
-      : `Pleas: ${asked.length}, granted: ${asked.filter((x) => x.granted).length}. Kin who came: ${kin}.`;
+      ? ['Nobody asked yet.']
+      : [
+          `Pleas: ${asked.length}, granted: ${asked.filter((x) => x.granted).length}. Kin who came: ${kin}.`,
+          ...(offered.length > 0
+            ? [`Offers: ${offered.length}, taken: ${offered.filter((x) => x.granted).length}.`]
+            : []),
+          ...(lied > 0 ? [`Found out lying: ${lied}.`] : []),
+        ];
   const missing = p.run.ledger.filter((l) => l.day >= from && l.pleas === undefined).map((l) => l.day);
   const note =
     missing.length > 0
@@ -328,7 +342,23 @@ function pleas(p: PlaytestInput): string[] {
           `Not counted on Day${missing.length === 1 ? '' : 's'} ${dayList(missing)}: played on a build from before they were.`,
         ]
       : [];
-  return ['### Pleas and kin', '', summary, ...note, ...(lines.length > 0 ? ['', ...lines] : [])];
+  return ['### Pleas and kin', '', ...summary, ...note, ...word(p), ...(lines.length > 0 ? ['', ...lines] : [])];
+}
+
+/**
+ * Word among the dead (docs/tech-spec.md §73): where it stood after each audit that moved it, and where it stands now,
+ * with its level. Nothing in a build without it, or before it first moves.
+ */
+function word(p: PlaytestInput): string[] {
+  const def = campaignOf(p.content).word;
+  if (!def) return [];
+  const moved = p.run.ledger.filter((l) => l.word !== undefined && l.word.by !== 0);
+  const now = p.run.word ?? 0;
+  if (moved.length === 0 && now === 0) return [];
+  const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+  const days = moved.map((l) => `Day ${l.day} ${signed(l.word?.now ?? 0)}`).join(', ');
+  const level = p.t(wordLevel(def, now).name);
+  return [`Word among the dead: ${level} (${signed(now)}).${days ? ` After the audits that moved it: ${days}.` : ''}`];
 }
 
 /** Each appeal heard (docs/tech-spec.md §40): whose, what was decided, and what it came to. */

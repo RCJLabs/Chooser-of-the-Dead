@@ -1,10 +1,14 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–72.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–73.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 7 (below), in the full game only:
+
+- **7. Mercy has memory** ([`tech-spec.md`](tech-spec.md) §73). The dead talk about you. Each ask you grant (a plea, or rings offered for a stamp) moves the word among them a step softer, and each you refuse a step sterner. Stern, fewer souls ask and fewer lie; soft, more ask, more lie, and some bring rings instead of pleading. Only a soul whose lies you could catch at the desk asks; one that lied and was granted is found out two mornings later, runs at the last battle, and softens the word again. Bots that refuse every plea end stern and play about as before; merciful bots end soft and pay for it in mistakes, unless they take the rings. Whether a stern word makes the desk easier for players is a playtest question: the bots' accuracy doesn't depend on lies.
 
 Game phase 6 (below), in the full game only:
 
@@ -54,7 +58,7 @@ From the gameplay brainstorm, in the order agreed.
 4. **Endless as a run** (done, [`tech-spec.md`](tech-spec.md) §68). Between rounds, pick one of three boons, or take a curse for a higher score. Its numbers are guesses until players have run it.
 5. **The forger's trail** (done, [`tech-spec.md`](tech-spec.md) §71). One of three carvers, drawn for the run, cuts the forged tallies. His knife's habits show on each forged tally, on the papers Loki's borrowed faces carry, and in Muninn's gaps, and what the desk sees is pinned to a board. Once the Night 11 letter asks for his name, name him on Night 12 or 14, once; the right man and the wrong one each come to the desk.
 6. **Valkyrie origins** (done, [`tech-spec.md`](tech-spec.md) §72). Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, someone more at home who keeps themselves while well, and three scenes of its own.
-7. **Mercy has memory.** Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.
+7. **Mercy has memory** (done, [`tech-spec.md`](tech-spec.md) §73). Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.
 8. **The household as people.** Your family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
 
 **Two rules for all of them:**

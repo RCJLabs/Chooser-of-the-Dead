@@ -2129,12 +2129,15 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
     const ctx = runContext(full, run);
     return { run, ctx, queue: campaignQueue(run, { content: full, ctx }) };
   };
-  /** The first soul in a fresh run's lines who pleads for `to`. */
+  /**
+   * The first soul in a fresh run's lines who pleads for `to`, and tells no lie: one that lies too is found out, and
+   * runs (docs/tech-spec.md §73).
+   */
   const pleading = (to: Destination) => {
     for (let i = 0; i < 12; i++) {
       for (let day = def.from; day <= campaignOf(full).lastDay; day++) {
         const { run, queue } = lineOn(`plea-${to}-${i}`, day);
-        const soul = queue.find((c) => !c.script && pleaOf(full, c)?.dest === to);
+        const soul = queue.find((c) => !c.script && c.lies.length === 0 && pleaOf(full, c)?.dest === to);
         if (soul) return { run, soul };
       }
     }
@@ -2275,19 +2278,21 @@ describe('kin of the misjudged (docs/tech-spec.md §60)', () => {
     // Kin and a plea come every day here, and the teacher could ask for another hall: when neither comes to it, that's
     // because it teaches.
     expect(asks(teacher)).toBe(true);
+    // Without the word among the dead (docs/tech-spec.md §73), whose level would set the pleas' chance instead.
+    const { word: _, ...plain } = campaignOf(full);
     const sure: Content = {
       ...full,
-      campaign: { ...campaignOf(full), kin: { ...def, chance: 100 }, pleas: { ...pleas, chance: 100 } },
+      campaign: { ...plain, kin: { ...def, chance: 100 }, pleas: { ...pleas, chance: 100 } },
     };
     // A story soul at the gate, as the jarl is on Day 9: the teacher is second in the line.
     const story: CaseSpec = { ...other, id: 'story', script: 'case.story' };
     for (let i = 0; i < 8; i++) {
       const seeded = { ...run, seed: `kin-teach${i}` };
       expect(kinIn(withKin(sure, seeded, ctx, [story, teacher]))).toEqual([]);
-      expect(withPlea(sure, seeded.seed, ctx, [story, teacher]).filter((c) => c.plea)).toEqual([]);
+      expect(withPlea(sure, seeded, ctx, [story, teacher]).filter((c) => c.plea)).toEqual([]);
       // With another of the day's own after it, that one is given them.
       expect(kinIn(withKin(sure, seeded, ctx, [story, teacher, other])).map((c) => c.id)).toEqual([other.id]);
-      const pled = withPlea(sure, seeded.seed, ctx, [story, teacher, other]).filter((c) => c.plea);
+      const pled = withPlea(sure, seeded, ctx, [story, teacher, other]).filter((c) => c.plea);
       expect(pled.map((c) => c.id)).toEqual([other.id]);
     }
   });
@@ -2335,9 +2340,10 @@ describe('kin of the misjudged (docs/tech-spec.md §60)', () => {
     if (!soul) throw new Error('no kin');
     const day = judgedDay(found.run, soul, soul.expect.dest);
     expect(day.kin).toEqual([wronged.name]);
-    // Filed for the playtest report with whose kin it was, and what it asked for, if anything.
+    // Filed for the playtest report with whose kin it was, and what it asked for, if anything (beside the story's own
+    // asks: on Day 9, the jarl's rings, docs/tech-spec.md §73).
     const asks = pleaOf(full, soul);
-    expect(day.ledger.at(-1)?.pleas).toEqual([
+    expect(day.ledger.at(-1)?.pleas?.filter((p) => !p.story)).toEqual([
       {
         name: soulName(soul),
         belongs: soul.expect.dest,

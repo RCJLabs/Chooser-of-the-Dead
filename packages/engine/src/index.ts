@@ -11,6 +11,7 @@ export * from './campaign/save';
 export * from './campaign/state';
 export * from './campaign/trail';
 export * from './campaign/weave';
+export * from './campaign/word';
 export * from './content/types';
 export * from './gen/companions';
 export * from './gen/generate';

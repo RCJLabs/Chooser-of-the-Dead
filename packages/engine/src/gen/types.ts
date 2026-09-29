@@ -123,6 +123,8 @@ export interface CaseSpec {
   readonly noon?: true;
   /** What an ordinary soul asks for at the desk (docs/tech-spec.md §59): a stamp where it doesn't belong, and the words. */
   readonly plea?: { readonly stamp: Destination; readonly text: string };
+  /** What an ordinary soul offers at the desk (docs/tech-spec.md §73): rings, paid at the audit, for a stamp where it doesn't belong. */
+  readonly offer?: { readonly stamp: Destination; readonly rings: number };
   /** Whose kin it is (docs/tech-spec.md §60): a soul the run sent to a hall where it didn't belong. */
   readonly kin?: { readonly name: string; readonly day: number; readonly hall: Destination };
   /** The party it came with (docs/tech-spec.md §69), if any. */

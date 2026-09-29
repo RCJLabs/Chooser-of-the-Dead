@@ -45,6 +45,30 @@ pleas:
     - { from: VALHALLA, to: FOLKVANGR, text: plea.valhalla.folkvangr }
     - { from: RAN, to: VALHALLA, text: plea.ran.valhalla }
     - { from: TRANSFER, to: HEL, text: plea.transfer.hel, since: 10 }
+# Word among the dead (docs/tech-spec.md §73): the line talks about how merciful you are. Each soul's ask granted at the
+# audit (a plea, the kin's included, or rings offered for a stamp, the story's included) moves the word a step softer,
+# and each refused (the soul sent where it belongs) a step sterner, from -3 to 3; a third hall moves it neither way.
+# From the next day on, its level sets how often one of the day's own souls asks (instead of the pleas' chance), and
+# how often the day's souls lie (a share of each day's lie rate); on the softest, half of those who ask bring rings
+# instead of a plea. Only a soul whose lies can all be caught at the desk asks. One that asks and lies too is asking
+# falsely: granted, it doesn't stand where it asked to go but runs at the last battle, and two mornings later the
+# dead find it out and the word goes a step softer again. At 0, as the campaign was before the word. First guesses;
+# DRAFT text.
+word:
+  max: 3
+  levels:
+    - { id: word.stern, upTo: -2, asks: 25, lies: 85, name: word.stern, text: word.stern.text }
+    - { id: word.even, upTo: 1, asks: 50, lies: 100, name: word.even, text: word.even.text }
+    - { id: word.soft, asks: 75, lies: 115, offers: 50, name: word.soft, text: word.soft.text }
+  # Offers for a stamp where the soul doesn't belong, from a hall whose souls plead: paid at the audit, and a mistake
+  # all the same, with its usual costs (no wage, a citation, a fine past the day's warnings, the standing it moves).
+  # Unlike a plea granted, the soul runs at the last battle: it bought the hall, it didn't want it. It doesn't appeal.
+  offers:
+    - { from: HEL, to: VALHALLA, rings: 15 }
+    - { from: HEL, to: FOLKVANGR, rings: 12 }
+    - { from: RAN, to: VALHALLA, rings: 15 }
+    - { from: TRANSFER, to: VALHALLA, rings: 12, since: 10 }
+  found: { after: 2, text: word.found }
 # The kin of the misjudged (docs/tech-spec.md §60): from Day 8, when a soul was sent to a hall where it didn't belong
 # at least two days before, on some days one of the day's own souls is its husband, wife or cousin, and says so at
 # the desk. If that soul's hall isn't where this one belongs, it asks to be sent there too: a plea (§59), and granted,

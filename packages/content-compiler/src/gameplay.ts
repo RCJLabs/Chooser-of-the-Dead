@@ -247,6 +247,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('waiting') ? { waiting: last('waiting') as NonNullable<CampaignDef['waiting']> } : {}),
     ...(last('requests') ? { requests: last('requests') as NonNullable<CampaignDef['requests']> } : {}),
     ...(last('pleas') ? { pleas: last('pleas') as NonNullable<CampaignDef['pleas']> } : {}),
+    ...(last('word') ? { word: last('word') as NonNullable<CampaignDef['word']> } : {}),
     ...(last('kin') ? { kin: last('kin') as NonNullable<CampaignDef['kin']> } : {}),
     ...(all('favours').length > 0 ? { favours: all('favours') } : {}),
     ...(last('promotion') ? { promotion: last('promotion') as NonNullable<CampaignDef['promotion']> } : {}),
@@ -1135,6 +1136,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintRagnarok(content, key));
   problems.push(...lintTrail(content, key, walk));
   problems.push(...lintOrigins(content, key));
+  problems.push(...lintWord(content, key));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1142,6 +1144,47 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
     const spec = content.days.find((x) => x.day === d);
     if (!spec) problems.push(`Campaign day ${d} has no day spec.`);
     else if (!spec.economy) problems.push(`Campaign day ${d} has no economy.`);
+  }
+  return problems;
+}
+
+/**
+ * Word among the dead (docs/tech-spec.md §73): pleas for its asks to set the chance of; levels in order, each but the
+ * last with the word it holds up to, within the word's bounds, and every level with its words; a level that brings
+ * offers only with offers to bring; and each offer for a hall other than the soul's own, never to be held or sent back,
+ * from a hall whose souls plead (only a soul that could plead offers).
+ */
+function lintWord(content: Content, key: (k: string, where: string) => void): string[] {
+  const c = content.campaign;
+  const w = c?.word;
+  if (!c || !w) return [];
+  const problems: string[] = [];
+  if (!c.pleas) problems.push('The word among the dead sets how often souls ask, but the campaign has no pleas.');
+  key(w.found.text, 'the word among the dead');
+  const ids = new Set<string>();
+  let below = -w.max - 1;
+  w.levels.forEach((l, i) => {
+    const where = `word level ${l.id}`;
+    if (ids.has(l.id)) problems.push(`Duplicate word level "${l.id}".`);
+    ids.add(l.id);
+    key(l.name, where);
+    key(l.text, where);
+    const last = i === w.levels.length - 1;
+    if (last && l.upTo !== undefined) problems.push(`The last ${where} holds up to a word; it should hold the rest.`);
+    if (!last && l.upTo === undefined) problems.push(`The ${where} holds the rest of the word, but isn't the last.`);
+    if (l.upTo !== undefined) {
+      if (l.upTo <= below) problems.push(`The ${where} holds up to ${l.upTo}, not past the level before it.`);
+      if (l.upTo >= w.max) problems.push(`The ${where} holds up to ${l.upTo}, the word's bound or past it.`);
+      below = l.upTo;
+    }
+    if (l.offers && w.offers.length === 0) problems.push(`The ${where} brings offers, but there are none to bring.`);
+  });
+  const pleading = new Set((c.pleas?.list ?? []).map((p) => p.from));
+  for (const o of w.offers) {
+    const where = `offer from ${o.from} to ${o.to}`;
+    if (o.from === o.to) problems.push(`The ${where} pays for the hall the soul already belongs in.`);
+    if (o.to === 'RETURN' || o.to === 'DETAIN') problems.push(`The ${where} pays for a stamp no soul asks for.`);
+    if (!pleading.has(o.from)) problems.push(`The ${where} comes from a hall whose souls never plead.`);
   }
   return problems;
 }

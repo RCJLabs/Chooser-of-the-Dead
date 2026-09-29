@@ -41,6 +41,9 @@ function testerSave(): { save: RunSave; ledger: DayLedger[] } {
       pleas: [
         { name: 'Arne Hauksson', belongs: 'HEL', to: 'VALHALLA', granted: false },
         { name: 'Ulf Tokason', belongs: 'HEL', kin: 'Orm Grimsson', granted: false },
+        // Rings offered for a hall, and a soul that lied and was granted it (docs/tech-spec.md §73).
+        { name: 'Geir Hallsson', belongs: 'RAN', to: 'VALHALLA', offer: 15, granted: false },
+        { name: 'Thora Ketilsdottir', belongs: 'HEL', to: 'RAN', granted: true, lied: true },
       ],
     },
     { ...d3, night: { ...d3.night, rings: -4, reprieve: 20 }, pleas: [] },
@@ -59,7 +62,7 @@ describe('reading a playtest report back', () => {
       slot: 2,
       seed: 'playtest-read',
       now: { day: 4, phase: 'morning', debtNights: 0 },
-      pleas: { asked: 1, granted: 0, kin: 1 },
+      pleas: { asked: 2, granted: 1, kin: 1, offers: 1, taken: 0, lied: 1 },
     });
     expect(r?.days.map((d) => d.day)).toEqual([1, 2, 3]);
     for (const [i, d] of (r?.days ?? []).entries()) {
@@ -155,7 +158,9 @@ describe('summing up reports', () => {
     expect(text).toMatch(/\| rule\.[^|]+ \| 2 \| 1 \| 2 \|/);
     expect(text).toContain('Right stamp, a step skipped: 1.');
     expect(text).toContain('Of the wrong stamps: 1 bribes taken, 0 pleas granted, 1 after a noon decree.');
-    expect(text).toContain('Pleas: 1, granted: 0. Kin who came: 1. From 2 of 2 runs.');
+    expect(text).toContain(
+      'Pleas: 2, granted: 1. Kin who came: 1. Offers: 1, taken: 0. Found out lying: 1. From 2 of 2 runs.',
+    );
   });
 
   it('places a number among the bots, and lists days and quantiles', () => {
