@@ -46,8 +46,11 @@ async function stampAndSend(page: Page, c: CaseSpec) {
 }
 
 async function load(page: Page, save: RunSave) {
+  // Into an empty slot only: a reload must find what the game saved since, not this save again.
   await page.addInitScript(
-    (record) => localStorage.setItem('cots.campaign.0', record),
+    (record) => {
+      if (localStorage.getItem('cots.campaign.0') === null) localStorage.setItem('cots.campaign.0', record);
+    },
     JSON.stringify({ v: 1, rev: 1, savedAt: 0, save }),
   );
   await page.goto('./');
