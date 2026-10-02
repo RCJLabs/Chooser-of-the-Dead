@@ -261,6 +261,8 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('trail') ? { trail: last('trail') as NonNullable<CampaignDef['trail']> } : {}),
     ...(last('origins') ? { origins: last('origins') as NonNullable<CampaignDef['origins']> } : {}),
     ...(all('letters').length > 0 ? { letters: all('letters') } : {}),
+    ...(last('proven') ? { proven: last('proven') as NonNullable<CampaignDef['proven']> } : {}),
+    ...(last('vows') ? { vows: last('vows') as NonNullable<CampaignDef['vows']> } : {}),
   };
 }
 
@@ -1139,6 +1141,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintOrigins(content, key));
   problems.push(...lintWord(content, key));
   problems.push(...lintLetters(content, walk));
+  problems.push(...lintVows(content, key));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1208,6 +1211,36 @@ function lintLetters(content: Content, walk: (p: StatePred, where: string) => vo
     slots.add(slot);
     if (l.when) walk(l.when, where);
   }
+  return problems;
+}
+
+/**
+ * Vows at the cup (docs/tech-spec.md §75): each with its words, sworn for a day of the campaign after the first night
+ * one is offered; a vow of sun with the share to spare and no other with one; a vow of proof only where stamps are
+ * asked for it (§76); and enough on offer the first night they're offered that the choice is a choice.
+ */
+function lintVows(content: Content, key: (k: string, where: string) => void): string[] {
+  const c = content.campaign;
+  const v = c?.vows;
+  if (!c || !v) return [];
+  const problems: string[] = [];
+  const ids = new Set<string>();
+  for (const w of v.list) {
+    const where = `vow ${w.id}`;
+    if (ids.has(w.id)) problems.push(`Duplicate vow "${w.id}".`);
+    ids.add(w.id);
+    key(w.text, where);
+    if (w.since > c.lastDay) problems.push(`${where} is sworn for a day after the campaign's last.`);
+    if (w.kind === 'sun' && w.spare === undefined) problems.push(`${where} doesn't say how much sun to spare.`);
+    if (w.kind !== 'sun' && w.spare !== undefined)
+      problems.push(`${where} says how much sun to spare, but isn't one of sun.`);
+    if (w.kind === 'proven' && !c.proven) problems.push(`${where} asks for proof, but no stamp is asked for it.`);
+  }
+  if (v.from >= c.lastDay) problems.push(`The first vow is sworn on night ${v.from}, with no day after it.`);
+  const first = v.list.filter((w) => w.since <= v.from + 1).length;
+  if (first < 2)
+    problems.push(`Night ${v.from} offers ${first} vow${first === 1 ? '' : 's'}: there's nothing to choose.`);
+  if (Object.keys(v.broken).length === 0) problems.push('A broken vow costs nothing.');
   return problems;
 }
 

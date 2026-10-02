@@ -49,6 +49,10 @@ import {
   storyOffer,
   suspectsLeft,
   trailOf,
+  type VowDef,
+  type VowKind,
+  vowOf,
+  vowOffer,
 } from '@cots/engine';
 import { type ScenePath, sceneEnv, scenePaths } from '@cots/story';
 
@@ -66,16 +70,21 @@ export interface Judging {
   readonly accuracy: number;
   /** Chance a liar's lie is caught (for the bonus) when judged right. */
   readonly catches: number;
+  /**
+   * Chance a soul judged right was judged on what decides it (docs/tech-spec.md §76): the bot looks at its proof first,
+   * and pays the sun that costs. The rest are lucky.
+   */
+  readonly proves: number;
 }
 
 /** `neglect` pays no bills at all: the family sickens and leaves, and the rings pile up. */
 export type NightStrategy = 'payAll' | 'frugal' | 'upgradesFirst' | 'neglect';
 
 export const JUDGING: readonly Judging[] = [
-  { name: 'expert', accuracy: 0.97, catches: 0.8 },
-  { name: 'competent', accuracy: 0.85, catches: 0.5 },
-  { name: 'novice', accuracy: 0.65, catches: 0.2 },
-  { name: 'careless', accuracy: 0.4, catches: 0 },
+  { name: 'expert', accuracy: 0.97, catches: 0.8, proves: 0.95 },
+  { name: 'competent', accuracy: 0.85, catches: 0.5, proves: 0.75 },
+  { name: 'novice', accuracy: 0.65, catches: 0.2, proves: 0.4 },
+  { name: 'careless', accuracy: 0.4, catches: 0, proves: 0 },
 ];
 
 /** Compiled Ink scenes by id, as a build ships them. */
@@ -317,6 +326,61 @@ export function lookForMarks(c: CaseSpec, ctx: DayCtx, at: number, done: readonl
   ];
 }
 
+/**
+ * What a careful player does to prove soul `k` of a party (`members`; a lone soul's party is itself) before stamping it
+ * (docs/tech-spec.md §76): look at everything its proof rests on, turning the body over and using the tools that needs;
+ * catch and question it on each lie whose confession the proof needs, unless `silent` (a vow at the cup, §75); and turn
+ * to a companion for what the proof needs of them, and back. `done`: what's been done for the soul already, so nothing
+ * is paid for twice.
+ */
+export function proveSoul(
+  members: readonly CaseSpec[],
+  k: number,
+  ctx: DayCtx,
+  at: number,
+  done: readonly ShiftAction[] = [],
+  silent = false,
+): ShiftAction[] {
+  const c = members[k];
+  if (!c) return [];
+  const look = (soul: CaseSpec, ids: readonly string[], flipped: boolean, used: ReadonlySet<string>) => {
+    const fields = soul.evidence.fields.filter((f) => ids.includes(f.id));
+    const tools = [...new Set(fields.flatMap((f) => (f.tool && f.tool !== 'flip' ? [f.tool] : [])))];
+    return [
+      ...(!flipped && fields.some((f) => f.view === 'back') ? [{ t: 'flip' as const, at }] : []),
+      ...tools.filter((tool) => !used.has(tool)).map((tool) => ({ t: 'tool' as const, tool, at })),
+      { t: 'inspect' as const, fields: fields.map((f) => f.id), at },
+    ];
+  };
+  const used = new Set(done.flatMap((a) => (a.t === 'tool' ? [a.tool] : [])));
+  const actions: ShiftAction[] = look(
+    c,
+    c.meta.proof,
+    done.some((a) => a.t === 'flip'),
+    used,
+  );
+  // A confession the proof needs: the lie called out against what the proof shows of it, then the soul questioned.
+  const proof = c.evidence.fields.filter((f) => c.meta.proof.includes(f.id));
+  const flagged = new Set(done.flatMap((a) => (a.t === 'compare' ? [a.a, a.b] : [])));
+  for (const l of silent ? [] : c.lies) {
+    if (!c.meta.proof.includes(l.field) || l.onQuestion !== 'confess' || l.about !== undefined) continue;
+    const x = solve(proof, soulCtx(ctx, c)).contradictions.find((y) => y.lie === l.field);
+    const other = x?.against.find((id) => id !== 'world' && !id.startsWith('q:'));
+    if (!other) continue;
+    if (!flagged.has(l.field)) actions.push({ t: 'compare', a: l.field, b: other, at });
+    actions.push({ t: 'question', lie: l.field, at });
+  }
+  // What the proof needs of a companion: a jarl's own proof for his sworn man, what shows a claim about one false.
+  const across = new Map<number, string[]>();
+  for (const x of c.meta.crossProof ?? []) across.set(x.soul, [...(across.get(x.soul) ?? []), x.field]);
+  for (const [soul, ids] of across) {
+    const mate = members[soul];
+    if (!mate || soul === k) continue;
+    actions.push({ t: 'turn', to: soul, at }, ...look(mate, ids, false, new Set()), { t: 'turn', to: k, at });
+  }
+  return actions;
+}
+
 /** The sun a bot spends on each soul unless told otherwise: under every day's sun per soul, so none is left. */
 export const BOT_PACE_S = 25;
 
@@ -333,6 +397,15 @@ function shiftActions(
   bribes = false,
   pleas = false,
 ): RunAction[] {
+  // Whether a soul judged right was proven (docs/tech-spec.md §76) comes from a stream of its own, so the rest of the
+  // day plays out as it would without it. Sworn at the cup (§75), the bot plays to its vow where it can: to prove, it
+  // proves every soul it judges right; to catch every liar, it catches every one it judges right; sworn to silence, it
+  // proves without questions.
+  const proofRng = new Rng(`${run.seed}|prove|${run.day}|${judging.name}`);
+  const vow = vowOf(run, content)?.kind;
+  const silent = vow === 'silent';
+  const catches = vow === 'liars' ? 1 : judging.catches;
+  const proves = vow === 'proven' ? 1 : judging.proves;
   const beginShift: RunAction = { t: 'beginShift', at: 0, ...(assists ? { assists } : {}) };
   const begun = stepRun(run, beginShift, { content, ctx }).state;
   const cases = begun.shift?.cases ?? [];
@@ -351,14 +424,17 @@ function shiftActions(
     at += paceS * 1000;
     const right = rng.chance(Math.round(judging.accuracy * 1000), 1000);
     let lying = false;
-    if (right && c.lies.length > 0 && rng.chance(Math.round(judging.catches * 1000), 1000)) {
+    const members = party ? cases.slice(party.start, party.start + party.size) : [c];
+    const done: ShiftAction[] = [];
+    if (right && c.lies.length > 0 && rng.chance(Math.round(catches * 1000), 1000)) {
       const own = catchLie(c, ctx, at);
-      const caught =
-        own.length > 0 || !party ? own : catchCrossLie(cases.slice(party.start, party.start + party.size), k, ctx, at);
+      const caught = own.length > 0 || !party ? own : catchCrossLie(members, k, ctx, at);
       lying = caught.length > 0;
-      for (const action of caught) actions.push({ t: 'shift', action });
-      for (const action of lookForMarks(c, ctx, at, caught)) actions.push({ t: 'shift', action });
+      done.push(...caught, ...lookForMarks(c, ctx, at, caught));
     }
+    if (right && proofRng.chance(Math.round(proves * 1000), 1000))
+      done.push(...proveSoul(members, k, ctx, at, done, silent));
+    for (const action of done) actions.push({ t: 'shift', action });
     const wrongs = stamps.filter((d) => d !== c.expect.dest);
     // A soul the bot knows belongs where a favour asks for souls from goes where the favour asks instead.
     const favour = right ? favours.find((f) => f.left > 0 && f.r.from === c.expect.dest) : undefined;
@@ -567,8 +643,29 @@ export interface SimOptions {
   readonly weave?: string;
   /** Who the chooser was in life (docs/tech-spec.md §72), by id: the run is begun with that origin. */
   readonly origin?: string;
+  /**
+   * Whether, and how, the bot swears a vow at the cup each night it can (docs/tech-spec.md §75): `safe`, the dearest it
+   * expects to keep (VOW_SAFE); `dearest`, the dearest on offer, whatever it is. Sworn, it plays to the vow as a player
+   * would where it can: every soul it judges right proven, every liar it judges right caught, no question asked. Never,
+   * unless told.
+   */
+  readonly vows?: VowPolicy;
   /** Called with the run as the horn blows, before the hosts go to the fronts: for probes of the last battle. */
   readonly onHorn?: (run: RunState) => void;
+}
+
+/** How a bot picks its vow (SimOptions.vows). */
+export type VowPolicy = 'safe' | 'dearest';
+
+/**
+ * The vows a bot expects to keep (docs/tech-spec.md §75): any bot keeps a vow of no help (bots never ask for one), of
+ * silence, and of sun at the pace it works (BOT_PACE_S, well inside every day's sun per soul); only a bot that judges
+ * nearly every soul right expects to keep the vows that a single mistake breaks.
+ */
+export function vowSafe(kind: VowKind, judging: Judging, paceS = BOT_PACE_S): boolean {
+  if (kind === 'alone' || kind === 'silent') return true;
+  if (kind === 'sun') return paceS <= BOT_PACE_S;
+  return judging.accuracy >= 0.95;
 }
 
 /** One bot run to the end of the campaign (or its ending). */
@@ -636,6 +733,14 @@ export function simulateRun(
     if (initial && defs.length > 0) note({ at: 'shift', mode: 'campaign', facts: shiftFacts(initial, log, ctx) });
     run = stepRun(run, { t: 'endAudit' }, { content, ctx }).state;
     if (options.scenes) run = playStory(run, content, ctx, options.scenes, 'night', policy);
+    // The dearest vow on offer tonight (docs/tech-spec.md §75), of those the bot expects to keep unless it swears
+    // whatever pays most; the first of them in the campaign's order.
+    const vow = options.vows
+      ? vowOffer(run, content)
+          .filter((v) => options.vows === 'dearest' || vowSafe(v.kind, judging, options.paceS))
+          .reduce<VowDef | undefined>((best, v) => (best && best.rings >= v.rings ? best : v), undefined)
+      : undefined;
+    if (vow) run = stepRun(run, { t: 'vow', id: vow.id }, { content, ctx }).state;
     for (const a of nightActions(run, content, ctx, strategy, policy)) run = stepRun(run, a, { content, ctx }).state;
     // The day's accounts must add up to the change in rings.
     const l = run.ledger[run.ledger.length - 1];
@@ -647,7 +752,8 @@ export function simulateRun(
         appeal +
         l.pay +
         l.bonus +
-        (l.nails ?? 0) -
+        (l.nails ?? 0) +
+        (l.vow?.rings ?? 0) -
         l.fines -
         n.hearth -
         n.food -
@@ -743,6 +849,19 @@ export interface PolicyReport {
   readonly meanAsks: number;
   readonly meanGranted: number;
   readonly meanFound: number;
+  /**
+   * Proven, not lucky (docs/tech-spec.md §76): souls judged rightly on a guess over a run, and days graded Flawless
+   * (means).
+   */
+  readonly meanLucky: number;
+  readonly meanFlawless: number;
+  /** Vows at the cup (docs/tech-spec.md §75), over all the runs: sworn and kept, by kind, and the rings they paid. */
+  readonly vows: {
+    readonly sworn: number;
+    readonly kept: number;
+    readonly rings: number;
+    readonly byKind: Readonly<Record<string, { readonly sworn: number; readonly kept: number }>>;
+  };
   readonly endings: Record<string, number>;
   readonly ledgerErrors: number;
 }
@@ -762,6 +881,7 @@ export function simulateCampaign(
   weave?: string,
   origin?: string,
   pleas?: boolean,
+  vows?: VowPolicy,
 ): PolicyReport[] {
   const out: PolicyReport[] = [];
   const mean = (xs: readonly number[]) => xs.reduce((a, x) => a + x, 0) / Math.max(1, xs.length);
@@ -780,6 +900,7 @@ export function simulateCampaign(
             ...(pleas ? { pleas } : {}),
             ...(weave ? { weave } : {}),
             ...(origin ? { origin } : {}),
+            ...(vows ? { vows } : {}),
           }),
         );
         const ranks = campaignOf(content).promotion?.ranks.length ?? 0;
@@ -826,6 +947,24 @@ export function simulateCampaign(
             results.map((r) => r.ledger.reduce((n, l) => n + (l.pleas ?? []).filter((p) => p.granted).length, 0)),
           ),
           meanFound: mean(results.map((r) => r.found)),
+          meanLucky: mean(results.map((r) => r.ledger.reduce((n, l) => n + (l.grade?.lucky ?? 0), 0))),
+          meanFlawless: mean(results.map((r) => r.ledger.filter((l) => l.grade?.grade === 'flawless').length)),
+          vows: (() => {
+            const kinds = new Map((campaignOf(content).vows?.list ?? []).map((v) => [v.id, v.kind]));
+            const byKind: Record<string, { sworn: number; kept: number }> = {};
+            let sworn = 0;
+            let kept = 0;
+            let rings = 0;
+            for (const v of results.flatMap((r) => r.ledger.flatMap((l) => (l.vow ? [l.vow] : [])))) {
+              const kind = kinds.get(v.id) ?? v.id;
+              const k = byKind[kind] ?? { sworn: 0, kept: 0 };
+              byKind[kind] = { sworn: k.sworn + 1, kept: k.kept + (v.kept ? 1 : 0) };
+              sworn++;
+              kept += v.kept ? 1 : 0;
+              rings += v.rings;
+            }
+            return { sworn, kept, rings, byKind };
+          })(),
           endings,
           ledgerErrors: results.filter((r) => !r.ledgerOk).length,
         });

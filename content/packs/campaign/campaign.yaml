@@ -422,6 +422,28 @@ letters:
     scene: scene.e.steinar.answer
     when: { all: [{ state: flags.errand_steinar, gte: 1 }, { state: member.brother.gone, lte: 0 }] }
   - { day: 14, at: night, scene: scene.e.talk }
+# Proven, not lucky (docs/tech-spec.md §76): a stamp is proven when what the player had of the soul as it was sent
+# (what they looked at, the signs the body showed them, what it owned up to) settled its judgment. A day is Flawless
+# only with every right stamp proven, and in an Endless run a right stamp on a guess scores this instead of its worth.
+# Never in the Daily or the primer. First guess.
+proven:
+  luckyPoints: 0
+# Vows at the cup (docs/tech-spec.md §75): from Night 3, each night offers three vows for the next day, drawn for the
+# run and the day, and the player swears one or none. The day's audit settles it: kept, it pays its rings; broken, it
+# costs Odin's standing, before whom it was sworn. A kept vow moves no standing, so vows can't carry a run to an ending.
+# Never in Story Mode, and under the oath never the vow it makes pointless. The sun's vow says its share in words too.
+# First guesses, about a soul's wage each; `pnpm sim campaign --vows` measures them. DRAFT text.
+vows:
+  from: 3
+  offered: 3
+  broken: { odin: -1 }
+  list:
+    - { id: vow.clean, kind: clean, since: 4, rings: 8, text: vow.clean }
+    - { id: vow.liars, kind: liars, since: 4, rings: 8, text: vow.liars }
+    - { id: vow.proven, kind: proven, since: 4, rings: 6, text: vow.proven }
+    - { id: vow.silent, kind: silent, since: 4, rings: 3, text: vow.silent }
+    - { id: vow.sun, kind: sun, since: 4, rings: 4, spare: 25, text: vow.sun }
+    - { id: vow.alone, kind: alone, since: 4, rings: 2, text: vow.alone }
 # The epilogue (docs/tech-spec.md §55): after the ending's own words, what became of everyone, read from how the run
 # left them. Each slot says the first of its lines whose `when` holds (the last, without one, whatever else); a slot
 # with none that holds says nothing. Not after a failure or the slice's end. Naglfar can sail on Day 18 or 19, before

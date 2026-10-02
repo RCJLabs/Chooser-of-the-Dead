@@ -26,6 +26,11 @@ export interface RunRules {
   readonly worth: number;
   /** More for a soul judged rightly whose lie was caught before the stamp. */
   readonly bounty: number;
+  /**
+   * What a soul judged rightly on a guess scores (docs/tech-spec.md §76), in place of its worth and bounty: in a build
+   * whose campaign asks stamps for proof; undefined elsewhere, where every right stamp scores in full.
+   */
+  readonly luckyPoints?: number;
   readonly curses: number;
   /** Týr's oath: a Compare that finds nothing is a strike. */
   readonly oath: boolean;
@@ -86,10 +91,12 @@ export function runRules(content: Content, picks: readonly EndlessPick[]): RunRu
     else if ('sunCut' in e) sunCut = Math.min(MAX_SUN_CUT, sunCut + e.sunCut);
     else if ('oath' in e) oath = true;
   }
+  const lucky = content.campaign?.proven?.luckyPoints;
   return {
     strikes: Math.max(1, strikes),
     worth: 1 + curses,
     bounty,
+    ...(lucky !== undefined ? { luckyPoints: lucky } : {}),
     curses,
     oath,
     sun,
@@ -218,15 +225,18 @@ export interface RunTally {
 
 /**
  * What one shift event does to the run: a soul judged rightly scores its worth (and the bounty, if its lie was caught
- * before the stamp); a wrong stamp is a strike, and so is a Compare that finds nothing under Týr's oath; a hint uses
- * one of the run's. Null for anything else. Souls the sun set on were never judged: they score nothing.
+ * before the stamp), or on a guess the run's `luckyPoints` (docs/tech-spec.md §76); a wrong stamp is a strike, and so is
+ * a Compare that finds nothing under Týr's oath; a hint uses one of the run's. Null for anything else. Souls the sun
+ * set on were never judged: they score nothing.
  */
 export function tallyEvent(rules: RunRules, e: ShiftEvent): RunTally | null {
   switch (e.e) {
-    case 'judged':
-      return e.verdict.correct
-        ? { right: 1, points: rules.worth + (e.verdict.caught > 0 ? rules.bounty : 0), strikes: 0, hints: 0 }
-        : { right: 0, points: 0, strikes: 1, hints: 0 };
+    case 'judged': {
+      if (!e.verdict.correct) return { right: 0, points: 0, strikes: 1, hints: 0 };
+      const lucky = rules.luckyPoints !== undefined && e.verdict.unproven !== undefined;
+      const points = lucky ? (rules.luckyPoints ?? 0) : rules.worth + (e.verdict.caught > 0 ? rules.bounty : 0);
+      return { right: 1, points, strikes: 0, hints: 0 };
+    }
     case 'noConflict':
       return rules.oath ? { right: 0, points: 0, strikes: 1, hints: 0 } : null;
     case 'hint':

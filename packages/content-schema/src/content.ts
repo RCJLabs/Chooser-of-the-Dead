@@ -875,6 +875,28 @@ export const CampaignPartSchema = z.strictObject({
     )
     .min(1)
     .optional(),
+  // Proven, not lucky (docs/tech-spec.md §76): a stamp is proven when what the player had of the soul settled it.
+  proven: z.strictObject({ luckyPoints: Int.min(0) }).optional(),
+  // Vows at the cup (docs/tech-spec.md §75): one sworn at night for the next day; kept pays rings, broken costs standing.
+  vows: z
+    .strictObject({
+      from: Day,
+      offered: Int.min(1).max(4),
+      broken: z.partialRecord(FactionSchema, Int.max(0)),
+      list: z
+        .array(
+          z.strictObject({
+            id: Id,
+            kind: z.enum(['clean', 'liars', 'proven', 'silent', 'sun', 'alone']),
+            since: Day,
+            rings: Int.min(1),
+            spare: Int.min(1).max(90).optional(),
+            text: Key,
+          }),
+        )
+        .min(1),
+    })
+    .optional(),
   // The epilogue (docs/tech-spec.md §55): what became of everyone, told after the ending from the run.
   epilogue: z
     .strictObject({

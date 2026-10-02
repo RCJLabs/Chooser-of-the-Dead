@@ -5,6 +5,7 @@ import { generateDay } from '../gen/generate';
 import { linkParties, lordGiven, partyAt } from '../gen/party';
 import type { CaseSpec, Field, ForgeryTell } from '../gen/types';
 import { createDayContext, type DayCtx, soulCtx } from '../logic/context';
+import { sameJudgment } from '../logic/judge';
 import { type Given, isPerceivable, solve } from '../logic/solver';
 import { type PressAnswer, pressAnswer, saidFrom } from '../narrative/press';
 import { type QuestionResponse, questionResponse } from '../narrative/questions';
@@ -132,6 +133,13 @@ export interface Verdict {
    * the audit; absent when none, and on any other soul.
    */
   readonly looked?: readonly string[];
+  /**
+   * Set when what the player had of the soul as it was sent didn't settle its judgment (docs/tech-spec.md §76): the
+   * stamp was a guess, and right, a lucky one. It names the deciding evidence they never had, as `missed` does, with
+   * `q:<field>` for a confession never asked for; empty when they had all of it and something else they'd believed
+   * kept it from settling. Absent when the stamp was proven, and where no stamp is asked for proof (`proofAsked`).
+   */
+  readonly unproven?: readonly string[];
   readonly atMs: number;
 }
 
@@ -165,8 +173,14 @@ export interface ShiftState {
   readonly recentQ: readonly string[];
   /** Questions asked for free so far (`mods.freeQuestions`); absent before the first. */
   readonly freeAsked?: number;
-  /** Hints given so far, when the shift has a limit (`mods.hints`); absent before the first. */
+  /** Hints given so far (`mods.hints` may limit them); absent before the first. */
   readonly hintsAsked?: number;
+  /**
+   * Questions asked so far, free or not, and claims pressed: what the vows at the cup count (docs/tech-spec.md §75).
+   * Absent before the first.
+   */
+  readonly questions?: number;
+  readonly presses?: number;
   /**
    * The party at the desk (docs/tech-spec.md §69), while there is one: where it starts in the line, and each member's
    * state. The member the player is turned to stands at `cursor` and its state is `soul`; its entry here is only kept
@@ -368,6 +382,118 @@ export function givenAtDesk(state: ShiftState, k: number, ctx: DayCtx): Given[] 
 export function crossFlagged(soul: SoulState): Map<string, string[]> {
   return new Map(soul.flagged.filter((f) => parseMemberField(f.with) !== null).map((f) => [f.lie, [f.with]]));
 }
+
+/**
+ * Whether stamps are asked for proof in a shift (docs/tech-spec.md §76): in a build whose campaign asks it, and never
+ * in the Daily or the primer, which play as they always have.
+ */
+export function proofAsked(config: ShiftConfig, content: Content): boolean {
+  return content.campaign?.proven !== undefined && config.mode !== 'daily' && config.mode !== 'primer';
+}
+
+/**
+ * What the player had of soul `c`, with its state `soul` (docs/tech-spec.md §76): everything looked at, and every sign
+ * the body showed them. The art draws a body's signs whether or not they're touched: the front's always, the back's
+ * once it's been turned over, and a tool's readings once the tool was used.
+ */
+export function perceivedOf(c: CaseSpec, soul: SoulState, ctx: DayCtx): Field[] {
+  const cx = soulCtx(ctx, c);
+  return soulFieldsOf(c, soul).filter(
+    (f) =>
+      soul.seen.includes(f.id) ||
+      (f.item === 'body' &&
+        isPerceivable(f, cx) &&
+        (f.view !== 'back' || soul.flipped) &&
+        (f.tool === undefined || soul.tools.includes(f.tool))),
+  );
+}
+
+/**
+ * What party member `k` (of `members`, with their states `souls`) said of a companion that what the player had of the
+ * companion shows false, with the lies across the party they flagged: as the solver's `crossCaught`. A claim and what
+ * shows it false both had count as caught, as a soul's own lie does with what contradicts it.
+ */
+function crossHad(members: readonly CaseSpec[], souls: readonly SoulState[], k: number, ctx: DayCtx) {
+  const c = members[k];
+  const soul = souls[k];
+  const out = new Map<string, string[]>(soul ? crossFlagged(soul) : []);
+  if (!c || !soul || members.length < 2) return out;
+  for (const f of perceivedOf(c, soul, ctx)) {
+    const about = f.about;
+    const mate = about ? members[about.soul] : undefined;
+    const mateSoul = about ? souls[about.soul] : undefined;
+    if (!about || about.soul === k || !mate || !mateSoul || out.has(f.id)) continue;
+    const shows = companionShows(
+      perceivedOf(mate, mateSoul, ctx),
+      about.fact,
+      about.value,
+      soulCtx(ctx, mate),
+      retractedOf(mate, mateSoul),
+    );
+    if (shows)
+      out.set(
+        f.id,
+        shows.map((id) => memberField(about.soul, id)),
+      );
+  }
+  return out;
+}
+
+/**
+ * The deciding evidence the player never had of party member `k` as it was sent (docs/tech-spec.md §76), or null when
+ * what they had settled its judgment: its own evidence as they had it, with what it owned up to questioned, its lies
+ * about companions shown false, and for a jarl's sworn man, his jarl's hall as far as what they had of the jarl settles
+ * it. What's missing is named as a verdict's `missed` is, with `q:<field>` for a confession its proof needs that was
+ * never asked for.
+ */
+export function unprovenAt(
+  members: readonly CaseSpec[],
+  souls: readonly SoulState[],
+  k: number,
+  ctx: DayCtx,
+): string[] | null {
+  const c = members[k];
+  const soul = souls[k];
+  if (!c || !soul) return null;
+  const had = perceivedOf(c, soul, ctx);
+  const lord = c.party?.lord;
+  const jarl = lord && lord.at !== k && members.length > 1 ? members[lord.at] : undefined;
+  const jarlSoul = lord && jarl ? souls[lord.at] : undefined;
+  const given =
+    lord && jarl && jarlSoul
+      ? lordGiven(
+          jarl,
+          perceivedOf(jarl, jarlSoul, ctx),
+          lord.fact,
+          ctx,
+          { crossCaught: crossHad(members, souls, lord.at, ctx), retracted: retractedOf(jarl, jarlSoul) },
+          [],
+        )
+      : undefined;
+  const j = solve(had, soulCtx(ctx, c), {
+    retracted: retractedOf(c, soul),
+    crossCaught: crossHad(members, souls, k, ctx),
+    ...(given ? { given } : {}),
+  }).judgment;
+  if (j.kind === 'determined' && sameJudgment(j, c.expect)) return null;
+  const ids = new Set(had.map((f) => f.id));
+  const confessions = new Set(revealedBy(c));
+  const own = c.meta.proof.flatMap((id) =>
+    !ids.has(id) ? [id] : confessions.has(id) && !soul.questioned.includes(id) ? [`q:${id}`] : [],
+  );
+  const across = (c.meta.crossProof ?? [])
+    .filter((x) => {
+      const mate = members[x.soul];
+      const mateSoul = souls[x.soul];
+      return !mate || !mateSoul || !perceivedOf(mate, mateSoul, ctx).some((f) => f.id === x.field);
+    })
+    .map((x) => memberField(x.soul, x.field));
+  return [...own, ...across];
+}
+
+/** The lies of `c` that questioning makes it own up to (a confession, which establishes the truth). */
+const revealedBy = (c: CaseSpec): string[] =>
+  c.lies.filter((l) => l.onQuestion === 'confess' && l.about === undefined).map((l) => l.field);
 
 /** Sun time used so far: real time since the start, minus pauses, plus penalties. */
 export function sunElapsed(state: ShiftState, at: number): number {
@@ -840,7 +966,7 @@ export function stepShift(
       const free = freeQuestion(s);
       const cost = free ? 0 : questionCostMs(s, day);
       const questioned = [...s.soul.questioned, action.lie, ...(held !== null ? [held] : [])];
-      const asked = { ...s, recentQ, soul: { ...s.soul, questioned } };
+      const asked = { ...s, recentQ, soul: { ...s.soul, questioned }, questions: (s.questions ?? 0) + 1 };
       return withSun({
         state: penalize(free ? { ...asked, freeAsked: (s.freeAsked ?? 0) + 1 } : asked, cost),
         events: [{ e: 'answer', lie: action.lie, response, penaltyMs: cost }],
@@ -863,7 +989,7 @@ export function stepShift(
       };
       const recentQ = [...s.recentQ, answer.template, ...(answer.saidTemplate ? [answer.saidTemplate] : [])].slice(-20);
       return withSun({
-        state: penalize({ ...s, recentQ, soul }, penaltyMs),
+        state: penalize({ ...s, recentQ, soul, presses: (s.presses ?? 0) + 1 }, penaltyMs),
         events: [{ e: 'pressed', field: action.field, answer, penaltyMs }],
       });
     }
@@ -874,7 +1000,7 @@ export function stepShift(
       const field = nextHint(s);
       if (!field) return withSun(reject(s, 'nothing left to point at'));
       const soul = { ...s.soul, hinted: [...(s.soul.hinted ?? []), field] };
-      const asked = cap !== undefined ? { ...s, soul, hintsAsked: (s.hintsAsked ?? 0) + 1 } : { ...s, soul };
+      const asked = { ...s, soul, hintsAsked: (s.hintsAsked ?? 0) + 1 };
       const penaltyMs = sunCosts(day.content).hint;
       return withSun({ state: penalize(asked, penaltyMs), events: [{ e: 'hint', field, penaltyMs }] });
     }
@@ -906,9 +1032,13 @@ export function stepShift(
         return withSun({ state: turnTo(s, waiting), events: [{ e: 'turned', to: waiting, next: true }] });
       }
       const atMs = sunElapsed(s, action.at);
-      const verdicts = members.map((m, k) =>
-        verdictFor(m, souls[k] as SoulState, start + k, soulCtx(day, m), atMs, souls),
-      );
+      // Whether what the player had of each settled it (docs/tech-spec.md §76), where stamps are asked for proof.
+      const proof = proofAsked(s.config, day.content);
+      const verdicts = members.map((m, k) => {
+        const v = verdictFor(m, souls[k] as SoulState, start + k, soulCtx(day, m), atMs, souls);
+        const lacked = proof ? unprovenAt(members, souls, k, day) : null;
+        return lacked ? { ...v, unproven: lacked } : v;
+      });
       const events: ShiftEvent[] = [];
       for (const verdict of verdicts) {
         events.push({ e: 'judged', verdict });

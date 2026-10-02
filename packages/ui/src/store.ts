@@ -601,6 +601,8 @@ export type Mode =
       readonly story: boolean;
       /** The gods' requests today (docs/tech-spec.md §42), for the desk to count. */
       readonly requests?: readonly DayRequest[];
+      /** The vow sworn at the cup for today (docs/tech-spec.md §75), by id, for the desk to keep in sight. */
+      readonly vow?: string;
     }
   /** A soul from an earlier campaign day judged again at the desk (docs/tech-spec.md §40). */
   | { readonly kind: 'appeal'; readonly day: number; readonly stamped: Destination }
@@ -910,11 +912,15 @@ function onEvent(e: ShiftEvent, s: Session): void {
       const sent = cases[e.verdict.index];
       departed.value = sent && e.verdict.stamped ? { caseId: sent.id, dest: e.verdict.stamped } : null;
       const dest = t(`dest.${e.verdict.stamped}`);
-      // A soul tried again gets no citation: the toast says how it went (docs/tech-spec.md §67).
+      // A soul tried again gets no citation: the toast says how it went (docs/tech-spec.md §67). A right stamp that what
+      // the player had didn't prove says so (§76).
       const again = s.mode.kind === 'again';
-      const told = e.verdict.correct
-        ? t(again ? 'ui.again.right' : 'ui.verdict.right', { dest })
-        : t(again ? 'ui.again.wrong' : 'ui.verdict.wrong', { dest, expected: t(`dest.${e.verdict.expected}`) });
+      const lucky = e.verdict.correct && e.verdict.unproven !== undefined;
+      const told = lucky
+        ? t(again ? 'ui.again.lucky' : 'ui.verdict.lucky', { dest })
+        : e.verdict.correct
+          ? t(again ? 'ui.again.right' : 'ui.verdict.right', { dest })
+          : t(again ? 'ui.again.wrong' : 'ui.verdict.wrong', { dest, expected: t(`dest.${e.verdict.expected}`) });
       say(told, e.verdict.correct ? 'good' : 'bad');
       resetSoulUi();
       if (s.mode.kind === 'endless') countEndless(e);

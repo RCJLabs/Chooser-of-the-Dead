@@ -36,6 +36,8 @@ import {
   toolsFor,
   turnedTo,
   type Verdict,
+  vowBroken,
+  vowOf,
 } from '@cots/engine';
 import { copyText } from '@cots/platform';
 import { effect } from '@preact/signals';
@@ -1194,7 +1196,13 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
     const f = byId.get(id);
     return f ? [f] : [];
   });
-  const missed = new Set(v.missed);
+  // Stamped rightly on a guess (docs/tech-spec.md §76), what decided it that the player never had; stamped wrong, what
+  // they never looked at. A confession never asked for is marked on its claim.
+  const lucky = v.correct && v.unproven !== undefined;
+  const unasked = new Set(
+    (lucky ? (v.unproven ?? []) : []).flatMap((id) => (id.startsWith('q:') ? [id.slice(2)] : [])),
+  );
+  const missed = new Set(lucky ? (v.unproven ?? []).filter((id) => !id.startsWith('q:')) : v.missed);
   const lies = c.lies.flatMap((l) => {
     const f = byId.get(l.field);
     return f ? [f] : [];
@@ -1220,9 +1228,11 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
       <div class="dialog dialog--review">
         <h2 id="review-title">{t('ui.review.title', { name })}</h2>
         <p>
-          {v.stamped === v.expected
-            ? t('ui.review.skipped', { dest: expected, procs: listText(skipped) })
-            : t('ui.review.sent', { stamped: t(`dest.${v.stamped}`), expected })}
+          {lucky
+            ? t('ui.review.lucky', { dest: expected })
+            : v.stamped === v.expected
+              ? t('ui.review.skipped', { dest: expected, procs: listText(skipped) })
+              : t('ui.review.sent', { stamped: t(`dest.${v.stamped}`), expected })}
         </p>
         {rule ? (
           <>
@@ -1240,8 +1250,9 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
         <h3>{t('ui.review.proof')}</h3>
         <ul class="lines review__list" data-testid="review-proof">
           {proof.map((f) => (
-            <li key={f.id} data-field={f.id} class={missed.has(f.id) ? 'is-missed' : undefined}>
+            <li key={f.id} data-field={f.id} class={missed.has(f.id) || unasked.has(f.id) ? 'is-missed' : undefined}>
               {fieldText(f, c)} {missed.has(f.id) ? <span class="evidence__badge">{t('ui.review.missed')}</span> : null}
+              {unasked.has(f.id) ? <span class="evidence__badge">{t('ui.review.unasked')}</span> : null}
             </li>
           ))}
           {across.map((x) => (
@@ -1478,6 +1489,24 @@ function ErrandNote({ s, c }: { s: Session; c: CaseSpec }) {
 }
 
 /**
+ * The vow sworn at the cup for today (docs/tech-spec.md §75), kept in sight at the desk in its short words, and marked
+ * once it's broken whatever comes after. A vow of sun is watched as the sun goes; the others as the shift does.
+ */
+function VowLine({ s }: { s: Session }) {
+  const vow = s.mode.kind === 'campaign' ? vowOf(s.mode, s.content) : undefined;
+  if (!vow) return null;
+  if (vow.kind === 'sun') now.value; // re-render on every tick
+  const broken = vowBroken(vow, s.state, s.ctx, clock());
+  return (
+    <p class={`shift__request${broken ? ' is-broken' : ''}`} data-testid="vow-desk" data-broken={broken ? 'yes' : 'no'}>
+      {t(broken ? 'ui.vow.deskBroken' : 'ui.vow.desk', {
+        vow: t(hasText(`${vow.text}.short`) ? `${vow.text}.short` : vow.text),
+      })}
+    </p>
+  );
+}
+
+/**
  * A noon decree (docs/tech-spec.md §45): from `notice` souls before it holds, the raven's news on the desk with the
  * new choices, and once it holds, a line to say what changed at noon. The rulebook shows the rules of the soul at
  * the desk throughout.
@@ -1593,6 +1622,7 @@ export function ShiftScreen() {
               </p>
             ))
           : null}
+        <VowLine s={s} />
         <NoonNote s={s} />
         {/* A soul the sun set on yesterday, back first today and judged by today's rules (docs/tech-spec.md §41). */}
         {s.mode.kind === 'campaign' && c && c.day < s.ctx.day ? (

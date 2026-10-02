@@ -1,10 +1,18 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–74.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–76.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phases 9 and 10 (below), in one pull request, in the full game only:
+
+- **9. Vows at the cup** ([`tech-spec.md`](tech-spec.md) §75). From Night 3, each night offers three vows for the next day: judge every soul rightly, catch every liar, stamp nothing on a guess, finish with a quarter of the sun to spare, ask no questions, or judge without Skögul's help. Swear one or none. Kept, it pays 2 to 8 rings by how hard it is; broken, it costs Odin 1. The desk keeps the vow in sight and says the moment it's broken.
+  - **Changed from the pitch:** a kept vow pays rings only, not standing. Standing for every vow kept would carry runs to endings the judging didn't earn.
+  - **Your call, after playtests:** broken vows can cost an ending. Expert bots that swear the hard vows break about five a run, and reach Odin's ending in 6 runs of 30 instead of 18. Bots that swear the easy ones keep them all, for about 50 rings a run.
+- **10. Proven, not lucky** ([`tech-spec.md`](tech-spec.md) §76). A right stamp is proven when what you had of the soul settled it: what you looked at, every sign its body showed you, what it owned up to. Otherwise it's lucky, and the desk, the audit and Look again say so. Flawless needs every stamp proven, and in Endless a lucky stamp scores nothing. Never in the Daily, the primer or the demo.
+  - Stamped without a look, 61% of right stamps are lucky; the rest are settled by the body's front. Proving costs the bots nothing measurable: their purse, demotions and endings are unchanged.
 
 Game phase 8 (below), in the full game only:
 
@@ -54,8 +62,8 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–8 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
-- **Next:** the build and platform work queued below.
+- **Done:** 1–10 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
+- **Next:** 12 from the second brainstorm (below), the first big one.
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
@@ -67,6 +75,21 @@ From the gameplay brainstorm, in the order agreed.
 6. **Valkyrie origins** (done, [`tech-spec.md`](tech-spec.md) §72). Choose who you were in life (shieldmaiden, seeress, trader's daughter, freed thrall). Each has a speed or money perk, someone more at home who keeps themselves while well, and three scenes of its own.
 7. **Mercy has memory** (done, [`tech-spec.md`](tech-spec.md) §73). Word spreads among the dead: how strict or merciful you've been changes how often souls plead, bribe or lie, and some souls you let through turn out later to have lied.
 8. **The household as people** (done, [`tech-spec.md`](tech-spec.md) §74). Your family asks favours at the desk (find Ulf's friend among the dead), and their letters react to how you judge.
+
+From the second gameplay brainstorm, all in the full game only. 9 and 10 came first; 12 is the first big one. No outside player has tried phases 1–8 yet, so their numbers are still guesses; adding all ten before a playtest would make that worse.
+
+9. **Vows at the cup** (done, [`tech-spec.md`](tech-spec.md) §75). Each night, swear one of three vows for tomorrow, as saga heroes did over the cup (heitstrenging): no questions, no citation, a quarter of the sun to spare, every liar caught before the stamp. Kept, it pays rings; broken, it costs standing. Its numbers are guesses until playtest reports count vows.
+10. **Proven, not lucky** (done, [`tech-spec.md`](tech-spec.md) §76). A right stamp counts as proven only if what you'd seen was enough to decide it. Flawless needs every stamp proven, and Endless scores only proven souls. Grades reward judging, not guessing that most souls go to Hel.
+11. **Kennings in the tallies** (medium). On later days, skalds write tallies in kennings and sayings ("he fed the ravens", "he went to Rán", "a straw death"), with a kennings page in the rulebook beside the Futhark, and forgers misuse them. A reading puzzle with no new art. Risk: obscure kennings frustrate players.
+12. **Choose the slain** (medium to large, mostly writing). At dawn on Day 16, Skögul takes you over the levy's fight at the pass to choose who falls, as she and Göndul chose King Hákon in *Hákonarmál*. Kari is on the roster, and Ulf if you let him go; whoever you choose is in that day's line, judged like anyone else. Odin wants the bravest; the valley wants them home. Risk: it rewrites Kari's fixed death and Nights 15–16.
+13. **Seal tomorrow's decree** (medium). Three nights a run, Odin's clerks send two drafts of tomorrow's decree. Sealing one pleases one god and annoys another, and steers the days towards rules you judge well or the ending you want. Risk: every draft adds to what the fairness checks and sims must cover.
+14. **Loki learns** (medium, needs art). Each time you catch him, his next disguise hides that tell and shows another from his myths (salmon, mare, fly, seal, Þökk), each taught before it's used; missed, he keeps what worked. Risk: each tell needs new woodcut art and a fair visual hint.
+15. **The trainee** (medium to large). From the second rank, a trainee Valkyrie (Hrist, from *Grímnismál*) stamps some of your souls first. Countersign for less sun, or overturn by pointing at what she missed, and she stops making that mistake. Risk: another flow on the crowded phone layout.
+16. **Call a soul forward** (medium). See the next few souls in line, one sign each, and pay sun to call one forward, for example to save the living before dusk. [`tech-spec.md`](tech-spec.md) §41 names it as the follow-up if playtests want it, so it fits best after people have played. Risk: tangles with noon decrees and parties.
+17. **The Thing** (medium). Every few nights, a lawspeaker reviews three past verdicts, and one may be wrong. Stand by each by pointing at the evidence that decided it, or concede; standing by a wrong one costs the most. Risk: overlaps appeals and "show the mistake".
+18. **After the fire** (large). After an ending, a short second campaign after Ragnarök, in the halls *Völuspá* and Snorri describe: Gimlé for the worthy, Náströnd for oath-breakers and murderers, and Baldr back from Hel. A new rulebook to replay with. By far the biggest; it should wait for playtest data on the main campaign.
+
+15 and 17 both need 10's check (whether what was seen proves a stamp), so it's written once, with 10.
 
 **Two rules for all of them:**
 - **The live Daily doesn't change.** Anything that changes how souls are generated (1 and 3) starts in the campaign and Endless, or waits for a planned change to how Dailies are generated.

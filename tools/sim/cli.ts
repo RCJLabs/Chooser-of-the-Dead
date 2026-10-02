@@ -12,7 +12,10 @@
  *     has bots take what souls offer for a wrong stamp (§47, §73); --pleas has them grant what souls plead for, but to
  *     a soul they caught lying (§59, §73); --origin begins every run with that origin (§72). Where the build keeps the
  *     word among the dead (§73), the report adds it at the end, the souls that asked and were granted, and the false
- *     asks granted (means).
+ *     asks granted (means). Where stamps are asked for proof (§76), it adds the souls judged rightly on a guess and the
+ *     days graded Flawless (means); with --vows, bots swear the dearest vow on offer each night that they expect to keep
+ *     (§75; --vows dearest: the dearest, whatever it is), and the report adds how many were kept, the rings they paid,
+ *     Odin's standing, and each kind's keep rate.
  *   pnpm sim compare --set 'path=value' [--set …] [--seeds 30] [--target dev-full] [--judging expert,competent,novice]
  *       [--strategy payAll] [--story plain] [--pace 25] [--nights 3,9,15,19]
  *     The tuning workbench (§63): the same bots on the same seeds with the content as built and with the changes, and
@@ -62,6 +65,12 @@ if (cmd === 'campaign') {
   const pleas = process.argv.includes('--pleas');
   const weave = process.argv.includes('--weave') ? arg('weave', '') : undefined;
   const origin = process.argv.includes('--origin') ? arg('origin', '') : undefined;
+  // The vows a bot swears (docs/tech-spec.md §75): those it expects to keep, or with `--vows dearest`, what pays most.
+  const vows = process.argv.includes('--vows')
+    ? arg('vows', 'safe') === 'dearest'
+      ? ('dearest' as const)
+      : ('safe' as const)
+    : undefined;
   const reports = simulateCampaign(
     loadContent(target),
     seeds,
@@ -77,13 +86,15 @@ if (cmd === 'campaign') {
     weave,
     origin,
     pleas,
+    vows,
   );
   const word = loadContent(target).campaign?.word !== undefined;
+  const proven = loadContent(target).campaign?.proven !== undefined;
   console.log(
-    `campaign sim: ${target}, ${seeds} runs per policy${noFines ? ', no fines' : ''}${pace !== undefined ? `, ${pace}s a soul` : ''}${serve ? `, serving ${serve}` : ''}${promote ? ', taking promotions' : ''}${bribes ? ', taking bribes' : ''}${pleas ? ', granting pleas' : ''}${weave ? `, woven: ${weave}` : ''}${origin ? `, as ${origin}` : ''}, ${((performance.now() - started) / 1000).toFixed(1)}s`,
+    `campaign sim: ${target}, ${seeds} runs per policy${noFines ? ', no fines' : ''}${pace !== undefined ? `, ${pace}s a soul` : ''}${serve ? `, serving ${serve}` : ''}${promote ? ', taking promotions' : ''}${bribes ? ', taking bribes' : ''}${pleas ? ', granting pleas' : ''}${weave ? `, woven: ${weave}` : ''}${origin ? `, as ${origin}` : ''}${vows ? `, swearing vows (${vows})` : ''}, ${((performance.now() - started) / 1000).toFixed(1)}s`,
   );
   console.log(
-    `judging    night          story      demoted  reprieved  family lost  rings (mean / min)  upgrades  arms  fronts${pace !== undefined ? '  left / died   Hel  Odin' : ''}${serve ? '  met/asked  Odin Freyja   Hel Clerk' : ''}${promote ? '  days at rank' : ''}${word ? '  word  asked/granted  lied' : ''}  endings`,
+    `judging    night          story      demoted  reprieved  family lost  rings (mean / min)  upgrades  arms  fronts${pace !== undefined ? '  left / died   Hel  Odin' : ''}${serve ? '  met/asked  Odin Freyja   Hel Clerk' : ''}${promote ? '  days at rank' : ''}${word ? '  word  asked/granted  lied' : ''}${proven ? '  lucky  flawless' : ''}${vows ? '  vows kept  rings  Odin' : ''}  endings`,
   );
   for (const r of reports) {
     const pct = (n: number) => `${((n * 100) / r.runs).toFixed(1)}%`.padStart(6);
@@ -130,11 +141,25 @@ if (cmd === 'campaign') {
               r.meanFound.toFixed(1).padStart(5),
             ]
           : []),
+        ...(proven ? [r.meanLucky.toFixed(1).padStart(6), r.meanFlawless.toFixed(1).padStart(9)] : []),
+        ...(vows
+          ? [
+              `${r.vows.sworn > 0 ? ((r.vows.kept * 100) / r.vows.sworn).toFixed(0) : '-'}%`.padStart(10),
+              (r.vows.rings / r.runs).toFixed(1).padStart(6),
+              r.meanStanding.odin.toFixed(1).padStart(5),
+            ]
+          : []),
         ` ${Object.entries(r.endings)
           .map(([e, n]) => `${e.replace('ending.', '')} ${n}`)
           .join(', ')}`,
       ].join(' '),
     );
+    if (vows && r.vows.sworn > 0) {
+      const kinds = Object.entries(r.vows.byKind)
+        .map(([kind, v]) => `${kind} ${((v.kept * 100) / v.sworn).toFixed(0)}% of ${v.sworn}`)
+        .join(', ');
+      console.log(`  vows kept by kind: ${kinds}`);
+    }
     if (r.ledgerErrors > 0) console.log(`  !! ${r.ledgerErrors} runs whose accounts don't add up`);
   }
   process.exit(reports.some((r) => r.ledgerErrors > 0) ? 1 : 0);

@@ -877,6 +877,54 @@ export interface CampaignDef {
   readonly origins?: readonly OriginDef[];
   /** Letters from home played after the day's own scenes, on the runs they're for (docs/tech-spec.md §74). */
   readonly letters?: readonly LetterDef[];
+  /**
+   * Proven, not lucky (docs/tech-spec.md §76): a stamp is proven when what the player had of the soul settled it.
+   * Without it, no stamp is asked for proof.
+   */
+  readonly proven?: ProvenDef;
+  /** Vows at the cup (docs/tech-spec.md §75): one sworn at night for the next day; none without it. */
+  readonly vows?: VowsDef;
+}
+
+/** Proven, not lucky (campaign.yaml `proven`, docs/tech-spec.md §76). */
+export interface ProvenDef {
+  /** What a lucky stamp (right, but not proven) scores in an Endless run, in place of its worth and bounty. */
+  readonly luckyPoints: number;
+}
+
+/**
+ * What a vow asks of its day (docs/tech-spec.md §75):
+ * - `clean`: every soul judged rightly, and none left in line at dusk;
+ * - `liars`: every liar the evidence exposes caught in a lie before the stamp;
+ * - `proven`: no soul stamped on a guess (§76), rightly or not;
+ * - `silent`: no soul questioned or pressed;
+ * - `sun`: the line done with `spare` percent of the sun or more to spare;
+ * - `alone`: no hint asked of Skögul (never offered under the oath, which gives none).
+ */
+export type VowKind = 'clean' | 'liars' | 'proven' | 'silent' | 'sun' | 'alone';
+
+export interface VowDef {
+  readonly id: string;
+  readonly kind: VowKind;
+  /** The first day it can be sworn for. */
+  readonly since: number;
+  /** Rings it pays, kept. */
+  readonly rings: number;
+  /** For `sun`: the percent of the day's sun to spare. */
+  readonly spare?: number;
+  /** String key: what's sworn. */
+  readonly text: string;
+}
+
+/** Vows at the cup (campaign.yaml `vows`, docs/tech-spec.md §75). */
+export interface VowsDef {
+  /** The first night one is offered, for the day after it. */
+  readonly from: number;
+  /** How many are offered each night. */
+  readonly offered: number;
+  /** Standing a broken vow costs, by power. A kept one pays its rings and moves none. */
+  readonly broken: Readonly<Partial<Record<Faction, number>>>;
+  readonly list: readonly VowDef[];
 }
 
 /**

@@ -2,7 +2,8 @@
  * Reading the campaign playtest report (packages/ui/src/campaign/playtest.ts, docs/tech-spec.md §38, §63) back
  * into numbers. A report is Markdown: a header of bullets, a Days table in plain ASCII, and lists. It's read from
  * whatever a tester sent: the issue's body (its form headings around the report), or the report on its own. Older
- * builds' reports lack some columns (Sun left, Pressed, Arms, Nails); those read as absent.
+ * builds' reports lack some columns (Sun left, Pressed, Arms, Nails, Vow) and the grade's lucky stamps; those read as
+ * absent.
  */
 
 export interface ReportDay {
@@ -10,7 +11,11 @@ export interface ReportDay {
   /** The day's grade, and the liars caught before their stamp; absent in Story Mode and older saves. */
   readonly grade?: string;
   readonly liars?: { readonly caught: number; readonly of: number };
+  /** Souls judged rightly on a guess (docs/tech-spec.md §76); absent where the build doesn't ask stamps for proof. */
+  readonly lucky?: number;
   readonly assistedGrade: boolean;
+  /** The vow sworn for the day (docs/tech-spec.md §75), by id, and whether it was kept; absent on a day with none. */
+  readonly vow?: { readonly id: string; readonly kept: boolean };
   readonly right: number;
   readonly wrong: number;
   readonly unjudged: number;
@@ -143,7 +148,8 @@ function parseDays(lines: readonly string[]): ReportDay[] {
     const cells = cellsOf(row);
     const day = num(col('Day', cells));
     if (day === undefined) return [];
-    const g = /^(\w+) \((\d+)\/(\d+) liars\)(, assisted)?$/.exec(col('Grade', cells) ?? '');
+    const g = /^(\w+) \((\d+)\/(\d+) liars(?:, (\d+) lucky)?\)(, assisted)?$/.exec(col('Grade', cells) ?? '');
+    const vow = /^(\S+) (kept|broken)/.exec(col('Vow', cells) ?? '');
     const rings = /^(-?\d+)(?: \(reprieve ([+-]?\d+)\))?$/.exec(col('Rings after the night', cells) ?? '');
     const sun = clock(col('Sun left', cells));
     const pressed = /^(\d+)(?: \((\d+) gave way\))?$/.exec(col('Pressed', cells) ?? '');
@@ -151,7 +157,9 @@ function parseDays(lines: readonly string[]): ReportDay[] {
       {
         day,
         ...(g?.[1] ? { grade: g[1], liars: { caught: Number(g[2]), of: Number(g[3]) } } : {}),
-        assistedGrade: g?.[4] !== undefined,
+        ...(g?.[4] !== undefined ? { lucky: Number(g[4]) } : {}),
+        assistedGrade: g?.[5] !== undefined,
+        ...(vow?.[1] ? { vow: { id: vow[1], kept: vow[2] === 'kept' } } : {}),
         right: num(col('Right', cells)) ?? 0,
         wrong: num(col('Wrong', cells)) ?? 0,
         unjudged: num(col('Unjudged', cells)) ?? 0,

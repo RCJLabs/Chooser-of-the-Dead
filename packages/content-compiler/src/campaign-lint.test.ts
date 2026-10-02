@@ -426,3 +426,41 @@ describe('letters from home, as content', () => {
     );
   }, 60_000);
 });
+
+type Vows = NonNullable<CampaignPart['vows']>;
+
+// docs/tech-spec.md §75.
+describe('vows at the cup, as content', () => {
+  const withVows = (change: (v: Vows) => Vows) =>
+    compileWith((c) => {
+      if (!c.vows) throw new Error('the campaign pack has no vows');
+      return { ...c, vows: change(c.vows) };
+    });
+  const vow = (kind: Vows['list'][number]['kind']) => (v: Vows) => v.list.find((x) => x.kind === kind);
+  it('compiles as shipped, and refuses missing words or a vow sworn twice', () => {
+    expect(withVows((v) => v)).not.toThrow();
+    expect(withVows((v) => ({ ...v, list: v.list.map((x) => ({ ...x, text: 'vow.nothing' })) }))).toThrow(
+      /vow vow\.\w+ uses missing string "vow\.nothing"/,
+    );
+    expect(withVows((v) => ({ ...v, list: [...v.list, ...v.list.slice(0, 1)] }))).toThrow(/Duplicate vow "vow\.\w+"/);
+  }, 60_000);
+
+  it('refuses a vow of sun without its share, a share on any other, and one of proof where none is asked', () => {
+    expect(
+      withVows((v) => ({ ...v, list: v.list.map((x) => (x === vow('sun')(v) ? { ...x, spare: undefined } : x)) })),
+    ).toThrow(/vow vow\.sun doesn't say how much sun to spare/);
+    expect(
+      withVows((v) => ({ ...v, list: v.list.map((x) => (x === vow('clean')(v) ? { ...x, spare: 25 } : x)) })),
+    ).toThrow(/vow vow\.clean says how much sun to spare, but isn't one of sun/);
+    expect(compileWith((c) => ({ ...c, proven: undefined }))).toThrow(
+      /vow vow\.proven asks for proof, but no stamp is asked for it/,
+    );
+  }, 60_000);
+
+  it('refuses a first night with nothing to choose, and a broken vow that costs nothing', () => {
+    expect(withVows((v) => ({ ...v, list: v.list.map((x) => ({ ...x, since: 10 })) }))).toThrow(
+      /Night 3 offers 0 vows: there's nothing to choose/,
+    );
+    expect(withVows((v) => ({ ...v, broken: {} }))).toThrow(/A broken vow costs nothing/);
+  }, 60_000);
+});

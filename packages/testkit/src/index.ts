@@ -11,6 +11,7 @@ export {
   type NightStrategy,
   PLAIN,
   type PolicyReport,
+  proveSoul,
   type RunResult,
   type ScenarioOptions,
   type SceneTable,
@@ -22,6 +23,8 @@ export {
   simulateCampaign,
   simulateRun,
   storyPolicy,
+  type VowPolicy,
+  vowSafe,
 } from './campaign-sim';
 export {
   applyOverrides,

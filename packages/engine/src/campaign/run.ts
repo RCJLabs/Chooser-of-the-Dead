@@ -55,6 +55,7 @@ import {
   type DayPlea,
   type DayRequest,
   type DayWaiting,
+  dayAfter,
   evalState,
   type FamilyMember,
   type FoundAsk,
@@ -68,6 +69,7 @@ import {
   type TrailMark,
 } from './state';
 import { canAccuse, culpritOf, markTrail, pinsToday, trailOf } from './trail';
+import { settleVow, vowOffer } from './vows';
 import { drawWeave, underWeave } from './weave';
 import { askedFalsely, foundOut, movedWord, ordinaryOffer, wordDef, wordOf } from './word';
 
@@ -114,7 +116,9 @@ export type RunAction =
   /** The horn (docs/tech-spec.md §54): the order the fronts are held in, and the front the chooser rides to (§58). */
   | { readonly t: 'marshal'; readonly order: readonly string[]; readonly ride?: string }
   /** On one of the forger's trail's nights, the carver named (docs/tech-spec.md §71), once a run. */
-  | { readonly t: 'accuse'; readonly suspect: string };
+  | { readonly t: 'accuse'; readonly suspect: string }
+  /** At night, a vow sworn at the cup for tomorrow (docs/tech-spec.md §75), from tonight's offer; null takes it back. */
+  | { readonly t: 'vow'; readonly id: string | null };
 
 export type RunEvent =
   | { readonly e: 'shift'; readonly event: ShiftEvent }
@@ -139,6 +143,8 @@ export type RunEvent =
   | { readonly e: 'accused'; readonly suspect: string; readonly right: boolean }
   /** A false ask granted, found out this morning (docs/tech-spec.md §73): the soul, the day it was judged, its hall. */
   | { readonly e: 'found'; readonly name: string; readonly day: number; readonly hall: Destination }
+  /** A vow sworn at the cup for tomorrow (docs/tech-spec.md §75), or taken back (null). */
+  | { readonly e: 'sworn'; readonly vow: string | null }
   | { readonly e: 'rejected'; readonly reason: string };
 
 export interface RunEnv {
@@ -1029,6 +1035,10 @@ function audit(
   });
   const retinue = { men: sworn.length, right: sworn.filter((v) => v.correct).length };
   const wordNow = word ? movedWord(word, wordOf(run), wordBy) : wordOf(run);
+  // The day's grade (docs/tech-spec.md §49): Story Mode has no sun and no fines, so no grade either. The vow sworn last
+  // night is settled by it (§75).
+  const grade = run.story ? undefined : dayGrade(shift, env.ctx);
+  const vow = settleVow(run, shift, env.content, grade);
   const ledger: DayLedger = {
     day: run.day,
     correct,
@@ -1054,14 +1064,15 @@ function audit(
     ...(run.rank ? { rank: run.rank } : {}),
     ...(run.dawnS ? { dawnS: run.dawnS } : {}),
     ...(event ? { event: event.id } : {}),
-    // The day's grade (docs/tech-spec.md §49): Story Mode has no sun and no fines, so no grade either.
-    ...(run.story ? {} : { grade: dayGrade(shift, env.ctx) }),
+    ...(grade ? { grade } : {}),
     ...(run.answered ? { offer: run.answered } : {}),
+    ...(vow ? { vow } : {}),
   };
   const nextStanding = { ...run.standing };
   for (const [f, n] of Object.entries(standing)) nextStanding[f as Faction] += n ?? 0;
   for (const [f, n] of Object.entries(line?.waiting.standing ?? {})) nextStanding[f as Faction] += n ?? 0;
   for (const r of requests) for (const [f, n] of Object.entries(r.standing)) nextStanding[f as Faction] += n ?? 0;
+  for (const [f, n] of Object.entries(vow?.standing ?? {})) nextStanding[f as Faction] += n ?? 0;
   // A soul given to a god whose request was done in full is that god's now, and doesn't appeal: righting it would
   // keep the reward without its cost. Nor does a soul sent where it asked to go (docs/tech-spec.md §59), or paid to
   // go (§73).
@@ -1102,11 +1113,20 @@ function audit(
   const asked = drawRequests(run, env, line?.carried ?? []);
   const promotion = promote(run, env, wrong === 0 && unjudged === 0);
   // The day's trip home is filed with the day (a night scene's is for tomorrow, and comes after this).
-  const { appealHeard: _, appeal: __, waiting: ___, requests: ____, answered: _____, dawnS: ______, ...rest } = run;
+  const {
+    appealHeard: _,
+    appeal: __,
+    waiting: ___,
+    requests: ____,
+    answered: _____,
+    dawnS: ______,
+    vow: _______,
+    ...rest
+  } = run;
   return {
     run: {
       ...rest,
-      rings: run.rings + pay + bonus - fines + nails,
+      rings: run.rings + pay + bonus - fines + nails + (vow?.rings ?? 0),
       standing: nextStanding,
       einherjar,
       sent,
@@ -1370,13 +1390,6 @@ function night(run: RunState, env: RunEnv, events: RunEvent[]): RunState {
   return { ...rest, family, rings: u.rings, debtNights: u.debtNights, ledger };
 }
 
-/** The day that follows `day` in this run (the slice jumps), or null after its last playable day. */
-function dayAfter(run: RunState, campaign: CampaignDef, day: number): number | null {
-  const slice = run.slice ? campaign.slice : undefined;
-  if (slice) return day >= slice.day ? null : day === slice.after ? slice.day : day + 1;
-  return day >= campaign.lastDay ? null : day + 1;
-}
-
 /** One coming night's bills, all paid, for the family at home now. */
 export interface NightBills {
   readonly day: number;
@@ -1578,6 +1591,16 @@ export function stepRun(run: RunState, action: RunAction, env: RunEnv): { state:
       trail: { marks: run.trail?.marks ?? [], accused: { suspect: suspect.id, day: run.day, right } },
     };
     return { state: applyEffects(named, right ? def.right : def.wrong, events, env.content), events };
+  }
+
+  if (action.t === 'vow') {
+    if (run.phase !== 'night') return reject(run, 'vows are sworn at night');
+    if (action.id === null) {
+      const { vow: _, ...rest } = run;
+      return { state: rest, events: [{ e: 'sworn', vow: null }] };
+    }
+    if (!vowOffer(run, env.content).some((v) => v.id === action.id)) return reject(run, 'no such vow tonight');
+    return { state: { ...run, vow: action.id }, events: [{ e: 'sworn', vow: action.id }] };
   }
 
   if (action.t === 'appeal') {
