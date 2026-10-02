@@ -1,6 +1,7 @@
+import type { CaseSpec } from '../gen/types';
 import { type DayCtx, soulCtx } from '../logic/context';
 import { solve } from '../logic/solver';
-import { type ShiftState, shiftScore } from '../shift/shift';
+import { proofAsked, type ShiftState, shiftScore } from '../shift/shift';
 
 /** A campaign day's grades (docs/tech-spec.md §49), best first. */
 export const GRADES = ['flawless', 'sharp', 'steady', 'shaky', 'rough'] as const;
@@ -17,6 +18,11 @@ export interface DayGrade {
   /** Souls with a lie the evidence lets a player catch, and how many were caught in one before their stamp. */
   readonly liars: number;
   readonly caught: number;
+  /**
+   * Souls judged rightly on a guess (docs/tech-spec.md §76): what the player had of them didn't settle it. Kept where
+   * stamps are asked for proof, and absent elsewhere.
+   */
+  readonly lucky?: number;
   /** Sun left when the last soul was sent (0 when the sun set on the line). */
   readonly spareMs: number;
   /** Played with an assist that makes judging easier: a slower sun, or the rule tracker. */
@@ -25,7 +31,8 @@ export interface DayGrade {
 
 /**
  * The day's grade:
- * - flawless: every soul judged rightly, and every liar caught in a lie before the stamp;
+ * - flawless: every soul judged rightly, and every liar caught in a lie before the stamp; where stamps are asked for
+ *   proof (docs/tech-spec.md §76), none of them a guess;
  * - sharp: every soul judged rightly;
  * - steady: one soul not;
  * - shaky: two or three;
@@ -40,15 +47,16 @@ export function dayGrade(shift: ShiftState, ctx: DayCtx): DayGrade {
   let caught = 0;
   for (const v of shift.verdicts) {
     const c = shift.cases[v.index];
-    if (!c || c.lies.length === 0) continue;
-    const exposed = solve(c.evidence.fields, soulCtx(ctx, c)).contradictions;
-    if (!c.lies.some((l) => exposed.some((x) => x.lie === l.field))) continue;
+    if (!c || !exposable(c, ctx)) continue;
     liars++;
     if (v.stamped !== null && v.caught > 0) caught++;
   }
+  const lucky = proofAsked(shift.config, ctx.content)
+    ? shift.verdicts.filter((v) => v.correct && v.unproven !== undefined).length
+    : undefined;
   const grade: GradeId =
     mistakes === 0
-      ? caught === liars
+      ? caught === liars && (lucky ?? 0) === 0
         ? 'flawless'
         : 'sharp'
       : mistakes === 1
@@ -63,9 +71,17 @@ export function dayGrade(shift: ShiftState, ctx: DayCtx): DayGrade {
     mistakes,
     liars,
     caught,
+    ...(lucky !== undefined ? { lucky } : {}),
     spareMs: shiftScore(shift).spareMs,
     ...(assisted ? { assisted: true } : {}),
   };
+}
+
+/** Whether soul `c` told a lie its evidence, all of it seen, shows false: a liar a player can catch. */
+export function exposable(c: CaseSpec, ctx: DayCtx): boolean {
+  if (c.lies.length === 0) return false;
+  const exposed = solve(c.evidence.fields, soulCtx(ctx, c)).contradictions;
+  return c.lies.some((l) => exposed.some((x) => x.lie === l.field));
 }
 
 /** A grade's place, best first: lower is better. */

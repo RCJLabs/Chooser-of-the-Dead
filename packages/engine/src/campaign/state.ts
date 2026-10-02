@@ -1,4 +1,5 @@
 import {
+  type CampaignDef,
   type Destination,
   type Effect,
   FACTIONS,
@@ -263,6 +264,8 @@ export interface DayLedger {
   readonly offer?: { readonly rank: number; readonly taken: boolean };
   /** The rank stepped down from that night. */
   readonly steppedDown?: number;
+  /** The day's vow, sworn the night before (docs/tech-spec.md §75), and how it went; absent on a day none was. */
+  readonly vow?: VowSettled;
   /** Filled in at the end of the night. */
   readonly night?: {
     readonly hearth: number;
@@ -280,6 +283,16 @@ export interface DayLedger {
     readonly reprieve?: number;
     readonly rings: number;
   };
+}
+
+/** How a day's vow went (docs/tech-spec.md §75), settled at its audit. */
+export interface VowSettled {
+  readonly id: string;
+  readonly kept: boolean;
+  /** Rings it paid, kept. */
+  readonly rings: number;
+  /** Standing it cost, broken. */
+  readonly standing: Readonly<Partial<Record<Faction, number>>>;
 }
 
 /** `ragnarok`: after the last night, the hosts wait to be sent to the fronts (docs/tech-spec.md §54). */
@@ -402,6 +415,18 @@ export interface RunState {
   readonly offer?: number;
   /** This morning's answer to it, until the day's audit files it. */
   readonly answered?: { readonly rank: number; readonly taken: boolean };
+  /**
+   * The vow sworn at the cup (docs/tech-spec.md §75), by id: tonight's, for tomorrow, until the night ends; then the
+   * day's, until its audit settles it. Absent when none.
+   */
+  readonly vow?: string;
+}
+
+/** The day that follows `day` in this run (the slice jumps), or null after its last playable day. */
+export function dayAfter(run: Pick<RunState, 'slice'>, campaign: CampaignDef, day: number): number | null {
+  const slice = run.slice ? campaign.slice : undefined;
+  if (slice) return day >= slice.day ? null : day === slice.after ? slice.day : day + 1;
+  return day >= campaign.lastDay ? null : day + 1;
 }
 
 /** The host at Ragnarök, part by part: the counts behind ragnarokStrength. */
@@ -464,6 +489,7 @@ export function factionsMet(run: RunState): Faction[] {
           moved(l.story, f) ||
           moved(l.appeal?.standing, f) ||
           moved(l.waiting?.standing, f) ||
+          moved(l.vow?.standing, f) ||
           (l.requests ?? []).some((r) => moved(r.standing, f)),
       ),
   );

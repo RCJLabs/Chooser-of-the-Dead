@@ -161,6 +161,7 @@ function openShift(a: Active): void {
       day: a.run.day,
       story: a.run.story,
       ...(a.run.requests ? { requests: a.run.requests } : {}),
+      ...(a.run.vow ? { vow: a.run.vow } : {}),
     },
     content: gameContent,
     ctx: a.ctx,
@@ -341,6 +342,11 @@ export function answerPromotion(accept: boolean): void {
 /** At night, back down a rank. */
 export function stepDown(): void {
   dispatch({ t: 'stepDown' });
+}
+
+/** At night, a vow sworn at the cup for tomorrow (docs/tech-spec.md §75), or taken back (null). */
+export function swearVow(id: string | null): void {
+  dispatch({ t: 'vow', id });
 }
 
 export function endAudit(): void {

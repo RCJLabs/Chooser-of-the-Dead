@@ -151,6 +151,7 @@ const DAY_HEADS = [
   'Story',
   'Draupnir',
   'Rings after the night',
+  'Vow',
   'Assists',
 ];
 
@@ -158,20 +159,31 @@ const DAY_HEADS = [
  * Each finished day's accounts, one row a day; a day whose night is still to come has its night cells empty. The arms
  * column is there only in a build that sells them, the nails column (rings a favour paid for nails left uncut,
  * docs/tech-spec.md §57) only in one with such a favour, and the pressed column (claims pressed, and lies that gave
- * way, docs/tech-spec.md §66) only in one where souls can be pressed.
+ * way, docs/tech-spec.md §66) only in one where souls can be pressed, and the vow column (sworn at the cup the night
+ * before, and how it went, §75) only in one with vows.
  */
-function days(ledger: readonly DayLedger[], has: { arms: boolean; nails: boolean; press: boolean }): string[] {
+function days(
+  ledger: readonly DayLedger[],
+  has: { arms: boolean; nails: boolean; press: boolean; vows: boolean },
+): string[] {
   if (ledger.length === 0) return ['### Days', '', 'No day finished yet.'];
   const heads = DAY_HEADS.filter(
-    (h) => (has.arms || h !== 'Arms') && (has.nails || h !== 'Nails') && (has.press || h !== 'Pressed'),
+    (h) =>
+      (has.arms || h !== 'Arms') &&
+      (has.nails || h !== 'Nails') &&
+      (has.press || h !== 'Pressed') &&
+      (has.vows || h !== 'Vow'),
   );
   const rows = ledger.map((l) => {
     const n = l.night;
-    // The day's grade (docs/tech-spec.md §49), with the liars caught before their stamp.
+    // The day's grade (docs/tech-spec.md §49), with the liars caught before their stamp, and where stamps are asked for
+    // proof, the right ones that were guesses (§76).
     const g = l.grade;
+    const lucky = g?.lucky ? `, ${g.lucky} lucky` : '';
+    const vow = l.vow ? `${l.vow.id} ${l.vow.kept ? `kept (${signed(l.vow.rings)})` : 'broken'}` : '';
     const cells = [
       String(l.day),
-      g ? `${g.grade} (${g.caught}/${g.liars} liars)${g.assisted ? ', assisted' : ''}` : '',
+      g ? `${g.grade} (${g.caught}/${g.liars} liars${lucky})${g.assisted ? ', assisted' : ''}` : '',
       String(l.correct),
       String(l.wrong),
       String(l.unjudged),
@@ -190,12 +202,13 @@ function days(ledger: readonly DayLedger[], has: { arms: boolean; nails: boolean
       n ? signed(n.story) : '',
       n ? signed(n.draupnir) : '',
       n ? `${n.rings}${n.reprieve ? ` (reprieve ${signed(n.reprieve)})` : ''}` : '',
+      ...(has.vows ? [vow] : []),
       assistsText(l.assists),
     ];
     return `| ${cells.join(' | ')} |`;
   });
-  // Numbers to the right; the grade and the assists are words.
-  const align = heads.map((h) => (h === 'Grade' || h === 'Assists' ? '---' : '---:'));
+  // Numbers to the right; the grade, the vow and the assists are words.
+  const align = heads.map((h) => (h === 'Grade' || h === 'Vow' || h === 'Assists' ? '---' : '---:'));
   return ['### Days', '', `| ${heads.join(' | ')} |`, `| ${align.join(' | ')} |`, ...rows];
 }
 
@@ -581,6 +594,7 @@ export function playtestReport(p: PlaytestInput): string {
       arms: campaignOf(p.content).arms !== undefined,
       nails: (campaignOf(p.content).favours ?? []).some((f) => 'nailRings' in f.effect),
       press: p.content.press !== undefined,
+      vows: campaignOf(p.content).vows !== undefined,
     }),
     '',
     ...mistakes(p),

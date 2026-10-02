@@ -33,6 +33,7 @@ describe('Endless as a run: what the picks add up to', () => {
       strikes: ENDLESS_STRIKES,
       worth: 1,
       bounty: 0,
+      luckyPoints: 0,
       curses: 0,
       oath: false,
       sun: false,
@@ -306,6 +307,22 @@ describe('Endless as a run: the score', () => {
     expect(tallyEvent(rules, judged(true))).toEqual({ right: 1, points: 3, strikes: 0, hints: 0 });
     expect(tallyEvent(rules, judged(true, 1))).toEqual({ right: 1, points: 4, strikes: 0, hints: 0 });
     expect(tallyEvent(rules, judged(false, 1))).toEqual({ right: 0, points: 0, strikes: 1, hints: 0 });
+  });
+
+  it('scores a soul judged rightly on a guess the campaign’s points for luck, in place of its worth and bounty', () => {
+    // docs/tech-spec.md §76: a lucky stamp is right, so it's no strike, but it scores only what the campaign says.
+    const rules = runRules(full, [pick(1, 'curse.sun'), pick(2, 'boon.bounty')]);
+    const lucky = (caught: number): ShiftEvent => ({
+      e: 'judged',
+      verdict: { ...verdict(true, caught), unproven: ['f.back'] },
+    });
+    expect(rules.luckyPoints).toBe(0);
+    expect(tallyEvent(rules, lucky(0))).toEqual({ right: 1, points: 0, strikes: 0, hints: 0 });
+    expect(tallyEvent(rules, lucky(1))).toEqual({ right: 1, points: 0, strikes: 0, hints: 0 });
+    expect(tallyEvent({ ...rules, luckyPoints: 1 }, lucky(1))).toEqual({ right: 1, points: 1, strikes: 0, hints: 0 });
+    // A build that doesn't ask stamps for proof (the demo) scores every right stamp in full.
+    expect(runRules(demo, []).luckyPoints).toBeUndefined();
+    expect(tallyEvent(runRules(demo, []), lucky(0))).toEqual({ right: 1, points: 1, strikes: 0, hints: 0 });
   });
 
   it('makes a Compare that finds nothing a strike only under Týr’s oath', () => {

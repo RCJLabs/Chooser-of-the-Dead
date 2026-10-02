@@ -1,4 +1,4 @@
-import { catchLie, loadContent } from '@cots/testkit';
+import { catchLie, loadContent, proveSoul } from '@cots/testkit';
 import { fc, test } from '@fast-check/vitest';
 import { describe, expect, it } from 'vitest';
 import type { AppealsDef, CampaignDef, Content, Destination, Effect, Faction, ScriptedCaseDef } from '../content/types';
@@ -1393,6 +1393,7 @@ describe('the line at dusk', () => {
           (l.story?.[f] ?? 0) +
           (l.appeal?.standing[f] ?? 0) +
           (l.waiting?.standing[f] ?? 0) +
+          (l.vow?.standing[f] ?? 0) +
           (l.requests ?? []).reduce((m, q) => m + (q.standing[f] ?? 0), 0),
         0,
       );
@@ -2440,11 +2441,13 @@ describe('grades and the oath (docs/tech-spec.md §49)', () => {
   const DAY = 6;
   /**
    * Day DAY played to its audit: the souls at `wrong` stamped wrong, the rest rightly; with `catchAll`, every liar
-   * first caught in a lie the evidence exposes, as a careful player would.
+   * first caught in a lie the evidence exposes, and every soul's proof looked at (docs/tech-spec.md §76) unless `prove`
+   * is false, as a careful player would.
    */
   const played = (opts: {
     wrong?: number[];
     catchAll?: boolean;
+    prove?: boolean;
     oath?: boolean;
     story?: boolean;
     assists?: Assists;
@@ -2458,7 +2461,11 @@ describe('grades and the oath (docs/tech-spec.md §49)', () => {
     const actions: RunAction[] = [{ t: 'beginShift', at: 0, ...(opts.assists ? { assists: opts.assists } : {}) }];
     queue.forEach((c, i) => {
       const at = (i + 1) * 1000;
-      if (opts.catchAll) for (const action of catchLie(c, ctx, at)) actions.push({ t: 'shift', action });
+      if (opts.catchAll) {
+        const caught = catchLie(c, ctx, at);
+        const proof = opts.prove === false ? [] : proveSoul([c], 0, ctx, at, caught);
+        for (const action of [...caught, ...proof]) actions.push({ t: 'shift', action });
+      }
       const wrong = opts.wrong?.includes(i) ?? false;
       const dest: Destination = wrong ? (c.expect.dest === 'HEL' ? 'VALHALLA' : 'HEL') : c.expect.dest;
       for (const id of wrong ? [] : (c.expect.procedures ?? [])) {
@@ -2474,8 +2481,15 @@ describe('grades and the oath (docs/tech-spec.md §49)', () => {
   it('grades a day by the souls it got wrong, and at the top by the liars caught before their stamp', () => {
     const flawless = played({ catchAll: true }).grade;
     expect(flawless?.liars).toBeGreaterThan(0);
-    expect(flawless).toMatchObject({ grade: 'flawless', mistakes: 0, caught: flawless?.liars });
-    expect(played({}).grade).toMatchObject({ grade: 'sharp', mistakes: 0, caught: 0 });
+    expect(flawless).toMatchObject({ grade: 'flawless', mistakes: 0, caught: flawless?.liars, lucky: 0 });
+    // Every soul judged rightly, but on what the body's front showed alone: lucky stamps (docs/tech-spec.md §76).
+    const unlooked = played({}).grade;
+    expect(unlooked).toMatchObject({ grade: 'sharp', mistakes: 0, caught: 0 });
+    expect(unlooked?.lucky).toBeGreaterThan(0);
+    // Every liar caught too, but some souls stamped on a guess: Flawless needs every stamp proven.
+    const guessed = played({ catchAll: true, prove: false }).grade;
+    expect(guessed).toMatchObject({ grade: 'sharp', mistakes: 0, caught: guessed?.liars });
+    expect(guessed?.lucky).toBeGreaterThan(0);
     expect(played({ wrong: [0] }).grade?.grade).toBe('steady');
     expect(played({ wrong: [0, 1] }).grade?.grade).toBe('shaky');
     expect(played({ wrong: [0, 1, 2] }).grade?.grade).toBe('shaky');

@@ -4712,6 +4712,130 @@ The brainstorm's version, and what changed:
 - **The words are draft,** like the rest: five scenes, two souls' lines, the notes, the threads and four epilogue lines.
 - **Numbers are guesses:** the Night 14 thresholds (the word at ±2, 15 and 3 souls sent wrong).
 
+## 75. Vows at the cup (game phase 9)
+
+**Why.** Game phase 9 in [`roadmap.md`](roadmap.md): each night, swear a vow for tomorrow, as saga heroes did over the cup (heitstrenging). It gives a day a goal the player picked, between the day's own grade (§49) and the oath, which holds for the whole run.
+
+**Changed from the pitch.** The roadmap said a kept vow pays rings and standing. It pays rings only. Standing for each vow kept, up to 17 a run, would carry runs to endings and favours the judging didn't earn. A broken vow costs Odin's standing, as pitched.
+
+**The vows** (`vows` in the campaign pack's `campaign.yaml`; `campaign/vows.ts`)
+- **Three a night, from Night 3**, for the next day. They're drawn for the run and that day (`<seed>|vows|<day>`), the same however the night goes, and shown in the campaign's order. None in Story Mode, outside the night, or on the last night.
+- **Six kinds**, each settled by the day it's sworn for:
+
+  | Vow | Sworn | Kept when | Rings |
+  |---|---|---|---|
+  | `clean` | "I'll judge every soul rightly, and leave none in line at dusk." | no soul wrong or left at dusk (the grade's mistakes are 0) | 8 |
+  | `liars` | "No liar reaches my stamp uncaught." | every liar the evidence exposes caught before the stamp (the grade's) | 8 |
+  | `proven` | "I'll stamp no soul on a guess." | no stamp, right or wrong, a guess (§76) | 6 |
+  | `sun` | "I'll be done with the line while a quarter of the sun is still up." | the last soul sent with `spare` (25) percent of the day's sun left | 4 |
+  | `silent` | "I'll question no soul, and press none." | no question, free or not, and no press | 3 |
+  | `alone` | "I'll judge without Skögul's help." | no hint; never offered under the oath, which gives none | 2 |
+
+- **Sworn at night** with `{ t: 'vow', id }`, from tonight's offer only; `id: null` takes it back. It's `RunState.vow`, so the next morning's snapshot keeps it, and a day replayed from its morning has the same vow.
+- **Settled at the day's audit** (`settleVow`, `DayLedger.vow`). Kept, its rings go in the purse beside the day's pay. Broken, the campaign's `broken` (Odin −1) goes in standing. Either way the run's vow is done with.
+- **What the shift counts for them:** questions asked, free or not (`ShiftState.questions`), presses (`presses`), and every hint. `hintsAsked` counted only under an Endless limit before; it counts always now.
+- **Mid-shift,** `vowBroken` says whether nothing can keep the vow any more: a soul sent wrong, a liar stamped uncaught, a stamp on a guess, a question or a press, a hint, or less sun left than was sworn to spare. A soul left in line at dusk breaks the vow of judging every soul, but only the audit can say so.
+
+**Where it shows**
+- **At night,** a card, "At the cup", before the bills: the offer as a choice of one, each with its rings, and "Swear nothing tonight". It says what a broken vow costs.
+- **In the morning,** "Last night you swore at the cup: “…” Kept, it pays 8 rings."
+- **At the desk,** the vow in short words beside the gods' requests ("Your vow: no help from Skögul"), and "Broken." once nothing can keep it. The short words (`vow.*.short`) keep it to a line on a phone.
+- **At the audit,** a ledger row for a kept vow's rings, a card saying it was kept and what it paid or broken and what it cost, and a Vow column in the standing table on a day one was broken.
+- **The playtest report** has a Vow column (`vow.clean kept (+8)`, `vow.alone broken`), and `pnpm playtest:read` reads it.
+- **The lint:** a vow's words; a vow for a day after the last; the sun's share given for the vow of sun and for no other; a vow of proof only where stamps are asked for it; at least two vows on the first night; a broken vow that costs something.
+
+**Numbers.** `pnpm sim campaign --vows`, 30 seeds, plain story, bots that pay every bill. A sworn bot plays to its vow where it can: sworn to prove, it proves every soul it judges right; sworn to catch liars, it catches every liar it judges right; sworn to silence, it proves without questions. It can't judge more rightly, or faster, than it does. `--vows` has each bot swear the dearest vow on offer that it expects to keep (`vowSafe`): any bot keeps the vows of no help, silence and sun at its pace, and only the expert expects to keep the three a mistake breaks. `--vows dearest` swears the dearest whatever it is.
+
+| Bots | Vows | Kept | Rings a run from vows | Purse at the end | Odin | Odin's ending |
+|---|---|---|---|---|---|---|
+| Expert | none | – | – | 173 | 4.1 | 18 of 30 |
+| Expert | dearest it expects to keep (every kind) | 71% | 92 | 272 | −0.8 | 6 of 30 |
+| Competent | none | – | – | 113 | −9.3 | 0 |
+| Competent | dearest it expects to keep (no help, silence, sun) | 100% | 54 | 109 | −9.3 | 0 |
+| Competent | dearest | 23% | 28 | 117 | −22.4 | 0 |
+| Novice | none | – | – | −36 | −35.6 | 0; demoted 9 of 30 |
+| Novice | dearest it expects to keep | 100% | 51 | −24 | −36.2 | 0; demoted 7 of 30 |
+| Novice | dearest | 6% | 5 | −36 | −51.1 | 0; demoted 9 of 30 |
+
+- **An expert's keep rate by kind:** liars 83%, proven 65%, clean 64%, sun 100%.
+- **Broken vows can cost an ending.** An expert who swears the hard vows breaks about five a run, and reaches Odin's ending in 6 runs of 30 instead of 18. The card says what breaking costs. Whether that's the right weight is a playtest question. A broken vow that cost rings instead would leave the endings alone, but the engine has no ring forfeit for it yet.
+- **The cheap vows cost bots nothing.** They never ask for hints, question only to prove a soul, and work at 25 s a soul. Real players who need Skögul, or are slow, won't keep them as surely, which is why they pay 2 to 4 rings.
+- **Rings:** about 100 more a run for experts, and about 50 for the others, mostly spent on upgrades and arms (the competent bot's purse is no bigger). Novice demotions fall from 9 to 7 in 30, within this sample's noise.
+
+**Tests**
+- **Engine** (`vows.test.ts`):
+  - three a night from Night 3, drawn for the run and the day, in the campaign's order, and every vow comes up over a run;
+  - none in Story Mode, outside the night, on the last night or in the demo, and under the oath never the vow of no help;
+  - sworn from the offer only, taken back, kept into the morning, rejected by day;
+  - kept, its rings and no standing; broken, nothing and Odin −1; done with either way; the standing columns add up;
+  - each kind kept, and broken by what breaks it;
+  - `vowBroken` at once for a hint, and for the sun once less than its share is left.
+- **Sim:** the slow bot's accounts add up with vows sworn and broken, and standing is every audit's columns, the vow's among them.
+- **Compiler:** the lint above (through the campaign lint test's content).
+- **Report:** the Vow column, read back by `pnpm playtest:read`.
+- **e2e** (`vows.spec.ts`, full game, phone and desktop):
+  - Night 5: the card, a vow sworn and kept through a reload, the morning's line, the desk's line, and the audit paying it;
+  - Day 6 sworn to judge without help: a hint marks it broken at the desk, and the audit says so, what it cost, and shows the Vow column.
+
+**Known limits**
+- **Kept on trust,** as the oath is: a day replayed from its morning lets a player try a broken vow again.
+- **Assists:** the sun's share is of the sun the day had, so a slower sun makes that vow easier. A vow kept with assists pays all the same, as the wage does.
+- **The words are drafts.** The numbers are guesses: the rings, Odin's −1, and the quarter of the sun.
+
+## 76. Proven, not lucky (game phase 10)
+
+**Why.** Game phase 10 in [`roadmap.md`](roadmap.md). A grade (§49) rewarded a right stamp however it was reached, and most souls go to Hel's, so stamping on a hunch often comes out right. The engine already knew the smallest evidence that decides each soul (its minimal proof), and citations used it for mistakes; right stamps ignored it.
+
+**What the player had of a soul** (`perceivedOf` in `shift/shift.ts`)
+- **Everything looked at:** body signs tapped, papers read (opening a paper or its tab reads it), tool readings, and what a soul added when pressed.
+- **Every sign the body showed.** The art draws a body's signs whether or not they're tapped, so the front's always count, the back's once the body was turned over, and a tool's readings once the tool was used.
+- **What it owned up to,** questioned or pressed: a confession is the truth (trust 4), and a lie given up is caught.
+- **At a party** (§69), a claim about a companion is caught when what the player had of the companion shows it false, as a soul's own lie is with what contradicts it; and so is every lie flagged across the party.
+- **For a jarl's sworn man** (§70), his jarl's hall, as far as what the player had of the jarl settles it.
+
+**Proven** (`unprovenAt`)
+- **The solver runs on what the player had,** with those confessions and catches. If that settles the soul's judgment, its hall and what must be done first, the stamp is proven, and `Verdict.unproven` is absent.
+- **Otherwise `unproven` names what decided it** that the player never had: the proof's fields, `q:<field>` for a confession it needs that was never asked for, and `@<member>:<field>` for a companion's.
+- **A right stamp with `unproven` is lucky.** A wrong one was a guess, not a slip; the vow of proof (§75) counts both.
+
+**Where it's asked** (`proofAsked`): in a build whose campaign has `proven` (the full game), in the campaign, practice, a soul tried again (§67) and Endless. Never in the Daily or the primer, and never in the demo. The Daily plays as it always has: none of its stamps is marked, and nothing it shares, saves or checks changes. Telemetry doesn't send it.
+
+**What it changes**
+- **The grade:** Flawless also needs every right stamp proven (`DayGrade.lucky` counts the rest). Sharp says what kept the day from Flawless: the liars, the guesses, or both.
+- **Endless:** a lucky stamp is still right, so it's no strike, but it scores `luckyPoints` (0) instead of its worth and bounty. The demo's Endless scores as before.
+- **At the desk:** "Sent to Hel. Right, but what you'd seen didn't prove it." Tried again: "Right this time: Hel. But what you'd seen didn't prove it."
+- **At the audit:** the row says "(right, but a guess)", and Look again opens it: "Hel was right, but what you'd seen didn't prove it", with what decided it marked on the body and in the list.
+- **The playtest report:** the grade cell adds the lucky stamps (`sharp (3/4 liars, 2 lucky)`).
+- **Not the purse:** a lucky stamp pays the wage like any right one.
+
+**Numbers**
+- **1,472 souls,** six seeds of Days 1–20, each soul's proof looked at by the testkit's `proveSoul`: every one proven, and no action rejected.
+  - Stamped without a look, 61% of right stamps are lucky. The rest are settled by the body's front alone: a weapon in hand is a weapon in hand.
+  - Proven without a single question, all 1,472 still are. In this sample no proof needs a confession that other evidence can't stand in for, so the vow of silence never forces a guess.
+- **Campaign sims** (30 seeds, plain story, bots that pay every bill).
+  - Bots now prove a share of the souls they judge right (expert 95%, competent 75%, novice 40%), and pay the sun it costs.
+  - The purse, demotions, souls left at dusk and endings are unchanged against bots that never prove (experts 172 → 173 rings).
+  - Lucky stamps a run: expert 8, competent 32, novice 56, against 128, 124 and 94 for bots that never prove.
+  - An expert's Flawless days a run: 2.9, and 0.4 never proving.
+
+**Tests**
+- **Engine** (`proven.test.ts`):
+  - asked in the full game's campaign and practice, never in the Daily, the primer or the demo, and a Daily played without a look marks nothing;
+  - every soul whose proof was looked at is proven, parties and retinues included (two seeds, Days 1–20);
+  - stamped without a look, lucky souls name only what their proof rests on, and some souls are proven by the front alone;
+  - a soul decided by its back is proven by turning it over, without a touch;
+  - a sworn man is lucky while his jarl was a guess, and proven once the jarl's proof was had.
+- **Grades** (`run.test.ts`): Flawless with every proof looked at; Sharp with a guess, whether or not every liar was caught.
+- **Endless** (`boons.test.ts`): a lucky stamp scores the campaign's points; in the demo, its worth.
+- **Report:** the lucky stamps in the grade, read back.
+- **e2e** (`vows.spec.ts`): a soul the body's front doesn't settle, stamped rightly without a look: the toast, the audit's row, the grade's line and Look again.
+
+**Known limits**
+- **Every drawn sign counts as had.** A sign drawn small on a phone counts whether or not the player noticed it; the engine can't tell noticing from guessing, and the other way would call good judging lucky.
+- **A day's best from before** may be a Flawless the new rule wouldn't give.
+- **Endless scores are lower** in the full game for players who stamp without looking. Scores kept from before stand.
+- **The words are drafts,** and `luckyPoints` is a guess.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

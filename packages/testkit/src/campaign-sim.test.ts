@@ -45,12 +45,14 @@ describe('the campaign economy', () => {
   it('lets the sun set on a slow bot’s line (docs/tech-spec.md §41): the souls wait, and the accounts still add up', () => {
     const content = loadContent('dev-full');
     for (const seed of ['slow-0', 'slow-1']) {
-      const r = simulateRun(content, seed, bot('competent'), 'payAll', { paceS: 70 });
+      // Swearing vows (docs/tech-spec.md §75) it can't always keep, so the vows' columns are in the accounts too.
+      const r = simulateRun(content, seed, bot('competent'), 'payAll', { paceS: 70, vows: 'dearest' });
       expect(r.ledgerOk).toBe(true);
       expect(r.leftAtDusk).toBeGreaterThan(0);
       expect(r.ledger.some((l) => (l.waiting?.carried.length ?? 0) > 0)).toBe(true);
-      // Standing is every audit's columns added up: mistakes, story, the appeal, the line and the requests (no scenes
-      // here, so nothing waits to be filed).
+      expect(r.ledger.some((l) => l.vow?.kept === false)).toBe(true);
+      // Standing is every audit's columns added up: mistakes, story, the appeal, the line, the requests and the vow (no
+      // scenes here, so nothing waits to be filed).
       for (const f of FACTIONS) {
         const sum = r.ledger.reduce(
           (n, l) =>
@@ -59,6 +61,7 @@ describe('the campaign economy', () => {
             (l.story?.[f] ?? 0) +
             (l.appeal?.standing[f] ?? 0) +
             (l.waiting?.standing[f] ?? 0) +
+            (l.vow?.standing[f] ?? 0) +
             (l.requests ?? []).reduce((m, q) => m + (q.standing[f] ?? 0), 0),
           0,
         );

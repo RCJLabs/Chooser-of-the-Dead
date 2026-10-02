@@ -100,7 +100,8 @@ describe('the playtest report', () => {
     const first = run.ledger[0];
     const g = first?.grade;
     expect(g).toBeDefined();
-    const grade = `${g?.grade} (${g?.caught}/${g?.liars} liars)`;
+    // Where stamps are asked for proof (docs/tech-spec.md §76), the right ones that were guesses.
+    const grade = `${g?.grade} (${g?.caught}/${g?.liars} liars${g?.lucky ? `, ${g.lucky} lucky` : ''})`;
     const spare = Math.round((g?.spareMs ?? 0) / 1000);
     const sun = `${Math.floor(spare / 60)}:${String(spare % 60).padStart(2, '0')}`;
     // Then the claims pressed (docs/tech-spec.md §66): none, by a player who never pressed.

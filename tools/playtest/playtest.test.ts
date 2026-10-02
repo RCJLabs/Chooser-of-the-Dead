@@ -31,8 +31,10 @@ function testerSave(): { save: RunSave; ledger: DayLedger[] } {
       correct: d2.correct - 3,
       wrong: 3,
       assists: { sunPct: 75 },
-      grade: { ...d2.grade, grade: 'rough', spareMs: 83_000, assisted: true },
+      grade: { ...d2.grade, grade: 'rough', spareMs: 83_000, assisted: true, lucky: 2 },
       pressed: { n: 4, gave: 1 },
+      // A vow at the cup broken (docs/tech-spec.md §75).
+      vow: { id: 'vow.clean', kept: false, rings: 0, standing: { odin: -1 } },
       mistakes: [
         { rule, expected: 'VALHALLA', stamped: 'HEL', noon: true },
         { rule, expected: 'VALHALLA', stamped: 'HEL', paid: 30 },
@@ -46,7 +48,12 @@ function testerSave(): { save: RunSave; ledger: DayLedger[] } {
         { name: 'Thora Ketilsdottir', belongs: 'HEL', to: 'RAN', granted: true, lied: true },
       ],
     },
-    { ...d3, night: { ...d3.night, rings: -4, reprieve: 20 }, pleas: [] },
+    {
+      ...d3,
+      night: { ...d3.night, rings: -4, reprieve: 20 },
+      pleas: [],
+      vow: { id: 'vow.silent', kept: true, rings: 4, standing: {} },
+    },
   ];
   return { save: { ...base, mornings: base.mornings.map((m) => ({ ...m, ledger })) }, ledger };
 }
@@ -72,6 +79,10 @@ describe('reading a playtest report back', () => {
       expect(d.sunLeftS).toBe(Math.round((l?.grade?.spareMs ?? 0) / 1000));
     }
     expect(r?.days[1]).toMatchObject({ grade: 'rough', assistedGrade: true, assists: 'sun 75%', sunLeftS: 83 });
+    // Lucky stamps (docs/tech-spec.md §76) and the day's vow (§75), where the build has them.
+    expect(r?.days[1]).toMatchObject({ lucky: 2, vow: { id: 'vow.clean', kept: false } });
+    expect(r?.days[2]?.vow).toEqual({ id: 'vow.silent', kept: true });
+    expect(r?.days[0]?.vow).toBeUndefined();
     // Claims pressed, and lies that gave way (docs/tech-spec.md §66): none is a count of none, in a build with pressing.
     expect(r?.days[1]?.pressed).toEqual({ n: 4, gave: 1 });
     expect(r?.days[0]?.pressed).toEqual({ n: 0, gave: 0 });

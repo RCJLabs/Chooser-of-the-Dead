@@ -1734,6 +1734,11 @@ select {
   text-align: center;
 }
 
+/* The day's vow (docs/tech-spec.md §75), once nothing can keep it. */
+.shift__request.is-broken {
+  color: var(--curse);
+}
+
 /* A noon decree's raven (docs/tech-spec.md §45): news that changes the rules, so it stands out like an appeal. */
 .shift__noon {
   padding: 0.4rem 0.75rem;
@@ -2012,7 +2017,8 @@ a.btn {
   font-weight: 600;
 }
 
-.slot__origin {
+.slot__origin,
+.vows__list {
   display: grid;
   gap: 0.35rem;
   margin: 0;
@@ -2020,7 +2026,9 @@ a.btn {
   border: 0;
 }
 
-.origin {
+/* An origin for a new run, and a vow at the cup (docs/tech-spec.md §75): one of a few, picked whole. */
+.origin,
+.vow {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
@@ -2030,19 +2038,27 @@ a.btn {
   border-radius: 6px;
 }
 
-.origin input {
+.origin input,
+.vow input {
   margin-top: 0.2rem;
   flex: none;
 }
 
-.origin:has(input:checked) {
+.origin:has(input:checked),
+.vow:has(input:checked) {
   border-color: var(--accent);
 }
 
-.origin__body {
+.origin__body,
+.vow__body {
   display: grid;
   gap: 0.2rem;
   min-width: 0;
+}
+
+.vow__rings {
+  font-size: 0.88em;
+  color: var(--muted);
 }
 
 .origin__text {

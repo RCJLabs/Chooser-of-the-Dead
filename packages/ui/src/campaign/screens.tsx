@@ -65,6 +65,9 @@ import {
   type TrailSuspect,
   threadsInPlay,
   trailBoard,
+  type VowSettled,
+  vowOf,
+  vowOffer,
   weaveDay,
   weaveOf,
   weaveOpen,
@@ -109,6 +112,7 @@ import {
   sleep,
   slots,
   stepDown,
+  swearVow,
   toEnding,
   toGate,
   unreadable,
@@ -198,6 +202,17 @@ const spareText = (ms: number) => (ms > 0 ? t('ui.grade.spare', { time: clockTex
  * The day's grade at the audit: what it was made of, what the next grade up takes, and the day's best on this
  * device (the audit has already kept this one if it beat it).
  */
+/**
+ * What a grade was made of, as a string key: where stamps are asked for proof (docs/tech-spec.md §76), Flawless says
+ * so, and Sharp says which of the liars and the guesses kept it from Flawless.
+ */
+function gradeWhy(g: DayGrade): string {
+  const lucky = g.lucky ?? 0;
+  if (g.grade === 'flawless') return g.lucky === undefined ? 'ui.grade.why.flawless' : 'ui.grade.why.flawless.proven';
+  if (g.grade !== 'sharp' || lucky === 0) return `ui.grade.why.${g.grade}`;
+  return g.caught === g.liars ? 'ui.grade.why.sharp.lucky' : 'ui.grade.why.sharp.both';
+}
+
 function DayMark({ grade: g, day }: { grade: DayGrade; day: number }) {
   const best = settings.value.dayBests[String(day)];
   const isBest = best && best.grade === g.grade && best.spareMs === g.spareMs && !best.assisted === !g.assisted;
@@ -205,7 +220,7 @@ function DayMark({ grade: g, day }: { grade: DayGrade; day: number }) {
     <section class="card day-mark" data-testid="day-mark">
       <h2 data-testid="day-grade">{t('ui.grade.title', { grade: t(`ui.grade.${g.grade}`) })}</h2>
       <p data-testid="day-grade-why">
-        {t(`ui.grade.why.${g.grade}`, { n: g.mistakes, caught: g.caught, liars: g.liars })}
+        {t(gradeWhy(g), { n: g.mistakes, caught: g.caught, liars: g.liars, lucky: g.lucky ?? 0 })}
       </p>
       {best ? (
         <p class="muted" data-testid="day-best">
@@ -1331,6 +1346,7 @@ function Morning() {
             <WaitingNote run={run} />
             <FavoursToday run={run} noFines={assists.noFines === true} />
             <WordLine run={run} />
+            <VowToday run={run} />
             <p class="briefing__queue">
               {run.story
                 ? t('ui.campaign.untimed')
@@ -1904,6 +1920,12 @@ function Audit() {
               <td class="num">{signed(p.rings)}</td>
             </tr>
           ))}
+          {ledger.vow?.kept ? (
+            <tr data-testid="audit-vow-rings">
+              <td>{t('ui.audit.vow')}</td>
+              <td class="num">{signed(ledger.vow.rings)}</td>
+            </tr>
+          ) : null}
           <tr class="ledger__total">
             <td>{t('ui.campaign.purseLabel')}</td>
             <td class="num" data-testid="audit-rings">
@@ -1913,6 +1935,7 @@ function Audit() {
         </tbody>
       </table>
       <FinesEased ledger={ledger} day={a.run.day} />
+      {ledger.vow ? <VowResult vow={ledger.vow} day={a.run.day} /> : null}
       {ledger.grade ? <DayMark grade={ledger.grade} day={a.run.day} /> : null}
       <StandingTable run={a.run} ledger={ledger} />
       <RequestResults ledger={ledger} day={a.run.day} />
@@ -1931,7 +1954,14 @@ function Audit() {
                   {' '}
                   ({leftNote(ledger, c?.id)})
                 </span>
-              ) : v.correct ? null : v.stamped === v.expected ? (
+              ) : v.correct ? (
+                v.unproven !== undefined ? (
+                  <span class="muted" data-testid="lucky-note">
+                    {' '}
+                    ({t('ui.summary.lucky')})
+                  </span>
+                ) : null
+              ) : v.stamped === v.expected ? (
                 <span class="muted">
                   {' '}
                   ({t('ui.summary.skipped', { procs: listText(skippedText(v.skipped, a.ctx)) })})
@@ -1947,8 +1977,9 @@ function Audit() {
                     </span>
                   ))
                 : null}{' '}
-              {/* A mistake can be looked at again, and tried again except under the oath (docs/tech-spec.md §67). */}
-              {s && v.stamped !== null && !v.correct ? (
+              {/* A mistake can be looked at again, and tried again except under the oath (docs/tech-spec.md §67); so can a
+                  right stamp on a guess (§76). */}
+              {s && v.stamped !== null && (!v.correct || v.unproven !== undefined) ? (
                 <button
                   type="button"
                   class="btn btn--small"
@@ -2048,6 +2079,9 @@ function StandingTable({ run, ledger }: { run: RunState; ledger: DayLedger }) {
   for (const r of ledger.requests ?? [])
     for (const [f, n] of Object.entries(r.standing)) asked[f as Faction] = (asked[f as Faction] ?? 0) + (n ?? 0);
   const favoured = Object.keys(asked).length > 0;
+  // And a vow broken at the cup (docs/tech-spec.md §75).
+  const vowed = ledger.vow?.standing ?? {};
+  const broken = Object.keys(vowed).length > 0;
   return (
     <>
       <LedgerScroll label={t('ui.audit.standing')}>
@@ -2059,6 +2093,7 @@ function StandingTable({ run, ledger }: { run: RunState; ledger: DayLedger }) {
               {appealed ? <th class="num">{t('ui.audit.appealColumn')}</th> : null}
               {waited ? <th class="num">{t('ui.audit.lineColumn')}</th> : null}
               {favoured ? <th class="num">{t('ui.audit.requestsColumn')}</th> : null}
+              {broken ? <th class="num">{t('ui.audit.vowColumn')}</th> : null}
               <th class="num">{t('ui.audit.story')}</th>
               <th class="num">{t('ui.audit.now')}</th>
             </tr>
@@ -2071,6 +2106,7 @@ function StandingTable({ run, ledger }: { run: RunState; ledger: DayLedger }) {
                 {appealed ? <td class="num">{signed(appeal[f] ?? 0)}</td> : null}
                 {waited ? <td class="num">{signed(line[f] ?? 0)}</td> : null}
                 {favoured ? <td class="num">{signed(asked[f] ?? 0)}</td> : null}
+                {broken ? <td class="num">{signed(vowed[f] ?? 0)}</td> : null}
                 <td class="num">{signed(ledger.story?.[f] ?? 0)}</td>
                 <td class="num">{signed(run.standing[f])}</td>
               </tr>
@@ -2083,6 +2119,74 @@ function StandingTable({ run, ledger }: { run: RunState; ledger: DayLedger }) {
       {favoured ? <p class="muted ledger__note">{t('ui.audit.requestsNote')}</p> : null}
     </>
   );
+}
+
+// ---------- vows at the cup ----------
+
+/** How the day's vow went (docs/tech-spec.md §75), at its audit: kept and paid, or broken and heard. */
+function VowResult({ vow, day }: { vow: VowSettled; day: number }) {
+  const def = vowOf({ vow: vow.id }, gameContent);
+  if (!def) return null;
+  const hurt = Object.entries(vow.standing).map(([f, n]) => `${factionName(f as Faction, day)} ${signed(n ?? 0)}`);
+  return (
+    <section class="card" data-testid="vow-result" data-kept={vow.kept ? 'yes' : 'no'}>
+      <p>{t(vow.kept ? 'ui.vow.kept' : 'ui.vow.broken', { vow: t(def.text), rings: vow.rings })}</p>
+      {hurt.length > 0 ? <p class="muted">{t('ui.vow.hurt', { list: listText(hurt) })}</p> : null}
+    </section>
+  );
+}
+
+/**
+ * Vows at the cup (docs/tech-spec.md §75): tonight's offer for tomorrow, one sworn or none. Each choice is the run's at
+ * once, so the save holds it; the night can change it until it ends.
+ */
+function VowCard({ run }: { run: RunState }) {
+  const offer = vowOffer(run, gameContent);
+  if (offer.length === 0) return null;
+  const broken = Object.entries(campaignOf(gameContent).vows?.broken ?? {}).map(
+    ([f, n]) => `${factionName(f as Faction, run.day)} ${signed(n ?? 0)}`,
+  );
+  return (
+    <section class="card vows" data-testid="vows">
+      <h2>{t('ui.vow.title')}</h2>
+      <p class="muted">{t('ui.vow.intro', { cost: listText(broken) })}</p>
+      <fieldset class="vows__list">
+        <legend class="sr-only">{t('ui.vow.legend')}</legend>
+        {offer.map((v) => (
+          <label key={v.id} class="vow">
+            <input
+              type="radio"
+              name="vow"
+              checked={run.vow === v.id}
+              data-testid="vow"
+              data-vow={v.id}
+              onChange={() => swearVow(v.id)}
+            />
+            <span class="vow__body">
+              <span>“{t(v.text)}”</span>
+              <span class="vow__rings">{t('ui.vow.rings', { n: v.rings })}</span>
+            </span>
+          </label>
+        ))}
+        <label class="vow">
+          <input
+            type="radio"
+            name="vow"
+            checked={run.vow === undefined}
+            data-testid="vow-none"
+            onChange={() => swearVow(null)}
+          />
+          <span class="vow__body">{t('ui.vow.none')}</span>
+        </label>
+      </fieldset>
+    </section>
+  );
+}
+
+/** This morning's vow, sworn last night (docs/tech-spec.md §75). */
+function VowToday({ run }: { run: RunState }) {
+  const vow = vowOf(run, gameContent);
+  return vow ? <p data-testid="vow-morning">{t('ui.vow.morning', { vow: t(vow.text), rings: vow.rings })}</p> : null;
 }
 
 // ---------- night ----------
@@ -2595,6 +2699,7 @@ function Night() {
             <EventNight run={run} />
           </section>
           <TrailCard run={run} />
+          <VowCard run={run} />
           <BillsCard run={run} outlook={outlook} />
           <RankCard run={run} />
           <ShopCard run={run} />
