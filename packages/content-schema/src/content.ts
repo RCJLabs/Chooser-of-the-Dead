@@ -11,6 +11,7 @@ import type {
   FactDef,
   FactLaw,
   FamilyDef,
+  KenningDef,
   NamedPredicate,
   ObservationDef,
   ObsPattern,
@@ -241,6 +242,8 @@ export const ArchetypeSchema: z.ZodType<ArchetypeDef> = z.strictObject({
   words: z.record(z.string(), z.string().min(1)).optional(),
   // A forged tally of true deeds, cut by the valley's forger (docs/tech-spec.md §71): Loki's borrowed faces.
   papers: z.literal('forged').optional(),
+  // An honest tally a skald cut (docs/tech-spec.md §77): the teaching soul for kennings.
+  tally: z.literal('skald').optional(),
 });
 
 const SpeechSlotNameSchema = z.enum([
@@ -368,6 +371,17 @@ export const TallyTemplateSchema: z.ZodType<TallyTemplate> = z.strictObject({
   msg: Key,
   params: Params.optional(),
   weight: Weight.default(1),
+  // A skald's way of carving it (docs/tech-spec.md §77): the kenning on the rulebook's page, and how forgers botch it.
+  skald: z.literal(true).optional(),
+  kenning: Id.optional(),
+  botched: z.array(Key).min(1).optional(),
+});
+
+/** The rulebook's kennings and sayings (kennings.yaml, docs/tech-spec.md §77). */
+export const KenningSchema: z.ZodType<KenningDef> = z.strictObject({
+  id: Id,
+  term: Key,
+  means: Key,
 });
 
 export const PoolsSchema = z.record(Key, z.array(z.string().min(1)).min(1));
@@ -415,6 +429,8 @@ const KnobsSchema = z.strictObject({
   maxDocs: Int.min(1),
   salienceFloor: SalienceSchema,
   tallyRate: Percent.optional(),
+  kennings: Percent.optional(),
+  botch: Percent.optional(),
   muninnRecall: Percent.optional(),
   huginnAside: Percent.optional(),
   spreadLines: z.boolean().optional(),

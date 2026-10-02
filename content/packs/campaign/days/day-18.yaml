@@ -1,4 +1,5 @@
-# Day 18: no new rule. Draupnir drips again; Naglfar is nearly built, and Loki makes his last offer.
+# Day 18: no new rule, but the skalds cut tallies in kennings. Draupnir drips again; Naglfar is nearly built, and Loki
+# makes his last offer.
 day: 18
 sunS: 900
 decree: decree.d18
@@ -25,6 +26,8 @@ params:
       - { id: whim.odin.ulfberht, text: whim.odin.ulfberht, is: { fact: blade, is: ulfberht } }
 queue:
   count: [14, 16]
+  # The first soul brings a saga a skald cut, to teach kennings (docs/tech-spec.md §77).
+  teachFirst: arch.skald_saga
   # Odin at the desk (docs/tech-spec.md §46), once three souls have been sent: early, so a slow day still has him.
   visits:
     - { scene: scene.d18.desk, at: 3 }
@@ -36,6 +39,7 @@ queue:
     - { id: arch.fled_coward, w: 1 }
     - { id: arch.not_quite_dead, w: 1 }
     - { id: arch.drowned_raider, w: 2 }
+    - { id: arch.skald_saga, w: 1 }
     - { id: arch.oathbreaker, w: 2 }
     - { id: arch.borrowed_blade, w: 2 }
     - { id: arch.ulfberht_braggart, w: 1 }
@@ -65,7 +69,17 @@ queue:
     maxDocs: 5
     salienceFloor: 1
     tallyRate: 40
+    # The skalds cut tallies in kennings (docs/tech-spec.md §77), and forgers faking their hand botch some.
+    kennings: 60
+    botch: 50
     muninnRecall: 50
     huginnAside: 25
     spreadLines: true
     spreadLooks: true
+
+# The coach's lesson for the day's first soul, which teaches what's new (docs/tech-spec.md §25): kennings (§77).
+lesson:
+  steps:
+    - { id: d18.tally, text: coach.d18.tally, focus: tally, next: true }
+    - { id: d18.rules, text: coach.d18.rules, focus: rules, next: true }
+    - { id: d18.judge, text: coach.d18.judge, focus: judge }

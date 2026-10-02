@@ -64,6 +64,9 @@ queue:
     maxDocs: 5
     salienceFloor: 1
     tallyRate: 40
+    # The skalds cut tallies in kennings (docs/tech-spec.md §77), and forgers faking their hand botch some.
+    kennings: 60
+    botch: 50
     muninnRecall: 50
     huginnAside: 25
     spreadLines: true

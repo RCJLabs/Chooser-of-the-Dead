@@ -416,6 +416,9 @@
   "ui.review.close": "Back",
   "ui.review.lucky": "{dest} was right, but what you'd seen didn't prove it.",
   "ui.review.unasked": "You didn't question it",
+  "ui.review.kennings": "What the kennings meant",
+  "ui.review.kenning": "{term}: {means}",
+  "ui.review.botched": "No such kenning: a forger cut it",
   "ui.again.desk": "Again: {name}, with no sun",
   "ui.again.right": "Right this time: {dest}.",
   "ui.again.wrong": "Still not right: they belonged in {expected}.",
@@ -612,6 +615,8 @@
   "ui.registry.field": "the registry",
   "ui.registry.portrait": "Registry portrait of {name} {patronym}",
   "ui.rules.procedures": "Procedures",
+  "ui.rules.kennings": "Kennings and sayings",
+  "ui.rules.kennings.intro": "The skalds name things by other names, and never get one wrong. A kenning that isn't here was cut by a forger: the tally is forged.",
   "ui.citation.skipped": "The decree also said to {procs}.",
   "ui.citation.skippedOnly": "{name} was bound for {dest}, but the decree said to {procs} first.",
   "ui.summary.skipped": "not done: {procs}",
@@ -768,5 +773,6 @@
   "ui.party.lord": "jarl",
   "coach.retinue": "A jarl and his hearth-men. A man who stood by his jarl to the end, and never fled, goes where the jarl goes: judge the jarl, then turn each man over. The rules above that one still come first.",
   "coach.party": "These came together. Turn to each by name, or with [ and ]. What one says of another, Compare with that one's own body: a lie about a companion is a lie like any other. Stamp each and send it on; the last one sends them all.",
+  "coach.botch": "That kenning isn't on the rulebook's page, and a skald never gets one wrong: a forger cut this tally. It counts for nothing.",
   "ui.party.nextSoul": "Next: {name}"
 }

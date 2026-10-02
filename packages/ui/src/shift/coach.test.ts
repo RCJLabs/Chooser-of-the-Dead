@@ -66,8 +66,8 @@ function follow(day: number, seed: string): { shown: string[]; lesson: Lesson | 
 const lessonDays = full.days.filter((d) => d.lesson).map((d) => d.day);
 
 describe('the coach', () => {
-  it('has a lesson for every day that brings a new rule or tool', () => {
-    expect(lessonDays).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17]);
+  it('has a lesson for every day that brings a new rule or tool, or a new way of carving the tallies (Day 18)', () => {
+    expect(lessonDays).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
   });
 
   it.each(lessonDays)('can be followed to the stamp on Day %i’s teaching soul', (day) => {

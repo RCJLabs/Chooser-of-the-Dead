@@ -15,6 +15,7 @@ import type {
 } from '../content/types';
 import { DESTINATIONS, FACTIONS } from '../content/types';
 import { dressForDay, generateCase, generateDay, planDay } from '../gen/generate';
+import { skaldTally } from '../gen/kennings';
 import { linkParties } from '../gen/party';
 import { weightedPick } from '../gen/pick';
 import { scriptedCase } from '../gen/scripted';
@@ -973,6 +974,7 @@ function audit(
     } else {
       wrong++;
       const paid = c ? stampRings(env.content, c, v.stamped) : 0;
+      const skald = c ? skaldTally(c) : null;
       mistakes.push({
         rule: v.rule,
         expected: v.expected,
@@ -981,6 +983,7 @@ function audit(
         ...(c?.noon ? { noon: true as const } : {}),
         ...(paid > 0 ? { paid } : {}),
         ...(pled ? { pled: true as const } : {}),
+        ...(skald ? { skald } : {}),
       });
       if (fined && wrong > economy.warnings) {
         const fine = economy.fines[Math.min(wrong - economy.warnings - 1, economy.fines.length - 1)] ?? 0;

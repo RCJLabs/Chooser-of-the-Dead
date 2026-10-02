@@ -2,8 +2,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { type CampaignPart, TARGETS } from '@cots/content-schema';
+import type { DaySpec, TallyTemplate } from '@cots/engine';
 import { afterEach, describe, expect, it } from 'vitest';
 import { compileTarget, loadPacks } from './compile';
+import type { PackContent } from './gameplay';
 
 const packsDir = resolve(import.meta.dirname, '../../../content/packs');
 
@@ -462,5 +464,82 @@ describe('vows at the cup, as content', () => {
       /Night 3 offers 0 vows: there's nothing to choose/,
     );
     expect(withVows((v) => ({ ...v, broken: {} }))).toThrow(/A broken vow costs nothing/);
+  }, 60_000);
+});
+
+/** Compiles the full game from the real packs, with the campaign pack's gameplay content changed. */
+function compileWithPack(change: (content: PackContent) => void): () => void {
+  const packs = loadPacks(packsDir);
+  const pack = packs.get('campaign');
+  if (!pack) throw new Error('no campaign pack');
+  change(pack.content);
+  return () => {
+    out = mkdtempSync(join(tmpdir(), 'cots-campaign-'));
+    compileTarget('dev-full', TARGETS['dev-full'], packs, out);
+  };
+}
+
+// docs/tech-spec.md §77.
+describe('kennings in the tallies, as content', () => {
+  const skaldLine = (c: PackContent, id: string) => {
+    const t = c.tallies.find((x) => x.id === id);
+    if (!t) throw new Error(`no tally line ${id}`);
+    return t;
+  };
+  const edit = (id: string, change: (t: TallyTemplate) => TallyTemplate) => (c: PackContent) => {
+    c.tallies = c.tallies.map((t) => (t === skaldLine(c, id) ? change(t) : t));
+  };
+  const day = (n: number, change: (d: DaySpec) => DaySpec) => (c: PackContent) => {
+    c.days = c.days.map((d) => (d.day === n ? change(d) : d));
+  };
+  const knobs = (n: number, k: Partial<DaySpec['queue']['knobs']>) =>
+    day(n, (d) => ({ ...d, queue: { ...d.queue, knobs: { ...d.queue.knobs, ...k } } }));
+
+  it('compiles as shipped, and refuses a skald line with no kenning on the page, or one that never carves it', () => {
+    expect(compileWithPack(() => {})).not.toThrow();
+    expect(compileWithPack(edit('tl.k.oldAge', (t) => ({ ...t, kenning: 'k.nobody' })))).toThrow(
+      /tally line tl\.k\.oldAge names kenning "k\.nobody", which the page doesn't have/,
+    );
+    expect(compileWithPack(edit('tl.k.oldAge', ({ kenning: _, ...t }) => t))).toThrow(
+      /tally line tl\.k\.oldAge is a skald's, but names no kenning on the page/,
+    );
+    expect(compileWithPack(edit('tl.k.oldAge', (t) => ({ ...t, kenning: 'k.ran' })))).toThrow(
+      /tally line tl\.k\.oldAge doesn't carve "Went to Rán", the kenning it names/,
+    );
+    expect(compileWithPack(edit('tl.cause.oldAge', (t) => ({ ...t, kenning: 'k.elli' })))).toThrow(
+      /tally line tl\.cause\.oldAge isn't a skald's/,
+    );
+  }, 60_000);
+
+  it("refuses a botch that's a kenning on the page, and a kenning on the page that no skald carves", () => {
+    expect(compileWithPack(edit('tl.k.battle.storm', (t) => ({ ...t, botched: ['tl.k.battle.game'] })))).toThrow(
+      /tally line tl\.k\.battle\.storm's botch "tl\.k\.battle\.game" carves "Hild's game", a kenning on the page/,
+    );
+    expect(
+      compileWithPack((c) => {
+        c.tallies = c.tallies.filter((t) => t.kenning !== 'k.elli');
+      }),
+    ).toThrow(/kenning k\.elli is on the page, but no skald carves it/);
+  }, 60_000);
+
+  it('refuses a botch with no kennings to botch, kennings with no tallies, and kennings on the Daily', () => {
+    expect(compileWithPack(knobs(17, { botch: 50 }))).toThrow(/day 17 botches kennings it never cuts/);
+    expect(compileWithPack(knobs(18, { tallyRate: 0 }))).toThrow(
+      /day 18 cuts kennings on tallies it never brings \(tallyRate\)/,
+    );
+    expect(compileWithPack(knobs(18, { kennings: 0, botch: 0 }))).toThrow(
+      /archetype arch\.skald_saga brings a skald's tally to day 18, which cuts no kennings/,
+    );
+    const packs = loadPacks(packsDir);
+    const daily = packs.get('daily')?.content;
+    if (!daily?.daily) throw new Error('no Daily');
+    daily.daily = {
+      ...daily.daily,
+      queue: { ...daily.daily.queue, knobs: { ...daily.daily.queue.knobs, kennings: 50 } },
+    };
+    expect(() => {
+      out = mkdtempSync(join(tmpdir(), 'cots-campaign-'));
+      compileTarget('dev-full', TARGETS['dev-full'], packs, out);
+    }).toThrow(/The Daily cuts no kennings/);
   }, 60_000);
 });

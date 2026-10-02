@@ -248,7 +248,7 @@
       "odinClaim": "whim.odin.ulfberht"
     },
     "souls": [
-      "Jorunn | bedridden | TRANSFER | honest | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 63",
+      "Jorunn | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27",
       "Halfdan | oathbreaker | HEL | honest | proof registry.registry+body.front.nails 7s | difficulty 21",
       "Yrsa | coward_forger | HEL | lie fled=false/confess | proof body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 6s | difficulty 78",
       "Kolbein | prime_signed | VALHALLA | honest | proof body.front.grip+body.front.gripHand+body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 9s | difficulty 68",
@@ -263,7 +263,7 @@
       "Gunnar | borrowed_blade | HEL | honest | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 46",
       "Hervor | spear_marked | VALHALLA | honest | proof body.front.gripHand+body.front.lips+body.front.nails+body.front.spearCut 4s | difficulty 54 | then proc.clip",
       "Orm | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74",
-      "Hauk | drowned_raider | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27"
+      "Hauk | baptized | TRANSFER | honest | proof body.front.nails+body.front.amulet 2s | difficulty 17"
     ]
   },
   "golden-0/day-19": {
@@ -575,7 +575,7 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Aud | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74 | then proc.clip",
+      "Aud | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Astrid | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.4 18s | difficulty 72 | then proc.clip",
       "Gunnar | straw_braggart | TRANSFER | lie cause=battle/confess | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66",
       "Toki | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+body.front.nails 8s | difficulty 57 | then proc.clip",
@@ -588,7 +588,7 @@
       "Bergthora | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11",
       "Egil | contested | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 65",
       "Starkad | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 70 | then proc.clip",
-      "Sigrid | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30",
+      "Sigrid | baptized | TRANSFER | honest | proof body.front.nails+body.front.amulet 2s | difficulty 17",
       "Thorir | tally_forger | TRANSFER | lie cause=battle/excuse | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66 | then proc.clip",
       "Grim | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20"
     ]
@@ -894,13 +894,13 @@
       "odinClaim": "whim.odin.ulfberht"
     },
     "souls": [
-      "Grim | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20 | then proc.clip",
+      "Grim | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Eyvind | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 70",
       "Bergthora | borrowed_blade | HEL | lie weaponOwner=self/excuse | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 49 | then proc.clip",
       "Skeggi | straw_braggart | TRANSFER | lie cause=battle/excuse | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66",
-      "Starkad | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip",
+      "Starkad | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Einar | prime_signed | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+body.front.nails+body.front.spearCut 9s | difficulty 68 | then proc.clip",
-      "Svein | drowned_raider | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27",
+      "Svein | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20",
       "Egil | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11",
       "Thorstein | contested | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+body.front.nails 8s | difficulty 52 | then proc.clip",
       "Aud | straw_braggart | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74",
@@ -908,7 +908,7 @@
       "Hallgerd | bedridden | TRANSFER | honest | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 63",
       "Gunnhild | ulfberht_braggart | HEL | lie blade=ulfberht/confess | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.3 18s | difficulty 72",
       "Gudrun | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.3 18s | difficulty 72",
-      "Thorir | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip"
+      "Thorir | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip"
     ]
   },
   "golden-2/day-19": {
@@ -1212,7 +1212,7 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Svein | oathbreaker | HEL | lie outlaw=false/confess | proof registry.registry+body.front.nails 7s | difficulty 24 | then proc.clip",
+      "Svein | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Egil | baptized | TRANSFER | lie faith=heathen/confess | proof body.front.nails+body.front.amulet 2s | difficulty 20",
       "Hervor | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11 | then proc.clip",
       "Einar | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.3 18s | difficulty 72",
@@ -1225,7 +1225,7 @@
       "Thorstein | borrowed_blade | HEL | lie weaponOwner=self/confess | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 49 | then proc.clip",
       "Starkad | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20 | then proc.clip",
       "Thorir | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66",
-      "Hallvard | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip",
+      "Hallvard | borrowed_blade | HEL | lie weaponOwner=self/confess | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 49 | then proc.clip",
       "Toki | spear_marked | VALHALLA | honest | proof body.front.lips+body.front.ornament+body.front.nails+body.front.spearCut 4s | difficulty 54 | then proc.clip"
     ]
   },
@@ -1535,7 +1535,7 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Svein | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip",
+      "Svein | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Halfdan | prime_signed | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+body.front.nails+body.front.spearCut 9s | difficulty 68",
       "Starkad | borrowed_blade | HEL | honest | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 46",
       "Einar | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11 | then proc.clip",
@@ -1849,7 +1849,7 @@
       "odinClaim": "whim.odin.ulfberht"
     },
     "souls": [
-      "Ragnhild | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip",
+      "Ragnhild | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Toki | spear_marked | VALHALLA | honest | proof body.front.grip+body.front.lips+body.front.nails+body.front.spearCut 4s | difficulty 54",
       "Eyvind | disarmed_warrior | HEL | lie grip=weapon/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.nails+body.front.spearCut 5s | difficulty 73 | then proc.clip",
       "Sigurd | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 70 | then proc.clip",
@@ -2172,7 +2172,7 @@
       "odinClaim": "whim.odin.ulfberht"
     },
     "souls": [
-      "Arnbjorn | disarmed_warrior | HEL | lie grip=weapon/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.nails+body.front.spearCut 5s | difficulty 73 | then proc.clip",
+      "Arnbjorn | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Sigrun | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74 | then proc.clip",
       "Vigdis | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74 | then proc.clip",
       "Thorstein | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.gripHand+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 70 | then proc.clip",
@@ -2184,7 +2184,7 @@
       "Sigurd | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.2 18s | difficulty 72",
       "Starkad | false_convert | TRANSFER | lie faith=baptized/excuse | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66",
       "Ragnhild | straw_braggart | TRANSFER | lie cause=battle/excuse | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74 | then proc.clip",
-      "Skeggi | drowned_raider | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
+      "Skeggi | borrowed_blade | HEL | honest | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 46 | then proc.clip",
       "Bjorn | disarmed_warrior | HEL | lie grip=weapon/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.nails+body.front.spearCut 5s | difficulty 73",
       "Gunnar | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20",
       "Yrsa | fled_coward | HEL | lie fled=false/confess | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.nails+body.front.spearCut 5s | difficulty 73"
@@ -2491,7 +2491,7 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Gunnar | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11 | then proc.clip",
+      "Gunnar | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Toki | bedridden | TRANSFER | honest | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 71",
       "Thorstein | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66 | then proc.clip",
       "Arnbjorn | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20",
@@ -2500,7 +2500,7 @@
       "Hallvard | bedridden | TRANSFER | honest | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 63 | then proc.clip",
       "Vagn | oathbreaker | HEL | lie outlaw=false/confess | proof registry.registry+body.front.nails 7s | difficulty 24 | then proc.clip",
       "Eyvind | contested | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.ornament+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 65",
-      "Orm | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip",
+      "Orm | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11 | then proc.clip",
       "Gunnhild | spear_marked | VALHALLA | honest | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 53",
       "Svein | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.4 18s | difficulty 72",
       "Ketil | borrowed_blade | HEL | lie weaponOwner=self/excuse | proof body.front.grip+body.front.lips+tool.runeLens.inscription+body.front.nails 12s | difficulty 49",
@@ -2816,7 +2816,7 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Freydis | prime_signed | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+body.front.nails+body.front.spearCut 9s | difficulty 68",
+      "Freydis | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27",
       "Kolbein | bedridden | TRANSFER | honest | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 71 | then proc.clip",
       "Egil | straw_braggart | TRANSFER | lie cause=battle/confess | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66",
       "Bergthora | proud_liar | HEL | lie blade=ulfberht/confess | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.3 18s | difficulty 72",
@@ -2831,7 +2831,7 @@
       "Sigrun | marked_boaster | HEL | lie cause=battle/excuse | proof body.front.skin+body.front.nails+body.front.spearCut+testimony.1 5s | difficulty 51",
       "Ragnhild | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11",
       "Thora | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 70 | then proc.clip",
-      "Halfdan | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30"
+      "Halfdan | long_nails | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+body.front.nails+body.front.spearCut 9s | difficulty 68 | then proc.clip"
     ]
   },
   "golden-8/day-19": {
@@ -3135,7 +3135,7 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Hallvard | drowned_raider | RAN | lie cause=battle/excuse | proof body.front.lips+body.front.nails 2s | difficulty 30",
+      "Hallvard | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27",
       "Starkad | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.2 18s | difficulty 72",
       "Kolbein | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66",
       "Thorstein | spear_marked | VALHALLA | honest | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 53",
@@ -3454,7 +3454,7 @@
       "odinClaim": "whim.odin.ulfberht"
     },
     "souls": [
-      "Hauk | long_nails | VALHALLA | honest | proof body.front.grip+body.front.gripHand+body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 9s | difficulty 68 | then proc.clip",
+      "Hauk | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27",
       "Arnbjorn | tally_forger | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74",
       "Hallgerd | straw_braggart | TRANSFER | lie cause=battle/confess | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74",
       "Vagn | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11",
@@ -3468,7 +3468,7 @@
       "Bergthora | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20",
       "Toki | fled_coward | HEL | honest | proof body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 6s | difficulty 75 | then proc.clip",
       "Gunnar | oathbreaker | HEL | lie outlaw=false/confess | proof registry.registry+body.front.nails 7s | difficulty 24",
-      "Egil | drowned_raider | RAN | lie cause=battle/excuse | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip"
+      "Egil | spear_marked | VALHALLA | honest | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 53 | then proc.clip"
     ]
   },
   "golden-10/day-19": {
@@ -3770,17 +3770,17 @@
       "odinClaim": "whim.odin.scarred"
     },
     "souls": [
-      "Thorstein | fled_coward | HEL | lie fled=false/excuse | proof body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 6s | difficulty 78",
+      "Thorstein | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27",
       "Ketil | straw_braggart | TRANSFER | lie cause=battle/confess | proof body.front.skin+body.front.nails+body.front.spearCut 3s | difficulty 66 | then proc.clip",
       "Gunnar | oathbreaker | HEL | lie outlaw=false/confess | proof registry.registry+body.front.nails 7s | difficulty 24",
-      "Thorir | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30",
+      "Thorir | fled_coward | HEL | lie fled=false/confess | proof body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 6s | difficulty 78",
       "Ingrid | bedridden | TRANSFER | honest | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 71 | then proc.clip",
       "Starkad | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.2 18s | difficulty 72",
       "Toki | tally_forger | TRANSFER | lie cause=battle/excuse | proof body.front.woundsFront+body.front.lips+body.back.woundsBack+body.front.nails+body.front.spearCut 7s | difficulty 74 | then proc.clip",
       "Egil | contested | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+body.front.nails 8s | difficulty 52",
       "Bjorn | contested | VALHALLA | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 65",
       "Gunnhild | proud_liar | HEL | lie blade=ulfberht/excuse | proof body.front.grip+body.front.woundsFront+body.front.lips+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails+testimony.3 18s | difficulty 72 | then proc.clip",
-      "Eyvind | drowned_raider | RAN | lie cause=battle/confess | proof body.front.lips+body.front.nails 2s | difficulty 30 | then proc.clip",
+      "Eyvind | skald_saga | RAN | honest | proof body.front.lips+body.front.nails 2s | difficulty 27 | then proc.clip",
       "Arnbjorn | freyja_pick | FOLKVANGR | honest | proof body.front.grip+body.front.woundsFront+body.front.lips+body.front.hair+body.back.woundsBack+tool.runeLens.makersMark+body.front.nails 17s | difficulty 70",
       "Vagn | loki | DETAIN | lie trickster=false/deflect | proof body.front.nails+body.front.lipScars 2s | difficulty 11",
       "Hauk | not_quite_dead | RETURN | honest | proof tool.feather.breath+body.front.nails 11s | difficulty 20 | then proc.clip"

@@ -1,10 +1,16 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–76.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–77.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 11 (below), in the full game only:
+
+- **11. Kennings in the tallies** ([`tech-spec.md`](tech-spec.md) §77). From Day 18, about 60% of saga tallies are a skald's, honest and forged alike: their lines are kennings and sayings ("Odin's storm took him at Svolder", "Elli threw her at last"), and the rulebook has a page of what each means. Half the forgers faking a skald's hand botch a kenning ("Rán's storm"), which gives the tally away without the rune-lens. Day 18's first soul teaches it, the first botch read gets a one-time tip, and Look again says what each kenning on a tally meant.
+  - **Changed from the pitch:** it starts on Day 18, the one late day with no new rule, so three campaign days carry it. "He fed the ravens" and "a straw death" aren't carved: the first is what a warrior does to his enemies, and the second doesn't say which of two deaths it was.
+  - **Your call, after playtests:** whether to start it earlier (Day 14 has the straw deaths). The playtest report now says when a mistake was on a skald's tally, since bots can't tell whether kennings are too obscure.
 
 Game phases 9 and 10 (below), in one pull request, in the full game only:
 
@@ -62,7 +68,7 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–10 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
+- **Done:** 1–11 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
 - **Next:** 12 from the second brainstorm (below), the first big one.
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
@@ -80,7 +86,7 @@ From the second gameplay brainstorm, all in the full game only. 9 and 10 came fi
 
 9. **Vows at the cup** (done, [`tech-spec.md`](tech-spec.md) §75). Each night, swear one of three vows for tomorrow, as saga heroes did over the cup (heitstrenging): no questions, no citation, a quarter of the sun to spare, every liar caught before the stamp. Kept, it pays rings; broken, it costs standing. Its numbers are guesses until playtest reports count vows.
 10. **Proven, not lucky** (done, [`tech-spec.md`](tech-spec.md) §76). A right stamp counts as proven only if what you'd seen was enough to decide it. Flawless needs every stamp proven, and Endless scores only proven souls. Grades reward judging, not guessing that most souls go to Hel.
-11. **Kennings in the tallies** (medium). On later days, skalds write tallies in kennings and sayings ("he fed the ravens", "he went to Rán", "a straw death"), with a kennings page in the rulebook beside the Futhark, and forgers misuse them. A reading puzzle with no new art. Risk: obscure kennings frustrate players.
+11. **Kennings in the tallies** (done, [`tech-spec.md`](tech-spec.md) §77). From Day 18, skalds cut tallies in kennings and sayings ("Odin's storm", "went to Rán"), with a page of them in the rulebook, and forgers botch them. A reading puzzle with no new art. Risk: obscure kennings frustrate players; the playtest report counts the mistakes on skald's tallies.
 12. **Choose the slain** (medium to large, mostly writing). At dawn on Day 16, Skögul takes you over the levy's fight at the pass to choose who falls, as she and Göndul chose King Hákon in *Hákonarmál*. Kari is on the roster, and Ulf if you let him go; whoever you choose is in that day's line, judged like anyone else. Odin wants the bravest; the valley wants them home. Risk: it rewrites Kari's fixed death and Nights 15–16.
 13. **Seal tomorrow's decree** (medium). Three nights a run, Odin's clerks send two drafts of tomorrow's decree. Sealing one pleases one god and annoys another, and steers the days towards rules you judge well or the ending you want. Risk: every draft adds to what the fairness checks and sims must cover.
 14. **Loki learns** (medium, needs art). Each time you catch him, his next disguise hides that tell and shows another from his myths (salmon, mare, fly, seal, Þökk), each taught before it's used; missed, he keeps what worked. Risk: each tell needs new woodcut art and a fair visual hint.

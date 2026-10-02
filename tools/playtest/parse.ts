@@ -46,6 +46,8 @@ export interface ReportMistake {
   readonly noon: boolean;
   readonly bribe: boolean;
   readonly plea: boolean;
+  /** The soul's tally was a skald's (docs/tech-spec.md §77): in kennings, or with a kenning its forger botched. */
+  readonly skald?: 'kennings' | 'botched';
 }
 
 export interface Report {
@@ -186,6 +188,11 @@ function parseMistakes(lines: readonly string[]): ReportMistake[] {
       noon: text.includes(' After the noon decree.'),
       bribe: / A bribe: \d+ rings for the stamp\./.test(text),
       plea: text.includes(' A plea granted.'),
+      ...(text.includes(' Its tally had a botched kenning.')
+        ? { skald: 'botched' as const }
+        : text.includes(' Its tally was in kennings.')
+          ? { skald: 'kennings' as const }
+          : {}),
     };
     const count = /^(\d+) sent wrong \(not itemised/.exec(text);
     if (count?.[1]) return [{ day, kind: 'count', count: Number(count[1]), ...flags }];

@@ -255,16 +255,49 @@ function pickRaven(
 export const TELL_TOOL: ToolId = 'runeLens';
 
 export interface TallyPlan {
-  /** What each carved line says, and the index of the lie it carries if it is forged. */
-  readonly lines: readonly { readonly fact: string; readonly value: Value; readonly lie?: number }[];
+  /**
+   * What each carved line says, the index of the lie it carries if it is forged, and whether the forger botched its
+   * kenning (docs/tech-spec.md §77).
+   */
+  readonly lines: readonly {
+    readonly fact: string;
+    readonly value: Value;
+    readonly lie?: number;
+    readonly botched?: true;
+  }[];
   /** How a forged tally gives itself away; null for an honest one. */
   readonly tell: ForgeryTell | null;
+  /** Cut by a skald (docs/tech-spec.md §77): its lines are kennings and sayings where their facts have them. */
+  readonly skald?: true;
 }
 
 const TELLS: readonly ForgeryTell[] = ['elderRune', 'mirroredRune', 'brokenFormula'];
 
+// What a tally can carve is what it can carve plainly: a skald only words the same deeds another way.
 const hasTallyLine = (ctx: DayCtx, fact: string, value: Value) =>
-  (ctx.content.tallies ?? []).some((t) => t.asserts.fact === fact && t.asserts.value === value);
+  (ctx.content.tallies ?? []).some((t) => !t.skald && t.asserts.fact === fact && t.asserts.value === value);
+
+/** Whether a forger faking a skald's hand can botch the kenning for this deed. */
+const botchable = (ctx: DayCtx, fact: string, value: Value) =>
+  (ctx.content.tallies ?? []).some(
+    (t) => t.skald && (t.botched?.length ?? 0) > 0 && t.asserts.fact === fact && t.asserts.value === value,
+  );
+
+/**
+ * Whether a skald cut the tally (docs/tech-spec.md §77), at the day's `kennings` rate whether it's honest or forged,
+ * so the carving proves nothing; a skald's teaching soul always has one. At the day's `botch` rate, a forger faking a
+ * skald's hand botches the first kenning he can: read, it gives the forgery away without the lens, which still shows
+ * the carver's habit too. Its own stream, so a day without kennings plans exactly as before.
+ */
+function cutBy(plan: TallyPlan, ctx: DayCtx, knobs: Knobs, rng: Rng, skald: boolean): TallyPlan {
+  if (!skald && !(knobs.kennings && rng.chance(knobs.kennings, 100))) return plan;
+  let lines = plan.lines;
+  if (plan.tell && knobs.botch && rng.chance(knobs.botch, 100)) {
+    const at = lines.findIndex((l) => botchable(ctx, l.fact, l.value));
+    if (at >= 0) lines = lines.map((l, i) => (i === at ? { ...l, botched: true as const } : l));
+  }
+  return { ...plan, lines, skald: true };
+}
 
 /**
  * The soul's saga tally, if it carries one (Day 11 on). A forger's tally
@@ -272,7 +305,9 @@ const hasTallyLine = (ctx: DayCtx, fact: string, value: Value) =>
  * honest tally (at the day's tallyRate) records up to two decisive facts.
  * On a campaign day of the forger's trail (docs/tech-spec.md §71) the tell is
  * one of the carver's two habits. A soul that carries `papers` (Loki's borrowed
- * faces) has a forged tally of true deeds: the face's, not its own.
+ * faces) has a forged tally of true deeds: the face's, not its own. On a day
+ * of kennings, a skald may have cut it (`cutBy`); a soul whose `tally` is a
+ * skald's always carries an honest one he cut.
  */
 export function planTally(
   truth: Truth,
@@ -282,6 +317,21 @@ export function planTally(
   knobs: Knobs,
   rng: Rng,
   papers?: 'forged',
+  tally?: 'skald',
+): TallyPlan | null {
+  const plan = planCarving(truth, lies, decisive, ctx, knobs, rng, papers, tally);
+  return plan ? cutBy(plan, ctx, knobs, rng.fork('skald'), tally === 'skald') : null;
+}
+
+function planCarving(
+  truth: Truth,
+  lies: readonly PlannedLie[],
+  decisive: readonly string[],
+  ctx: DayCtx,
+  knobs: Knobs,
+  rng: Rng,
+  papers: 'forged' | undefined,
+  tally: 'skald' | undefined,
 ): TallyPlan | null {
   const truths = decisive
     .filter((f) => hasTallyLine(ctx, f, truth[f] as Value))
@@ -300,14 +350,34 @@ export function planTally(
       .map((fact) => ({ fact, value: truth[fact] as Value }));
     if (deeds.length > 0) return { lines: deeds.slice(0, 2), tell: rng.pick(hands) };
   }
+  if (tally === 'skald' && truths.length > 0) return { lines: truths.slice(0, 2), tell: null };
   if (!knobs.tallyRate || truths.length === 0 || !rng.chance(knobs.tallyRate, 100)) return null;
   return { lines: truths.slice(0, 2), tell: null };
 }
 
-function pickTally(fact: string, value: Value, ctx: DayCtx, voice: Voice | undefined, rng: Rng): TallyTemplate | null {
-  const matches = (ctx.content.tallies ?? []).filter((t) => t.asserts.fact === fact && t.asserts.value === value);
+/**
+ * The template a carved line uses, and its words: on a skald's tally its kenning or saying if the deed has one (the
+ * forger's botch of it, if `botched`), and otherwise the plain line, drawn exactly as before kennings came.
+ */
+function pickTally(
+  line: TallyPlan['lines'][number],
+  skald: boolean,
+  ctx: DayCtx,
+  voice: Voice | undefined,
+  rng: Rng,
+): { readonly tpl: TallyTemplate; readonly msg: string; readonly botched: boolean } | null {
+  const { fact, value } = line;
+  const all = (ctx.content.tallies ?? []).filter((t) => t.asserts.fact === fact && t.asserts.value === value);
+  const botched = line.botched === true;
+  const skalds = skald ? all.filter((t) => t.skald && (!botched || (t.botched?.length ?? 0) > 0)) : [];
+  const matches = skalds.length > 0 ? skalds : all.filter((t) => !t.skald);
   if (matches.length === 0) return null;
-  return choose(matches, matches, `tally|${kindOf({ fact, value })}`, voice, rng);
+  const way = skalds.length === 0 ? '' : botched ? 'botched|' : 'skald|';
+  const tpl = choose(matches, matches, `tally|${way}${kindOf({ fact, value })}`, voice, rng);
+  if (skalds.length > 0 && botched && tpl.botched && tpl.botched.length > 0) {
+    return { tpl, msg: rng.pick(tpl.botched), botched: true };
+  }
+  return { tpl, msg: tpl.msg, botched: false };
 }
 
 export interface RenderInput {
@@ -452,12 +522,14 @@ export function render(input: RenderInput, ctx: DayCtx, rng: Rng): Rendered {
   // The saga tally last, on its own stream, so souls without one render exactly as before.
   if (input.tally) {
     const tallyRng = rng.fork('tally');
+    const skald = input.tally.skald === true;
     input.tally.lines.forEach((line, i) => {
-      const tpl = pickTally(line.fact, line.value, ctx, voice, tallyRng);
-      if (!tpl) {
+      const picked = pickTally(line, skald, ctx, voice, tallyRng);
+      if (!picked) {
         if (line.lie !== undefined) unspoken++;
         return;
       }
+      const { tpl, msg, botched } = picked;
       const id = `tally.${i}`;
       fields.push({
         id,
@@ -465,7 +537,9 @@ export function render(input: RenderInput, ctx: DayCtx, rng: Rng): Rendered {
         salience: 3,
         cost: 2,
         says: { fact: line.fact, value: line.value },
-        text: { msg: tpl.msg, params: fillParams(tpl.params, look, ctx, shared, tallyRng) },
+        text: { msg, params: fillParams(tpl.params, look, ctx, shared, tallyRng) },
+        ...(botched ? { botched: true as const } : {}),
+        ...(tpl.kenning ? { kenning: tpl.kenning } : {}),
       });
       const planned = line.lie === undefined ? undefined : input.lies[line.lie];
       if (planned) lies.push({ ...planned, field: id });

@@ -8,6 +8,7 @@ import {
   isPerceivable,
   judge,
   type ObsPattern,
+  showsForgery,
   type Truth,
   type Value,
 } from '@cots/engine';
@@ -61,7 +62,8 @@ export function oracleSolve(fields: readonly Field[], ctx: DayCtx): OracleResult
   const statements = perceived
     .filter((f) => (f.item === 'huginn' || f.item === 'muninn') && f.says && f.says.value !== null)
     .map(says);
-  const forgerySeen = perceived.some((f) => f.tell !== undefined);
+  // A tell under the lens, or a botched kenning (docs/tech-spec.md §77).
+  const forgerySeen = perceived.some(showsForgery);
   const carved = forgerySeen
     ? []
     : perceived.filter((f) => f.item === 'tally' && f.says && f.says.value !== null).map(says);

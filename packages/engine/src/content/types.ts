@@ -239,6 +239,24 @@ export interface TallyTemplate {
   readonly msg: string;
   readonly params?: Readonly<Record<string, string>>;
   readonly weight: number;
+  /**
+   * A skald's way of carving it (docs/tech-spec.md §77): a kenning or a saying, carved only on a tally a skald cut.
+   * A fact a skald has no way of carving is carved plainly on the skald's tally too.
+   */
+  readonly skald?: true;
+  /** The kenning or saying on the rulebook's page this line uses (a skald's line names one). */
+  readonly kenning?: string;
+  /** How a forger botches it: string keys, each a kenning that isn't on the page. */
+  readonly botched?: readonly string[];
+}
+
+/** A kenning or saying on the rulebook's page (docs/tech-spec.md §77): what the skalds carve, and what it means. */
+export interface KenningDef {
+  readonly id: string;
+  /** The kenning as carved (a string key). */
+  readonly term: string;
+  /** What it means (a string key). */
+  readonly means: string;
 }
 
 /** A character type the generator samples souls from. */
@@ -258,6 +276,8 @@ export interface ArchetypeDef {
    * wear, and a forgery's tell. Loki's borrowed faces need papers.
    */
   readonly papers?: 'forged';
+  /** Its souls carry an honest saga tally cut by a skald (docs/tech-spec.md §77): a day's teaching soul for kennings. */
+  readonly tally?: 'skald';
 }
 
 export type SpeechSlot =
@@ -380,6 +400,13 @@ export interface Knobs {
   readonly salienceFloor: Salience;
   /** Percent chance an honest soul carries a saga tally (Day 11 on). */
   readonly tallyRate?: number;
+  /**
+   * Percent of saga tallies a skald cut, honest or forged alike, so the carving proves nothing (docs/tech-spec.md §77):
+   * their lines are kennings and sayings where the fact has one. Never on the Daily.
+   */
+  readonly kennings?: number;
+  /** Percent of the forged tallies a skald's hand was faked on whose kenning the forger botches. */
+  readonly botch?: number;
   /** Percent chance Muninn, when he remembers the soul, also reports a decisive fact of its life (Day 13 on). */
   readonly muninnRecall?: number;
   /** Percent chance Huginn adds a true fact that doesn't decide the judgment, so the ravens can seem to disagree (Day 13 on). */
@@ -1443,6 +1470,8 @@ export interface Content {
   readonly procedures?: readonly ProcedureDef[];
   /** Saga tally lines (Day 11 on). */
   readonly tallies?: readonly TallyTemplate[];
+  /** The rulebook's kennings and sayings, which the skalds carve (docs/tech-spec.md §77). */
+  readonly kennings?: readonly KenningDef[];
   /** Endless's twists for rounds that bring nothing new. */
   readonly twists?: readonly EndlessTwist[];
   /** Endless's boons and curses, chosen between rounds (docs/tech-spec.md §68); none in the demo. */

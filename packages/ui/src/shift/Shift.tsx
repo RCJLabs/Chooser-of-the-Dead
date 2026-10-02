@@ -11,6 +11,7 @@ import {
   genderOfName,
   hasBoons,
   hintsLeft,
+  kenningOf,
   kinRelation,
   type Lesson,
   memberDef,
@@ -452,6 +453,16 @@ function Ravens({ s, c }: { s: Session; c: CaseSpec }) {
   return <Lines s={s} c={c} items={items} empty={t('ui.ravens.none')} />;
 }
 
+/**
+ * The one-time tip for a kenning a forger botched (docs/tech-spec.md §77): the first time one is read, on a device
+ * that hasn't put it away. Never over a lesson.
+ */
+function botchTip(s: Session, c: CaseSpec): boolean {
+  const cs = coachState();
+  if (!cs.on || cs.tips?.includes('botch') || activeLesson(s, cs)) return false;
+  return c.evidence.fields.some((f) => f.botched && s.state.soul.seen.includes(f.id));
+}
+
 /** The soul's saga tally: its carved lines, and under the rune-lens, any sign it was forged. */
 function Tally({ s, c }: { s: Session; c: CaseSpec }) {
   const lens = s.state.soul.tools.includes('runeLens');
@@ -459,6 +470,14 @@ function Tally({ s, c }: { s: Session; c: CaseSpec }) {
   return (
     <div class="tally" data-testid="tally">
       <Lines s={s} c={c} items={items} empty="" />
+      {botchTip(s, c) ? (
+        <div class="words__tip" data-testid="botch-tip" role="note">
+          <p>{t('coach.botch')}</p>
+          <button type="button" class="btn btn--small" data-testid="botch-tip-ok" onClick={() => noteTip('botch')}>
+            {t('ui.coach.gotIt')}
+          </button>
+        </div>
+      ) : null}
       {!lens && s.ctx.tools.has('runeLens') ? <p class="muted">{t('ui.tally.lens')}</p> : null}
     </div>
   );
@@ -1217,6 +1236,11 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
   const expected = t(`dest.${v.expected}`);
   const skipped = skippedText(v.skipped, ctx);
   const again = canTryAgain(s);
+  // What a skald's tally said, kenning by kenning (docs/tech-spec.md §77), and any the forger botched.
+  const kennings = c.evidence.fields.flatMap((f) => {
+    const k = kenningOf(ctx.content, f);
+    return k ? [{ f, ...k }] : [];
+  });
   return (
     <div
       class="overlay overlay--review"
@@ -1269,6 +1293,27 @@ function ReviewBox({ s, c, v, held }: { s: Session; c: CaseSpec; v: Verdict; hel
               {lies.map((f) => (
                 <li key={f.id}>
                   {fieldText(f, c)} <span class="evidence__badge">{t('ui.review.lie')}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+        {kennings.length > 0 ? (
+          <>
+            <h3>{t('ui.review.kennings')}</h3>
+            <ul class="lines review__list" data-testid="review-kennings">
+              {kennings.map(({ f, kenning, botched }) => (
+                <li key={f.id} data-field={f.id}>
+                  {fieldText(f, c)}{' '}
+                  {botched ? (
+                    <span class="evidence__badge" data-testid="review-botched">
+                      {t('ui.review.botched')}
+                    </span>
+                  ) : (
+                    <span class="muted" data-testid="review-gloss">
+                      ({t('ui.review.kenning', { term: t(kenning.term), means: t(kenning.means) })})
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

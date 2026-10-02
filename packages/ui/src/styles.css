@@ -472,6 +472,23 @@ select {
   margin: 0.2rem 0;
 }
 
+/* The page of kennings (docs/tech-spec.md §77): each as carved, then what it means. */
+.rules__kennings {
+  margin: 0;
+}
+
+.rules__kenning {
+  margin: 0.25rem 0;
+}
+
+.rules__kenning dt {
+  font-weight: 700;
+}
+
+.rules__kenning dd {
+  margin: 0 0 0 1.3rem;
+}
+
 .summary__score {
   font-size: 1.4rem;
   font-weight: 700;

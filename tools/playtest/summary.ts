@@ -184,6 +184,12 @@ function rulesTable(reports: readonly Report[]): string[] {
   const notes = [
     `Right stamp, a step skipped: ${n((m) => m.kind === 'skipped')}.`,
     `Of the wrong stamps: ${n((m) => m.kind === 'wrong' && m.bribe)} bribes taken, ${n((m) => m.kind === 'wrong' && m.plea)} pleas granted, ${n((m) => m.kind === 'wrong' && m.noon)} after a noon decree.`,
+    // Kennings (docs/tech-spec.md §77): how often a skald's tally came before a wrong stamp, the risk being it's obscure.
+    ...(n((m) => m.kind === 'wrong' && m.skald !== undefined) > 0
+      ? [
+          `On a skald's tally: ${n((m) => m.kind === 'wrong' && m.skald === 'kennings')} in kennings, ${n((m) => m.kind === 'wrong' && m.skald === 'botched')} with a botched kenning.`,
+        ]
+      : []),
     ...(n((m) => m.kind === 'count') > 0
       ? [`Not itemised (saves from before mistakes were filed): ${n((m) => m.kind === 'count')}.`]
       : []),

@@ -1,5 +1,5 @@
 import { type Destination, isDestination, type ObsPattern, type Pred, type Value } from '../content/types';
-import type { Field } from '../gen/types';
+import { type Field, showsForgery } from '../gen/types';
 import type { DayCtx } from './context';
 import { eval2, eval3, factsIn, type Tri } from './pred';
 
@@ -270,7 +270,8 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
       if (!opts.trustTestimony) contradictions.push({ lie: f.id, fact: says.fact, against: b.support });
     }
   }
-  const forgerySeen = perceived.some((f) => f.tell !== undefined);
+  // A tell under the lens, or a kenning the forger botched (docs/tech-spec.md §77).
+  const forgerySeen = perceived.some(showsForgery);
   if (carved.length > 0 && !refuted && !forgerySeen && !opts.trustTestimony && !opts.certainOnly) {
     const saved = { beliefs: new Map(beliefs), asserted: new Map(asserted), conflicts: conflicts.length };
     let whole = true;
@@ -356,7 +357,7 @@ export function solve(fields: readonly Field[], ctx: DayCtx, opts: SolveOptions 
     const caught = union(
       union(
         contradictions.flatMap((c) => [c.lie, ...c.against]),
-        forgerySeen ? perceived.filter((f) => f.tell !== undefined).map((f) => f.id) : [],
+        forgerySeen ? perceived.filter(showsForgery).map((f) => f.id) : [],
       ),
       clash,
     );

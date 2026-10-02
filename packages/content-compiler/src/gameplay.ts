@@ -10,6 +10,7 @@ import {
   EndlessBoonSchema,
   EndlessTwistSchema,
   FactSchema,
+  KenningSchema,
   LawSchema,
   NamedPredicateSchema,
   ObservationSchema,
@@ -44,6 +45,7 @@ import type {
   EndlessTwist,
   FactDef,
   FactLaw,
+  KenningDef,
   NamedPredicate,
   ObservationDef,
   PartiesDef,
@@ -117,6 +119,8 @@ export interface PackContent {
   scripted: ScriptedCaseDef[];
   procedures: ProcedureDef[];
   tallies: TallyTemplate[];
+  /** The rulebook's kennings and sayings (`kennings.yaml`, docs/tech-spec.md §77). */
+  kennings: KenningDef[];
   /** Endless's twists (`endless.yaml`). */
   twists: EndlessTwist[];
   /** Endless's boons and curses (`boons.yaml`, docs/tech-spec.md §68); the campaign pack has them. */
@@ -183,6 +187,7 @@ export function loadPackContent(dir: string, readYaml: ReadYaml, parse: Parse): 
     scripted: each('cases', ScriptedCaseSchema),
     procedures: list('procedures.yaml', ProcedureSchema),
     tallies: list('templates/tallies.yaml', TallyTemplateSchema),
+    kennings: list('kennings.yaml', KenningSchema),
     twists: list('endless.yaml', EndlessTwistSchema),
     boons: list('boons.yaml', EndlessBoonSchema),
     achievements: list('achievements.yaml', AchievementSchema),
@@ -289,6 +294,7 @@ export function emptyPackContent(): PackContent {
     scripted: [],
     procedures: [],
     tallies: [],
+    kennings: [],
     twists: [],
     boons: [],
     achievements: [],
@@ -326,6 +332,7 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
   const scripted = cat('scripted');
   const procedures = cat('procedures');
   const tallies = cat('tallies');
+  const kennings = cat('kennings');
   const twists = cat('twists');
   // Endless's boons and curses (docs/tech-spec.md §68): one pack says, the campaign one.
   if (parts.filter((p) => p.boons.length > 0).length > 1) throw new Error('Only one pack may define boons.yaml.');
@@ -356,6 +363,7 @@ export function mergeContent(parts: readonly PackContent[], genVersion: number):
     ...(scripted.length > 0 ? { scripted } : {}),
     ...(procedures.length > 0 ? { procedures } : {}),
     ...(tallies.length > 0 ? { tallies } : {}),
+    ...(kennings.length > 0 ? { kennings } : {}),
     ...(twists.length > 0 ? { twists } : {}),
     ...(boons.length > 0 ? { boons } : {}),
     ...(achievements.length > 0 ? { achievements } : {}),
@@ -392,6 +400,7 @@ export function idsOf(c: PackContent): string[] {
     ...c.scripted.map((x) => x.id),
     ...c.procedures.map((x) => x.id),
     ...c.tallies.map((x) => x.id),
+    ...c.kennings.map((x) => x.id),
     ...c.achievements.map((x) => x.id),
     ...c.days.flatMap((d) => Object.values(d.params ?? {}).flatMap((p) => p.pool.map((x) => x.id))),
   ];
@@ -640,6 +649,7 @@ export function lintContent(content: Content, strings: Readonly<Record<string, s
   if (content.campaign) problems.push(...lintCampaign(content, strings));
   problems.push(...lintScripted(content, strings));
   problems.push(...lintLessons(content, strings));
+  problems.push(...lintKennings(content, strings));
   problems.push(...lintTwists(content, strings));
   problems.push(...lintBoons(content, strings));
   problems.push(...lintAchievements(content, strings));
@@ -967,6 +977,84 @@ function lintAchievements(content: Content, strings: Readonly<Record<string, str
  * coach can highlight, and waits on tools the day has. Whether each step can be done on the soul the
  * day actually makes is for the tests, which generate it.
  */
+/** Whether `text` carves `term` as words of its own (any case), not inside a longer word. */
+function carves(text: string, term: string): boolean {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(text);
+}
+
+/**
+ * The skalds' kennings (docs/tech-spec.md §77): the rulebook's page says what each means, every skald's line carves
+ * one of them, and no forger's botch is a kenning on the page. Never on the Daily.
+ */
+function lintKennings(content: Content, strings: Readonly<Record<string, string>>): string[] {
+  const problems: string[] = [];
+  const page = content.kennings ?? [];
+  const ids = new Set<string>();
+  for (const k of page) {
+    if (ids.has(k.id)) problems.push(`Duplicate kenning "${k.id}".`);
+    ids.add(k.id);
+    for (const key of [k.term, k.means]) {
+      if (!(key in strings)) problems.push(`kenning ${k.id} uses missing string "${key}".`);
+    }
+  }
+  const terms = page.flatMap((k) => (strings[k.term] ? [{ id: k.id, text: strings[k.term] as string }] : []));
+  const used = new Set<string>();
+  for (const t of content.tallies ?? []) {
+    const at = `tally line ${t.id}`;
+    if (!t.skald) {
+      if (t.kenning || t.botched) problems.push(`${at} isn't a skald's, so it names no kenning and isn't botched.`);
+      continue;
+    }
+    const term = terms.find((x) => x.id === t.kenning);
+    if (!t.kenning) problems.push(`${at} is a skald's, but names no kenning on the page.`);
+    else if (!ids.has(t.kenning)) problems.push(`${at} names kenning "${t.kenning}", which the page doesn't have.`);
+    else {
+      used.add(t.kenning);
+      const line = strings[t.msg];
+      if (term && line !== undefined && !carves(line, term.text)) {
+        problems.push(`${at} doesn't carve "${term.text}", the kenning it names.`);
+      }
+    }
+    for (const b of t.botched ?? []) {
+      const text = strings[b];
+      if (text === undefined) {
+        problems.push(`${at} uses missing string "${b}".`);
+        continue;
+      }
+      const real = terms.find((x) => carves(text, x.text));
+      if (real)
+        problems.push(`${at}'s botch "${b}" carves "${real.text}", a kenning on the page: no forger's mistake.`);
+    }
+  }
+  for (const k of page) if (!used.has(k.id)) problems.push(`kenning ${k.id} is on the page, but no skald carves it.`);
+  const skalds = (content.tallies ?? []).some((t) => t.skald);
+  for (const d of content.days) {
+    const k = d.queue.knobs;
+    if ((k.kennings ?? 0) > 0) {
+      if (page.length === 0) problems.push(`day ${d.day} cuts kennings, but the rulebook has no page of them.`);
+      if (!skalds) problems.push(`day ${d.day} cuts kennings, but no tally line is a skald's.`);
+      if (!k.tallyRate) problems.push(`day ${d.day} cuts kennings on tallies it never brings (tallyRate).`);
+    }
+    if ((k.botch ?? 0) > 0 && !k.kennings) problems.push(`day ${d.day} botches kennings it never cuts.`);
+  }
+  if (content.daily && (content.daily.queue.knobs.kennings ?? 0) > 0) {
+    problems.push('The Daily cuts no kennings: its souls stay as they are.');
+  }
+  // A skald's honest tally only on a day whose rulebook has the page.
+  for (const a of content.archetypes) {
+    if (a.tally !== 'skald') continue;
+    for (const d of content.days) {
+      const comes =
+        d.queue.teachFirst === a.id || d.noon?.teach === a.id || d.queue.archetypes.some((x) => x.id === a.id);
+      if (comes && !d.queue.knobs.kennings) {
+        problems.push(`archetype ${a.id} brings a skald's tally to day ${d.day}, which cuts no kennings.`);
+      }
+    }
+  }
+  return problems;
+}
+
 function lintLessons(content: Content, strings: Readonly<Record<string, string>>): string[] {
   const problems: string[] = [];
   const ids = new Set<string>();

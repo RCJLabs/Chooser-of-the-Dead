@@ -227,10 +227,17 @@ function mistakeLine(p: PlaytestInput, day: number, m: DayMistake): string {
   const paid = m.paid ? ` A bribe: ${m.paid} rings for the stamp.` : '';
   // A stamp a soul asked for (docs/tech-spec.md §51, §59) was a kindness, not a slip.
   const pled = m.pled ? ' A plea granted.' : '';
+  // A skald's tally (docs/tech-spec.md §77): whether a kenning came before the mistake, or a forger's botch of one.
+  const skald =
+    m.skald === 'botched'
+      ? ' Its tally had a botched kenning.'
+      : m.skald === 'kennings'
+        ? ' Its tally was in kennings.'
+        : '';
   if (m.stamped === m.expected)
     return `- Day ${day}: the right stamp, ${t(`dest.${m.stamped}`)}, but a step skipped.${skip}${noon}`;
   const why = rule ? `“${t(ruleText(rule, day))}”` : m.rule;
-  return `- Day ${day}: stamped ${t(`dest.${m.stamped}`)} for a soul that belonged in ${t(`dest.${m.expected}`)}. The rule: ${why}${skip}${noon}${paid}${pled}`;
+  return `- Day ${day}: stamped ${t(`dest.${m.stamped}`)} for a soul that belonged in ${t(`dest.${m.expected}`)}. The rule: ${why}${skip}${noon}${paid}${pled}${skald}`;
 }
 
 /** Every soul sent wrong, day by day, with the rule that decided where it belonged. */
