@@ -192,3 +192,15 @@
     faith: { in: [heathen, primeSigned] }
   lies:
     - { fact: cause, claim: battle, p: 100, motive: wantsValhalla, onQuestion: { confess: 1, excuse: 1 } }
+# Day 18's teaching soul: a drowned raider whose saga a skald cut, in kennings (docs/tech-spec.md §77). Honest: what
+# the kennings mean is what the body shows.
+- id: arch.skald_saga
+  since: 18
+  personas: [veteran, honest]
+  truth:
+    cause: { is: drowned }
+    woundsFront: { lte: 1 }
+    woundsBack: { is: 0 }
+    alive: { is: false }
+  lies: []
+  tally: skald

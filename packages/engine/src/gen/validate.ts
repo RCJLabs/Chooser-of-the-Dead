@@ -4,7 +4,7 @@ import { type Judgment, judge, observe, sameJudgment, withOverride } from '../lo
 import { eval2, type Truth } from '../logic/pred';
 import { type Given, isPerceivable, type SolveResult, solve } from '../logic/solver';
 import { companionShows, factValue, memberField, parseMemberField } from './companions';
-import type { CaseSpec, Evidence, Field, Lie, RejectCode } from './types';
+import { type CaseSpec, type Evidence, type Field, type Lie, type RejectCode, showsForgery } from './types';
 
 /**
  * Facts whose value decides the judgment: changing any one of them changes the destination or the procedures due. Not
@@ -233,7 +233,8 @@ export function validateCase(
   }
 
   // F5: a forged tally shows a forgery sign that can be seen today; if seeing it takes a tool, something hints at it.
-  const tells = evidence.fields.filter((f) => f.tell !== undefined && isPerceivable(f, ctx));
+  // A botched kenning (docs/tech-spec.md §77) is one, read without a tool.
+  const tells = evidence.fields.filter((f) => showsForgery(f) && isPerceivable(f, ctx));
   // A forged line is one actually carved on the tally, whatever the lie says about itself.
   const tallyIds = new Set(evidence.fields.filter((f) => f.item === 'tally' && f.says).map((f) => f.id));
   const carved = (lie: Lie) => lie.via === 'tally' && tallyIds.has(lie.field);

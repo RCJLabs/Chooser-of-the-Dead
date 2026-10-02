@@ -96,13 +96,14 @@ describe('Endless twists', { timeout: 30_000 }, () => {
 
   it('come to rounds that bring nothing new: days without a teaching soul, and every round past the last day', () => {
     const twisted = rounds(26).filter((r) => endlessTwist(full, 'e', r) !== null);
-    // Days 9 and 18-20 are rounds 8 and 17-19; from round 20 on, every round is past Day 20.
-    expect(twisted).toEqual([8, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
+    // Days 9, 19 and 20 are rounds 8, 18 and 19 (Day 18 teaches kennings: docs/tech-spec.md §77); from round 20 on,
+    // every round is past Day 20.
+    expect(twisted).toEqual([8, 18, 19, 20, 21, 22, 23, 24, 25]);
     expect(rounds(8).filter((r) => endlessTwist(demo, 'e', r) !== null)).toEqual([3, 4, 5, 6, 7]);
   });
 
   it('read their own decree, keep the day’s rules, and use only what the day has', () => {
-    for (const r of [8, 17, 25, 40]) {
+    for (const r of [8, 18, 25, 40]) {
       const twist = endlessTwist(full, 'e', r);
       const spec = endlessSpec(full, 'e', r);
       expect(twist).not.toBeNull();

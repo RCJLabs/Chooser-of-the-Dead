@@ -36,7 +36,8 @@ function testerSave(): { save: RunSave; ledger: DayLedger[] } {
       // A vow at the cup broken (docs/tech-spec.md §75).
       vow: { id: 'vow.clean', kept: false, rings: 0, standing: { odin: -1 } },
       mistakes: [
-        { rule, expected: 'VALHALLA', stamped: 'HEL', noon: true },
+        // A skald's tally on the first (docs/tech-spec.md §77).
+        { rule, expected: 'VALHALLA', stamped: 'HEL', noon: true, skald: 'kennings' },
         { rule, expected: 'VALHALLA', stamped: 'HEL', paid: 30 },
         { rule: 'rule.lost', expected: 'HEL', stamped: 'HEL', skipped: ['proc.clip'] },
       ],
@@ -88,7 +89,14 @@ describe('reading a playtest report back', () => {
     expect(r?.days[0]?.pressed).toEqual({ n: 0, gave: 0 });
     expect(r?.days[2]).toMatchObject({ rings: -4, reprieve: 20 });
     expect(r?.mistakes).toEqual([
-      expect.objectContaining({ day: 2, kind: 'wrong', stamped: 'dest.HEL', expected: 'dest.VALHALLA', noon: true }),
+      expect.objectContaining({
+        day: 2,
+        kind: 'wrong',
+        stamped: 'dest.HEL',
+        expected: 'dest.VALHALLA',
+        noon: true,
+        skald: 'kennings',
+      }),
       expect.objectContaining({ day: 2, kind: 'wrong', bribe: true, noon: false }),
       expect.objectContaining({ day: 2, kind: 'skipped', stamped: 'dest.HEL' }),
     ]);
@@ -169,6 +177,7 @@ describe('summing up reports', () => {
     expect(text).toMatch(/\| rule\.[^|]+ \| 2 \| 1 \| 2 \|/);
     expect(text).toContain('Right stamp, a step skipped: 1.');
     expect(text).toContain('Of the wrong stamps: 1 bribes taken, 0 pleas granted, 1 after a noon decree.');
+    expect(text).toContain("On a skald's tally: 1 in kennings, 0 with a botched kenning.");
     expect(text).toContain(
       'Pleas: 2, granted: 1. Kin who came: 1. Offers: 1, taken: 0. Found out lying: 1. From 2 of 2 runs.',
     );

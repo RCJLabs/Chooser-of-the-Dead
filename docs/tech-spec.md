@@ -4836,6 +4836,52 @@ The brainstorm's version, and what changed:
 - **Endless scores are lower** in the full game for players who stamp without looking. Scores kept from before stand.
 - **The words are drafts,** and `luckyPoints` is a guess.
 
+## 77. Kennings in the tallies (game phase 11)
+
+**Why.** Game phase 11 in [`roadmap.md`](roadmap.md). A saga tally (Day 11) said what a soul did in plain words. A skald would say it in kennings, naming a thing by another name ("Odin's storm" for a battle). That makes the tally a reading puzzle with no new art, and a forger who doesn't know the craft gives himself away.
+
+**Changed from the pitch**
+- **From Day 18, not from "later days" in general.** Day 18 brought no new rule, and it's Odin's day: the god who won the mead of poetry sets his skalds to carving. The roadmap's risk (obscure kennings frustrate players) also argues for late. The cost is exposure: three campaign days (18–20), practice of those days, and Endless's rounds on their rules.
+- **"He fed the ravens" and "a straw death" aren't carved.** Feeding the ravens is what a warrior does to his enemies, not how he died. A straw death is dying in bed, of sickness or of old age, and a tally line has to say which. "Odin's storm" and "Hild's game" stand for battle instead; Loki's daughter and Elli for the two deaths in bed.
+
+**Established, and the game's own**
+- **Attested:** battle as Odin's weather and as Hild's game (Snorri's *Skáldskaparmál*); Rán's net, which catches the drowned (Snorri); the waves as Ægir's daughters (Snorri); Hel as Loki's daughter, who takes kings who died in their beds (*Ynglingatal*); Elli, Old Age, who brought Thor to one knee (*Gylfaginning*); "fled not" on rune stones (the Hällestad stone: he fled not at Uppsala); *vargr í véum*, the wolf in the sanctuary, an outlaw.
+- **The game's own:** each line's wording ("Elli threw him at last"), "No wolf in the sanctuary" as praise, and the forgers' botches ("Rán's storm", "Hel's game"), which are meant to be wrong.
+
+**How it works**
+- **A skald's tally** (`cutBy` in `gen/render.ts`). On a day with `kennings` (60 on Days 18–20), that share of saga tallies is cut by a skald. Honest and forged ones are cut at the same rate, so the carving proves nothing. A skald's line is a kenning or a saying where the deed has one (`skald: true` in `templates/tallies.yaml`), and plain where it hasn't: a weapon in hand, its owner. What a tally carves and says is as before; only the words change. Its own random stream, so souls, lies and every other line are as before, and a day without kennings is unchanged.
+- **The page.** `kennings.yaml`: each kenning or saying, as carved, and what it means. Every skald's line names the one it carves (`kenning`). The rulebook shows them as "Kennings and sayings" on a day with kennings, under the rule: a skald never gets one wrong, so a kenning that isn't on the page was cut by a forger, and the tally is forged.
+- **A forger's botch.** On a forged tally a skald's hand was faked on, at the day's `botch` rate (50), the forger botches the first kenning he can: two from the page mixed up ("Rán's storm took him at Svolder"). Only the battle kennings have botches (`botched`), since the forgers' commonest lie is a battle that wasn't; the coward's "fled not" is a saying and can't be botched. Read, a botched line (`Field.botched`) is a forgery sign like a tell under the lens (`showsForgery`): the tally counts for nothing, and from Day 16 the soul is a caught liar. The lens still shows the carver's habit, for the forger's trail (§71).
+- **Never on the Daily.** The Daily has no tallies, and the lint refuses kennings on it. The demo has neither. The Daily's checksums held.
+
+**Teaching**
+- **Day 18's decree** says so. Its first soul (`arch.skald_saga`) is a drowned raider whose saga a skald cut. The coach: read the tally (Next), then the rulebook's kennings (Next), then judge.
+- **The first botch read** gets a one-time tip with the tally (`coach.botch`), on a device that hasn't put it away.
+- **Look again** lists the soul's skald lines under "What the kennings meant", each glossed from the page ("Ægir's daughters: the waves…"), and a botched one marked "No such kenning: a forger cut it".
+
+**Elsewhere**
+- **Endless:** Day 18's round now teaches (its first soul is the skald's), so it takes no twist; later rounds carry kennings as their days do.
+- **Playtest report:** a mistake on a soul with a skald's tally says so ("Its tally was in kennings." / "…had a botched kenning."), and `pnpm playtest:read` counts them. It's how playtests can show whether kennings are too obscure: the bots don't read words.
+- **The lint:** a skald's line names a kenning on the page and carves its words; no botch carves a kenning on the page; every kenning on the page is carved by some skald; kennings only on days that bring tallies, a botch only where there are kennings, never on the Daily; a skald's teaching soul only on a day with kennings.
+
+**Numbers**
+- **Generation** (40 seeds of Days 17–20): no fallbacks. About 62% of tallies are a skald's from Day 18 (176 of 282 on Day 18), honest and forged alike. Of the forged ones a skald's hand was faked on, 26 of 59 had a botched kenning on Day 18; the rest had none the forger could botch, or the draw spared it. Day 17 is unchanged.
+- **The day goldens:** only Day 18's first soul changed (now the skald's teaching soul). A botch changes no proof: a proof never needs to read a tally it can leave unread.
+- **Campaign sims** (`pnpm sim campaign --story plain`, 100 seeds, against main): the economy is unchanged within noise, as it should be, since the bots read no words. Experts' purse 176 → 176 rings and Odin's ending 63 of 100 both times (payAll); competent bots 118 → 116 (payAll) and 212 → 216 (frugal); novices demoted 30 → 32 of 100. At 30 seeds the competent bots' purse fell 113 → 93, and frugal rose: the one soul Day 18's lesson changes moves everything after it in a run, and 30 runs don't average that out.
+
+**Tests**
+- **Engine** (`kennings.test.ts`): none before Day 18 and no page; Day 18's first soul brings a skald's honest tally, every line on the page; honest and forged tallies are cut by skalds at the day's rate alike, and only forged ones are botched, each in a skald's kenning; read, a botched line shows the tally forged without the lens (not believed; from Day 16 a liar), and the oracle agrees with the solver.
+- **Lint** (`campaign-lint.test.ts`): each rule above.
+- **Coach and Endless:** Day 18 has a lesson that can be followed to the stamp; its Endless round takes no twist.
+- **Report:** the mistake lines, written and read back.
+- **e2e** (`kennings.spec.ts`): practice Day 18's lesson and the rulebook's page; on Day 19, a botched kenning read, its tip, and Look again's list.
+
+**Known limits**
+- **Three campaign days.** Starting earlier (Day 14, Hel's day, has the straw deaths) would give the page more use, at the cost of piling onto days that already bring a rule each.
+- **A botch can fall on a true line.** On the coward's tally the lie ("fled not") can't be botched, so the forger botches its true battle line instead. The whole tally counts for nothing either way.
+- **The bots don't read,** so the sims can't say whether the kennings are too obscure. The playtest report counts the mistakes made on skald's tallies for that.
+- **The words are drafts,** and the rates (60 and 50) are guesses.
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

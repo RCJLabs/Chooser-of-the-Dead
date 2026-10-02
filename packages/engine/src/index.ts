@@ -16,6 +16,7 @@ export * from './campaign/word';
 export * from './content/types';
 export * from './gen/companions';
 export * from './gen/generate';
+export * from './gen/kennings';
 export { makeLook } from './gen/look';
 export * from './gen/party';
 export { weightedPick } from './gen/pick';

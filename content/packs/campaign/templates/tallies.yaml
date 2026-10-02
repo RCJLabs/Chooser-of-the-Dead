@@ -14,3 +14,31 @@
 - { id: tl.grip.weapon.2, asserts: { fact: grip, value: weapon }, msg: tl.grip.weapon.2, params: { weapon: pool.weapons } }
 - { id: tl.fled.false.2, asserts: { fact: fled, value: false }, msg: tl.fled.false.2 }
 - { id: tl.outlaw.false.2, asserts: { fact: outlaw, value: false }, msg: tl.outlaw.false.2 }
+# A skald's tally (Day 18 on, docs/tech-spec.md §77): the same deeds in kennings and sayings, each on the rulebook's
+# page, and carved plainly where a skald has no other way. A forger faking a skald's hand may botch a battle kenning,
+# mixing up two from the page. DRAFT words.
+- id: tl.k.battle.storm
+  asserts: { fact: cause, value: battle }
+  msg: tl.k.battle.storm
+  params: { place: pool.places }
+  skald: true
+  kenning: k.odinsStorm
+  botched: [tl.k.battle.storm.x]
+- id: tl.k.battle.game
+  asserts: { fact: cause, value: battle }
+  msg: tl.k.battle.game
+  params: { place: pool.places }
+  skald: true
+  kenning: k.hildsGame
+  botched: [tl.k.battle.game.x]
+- { id: tl.k.drowned.ran, asserts: { fact: cause, value: drowned }, msg: tl.k.drowned.ran, params: { place: pool.places }, skald: true, kenning: k.ran }
+- id: tl.k.drowned.daughters
+  asserts: { fact: cause, value: drowned }
+  msg: tl.k.drowned.daughters
+  params: { place: pool.places }
+  skald: true
+  kenning: k.aegirsDaughters
+- { id: tl.k.sickness, asserts: { fact: cause, value: sickness }, msg: tl.k.sickness, skald: true, kenning: k.lokisDaughter }
+- { id: tl.k.oldAge, asserts: { fact: cause, value: oldAge }, msg: tl.k.oldAge, skald: true, kenning: k.elli }
+- { id: tl.k.fled.false, asserts: { fact: fled, value: false }, msg: tl.k.fled.false, params: { place: pool.places }, skald: true, kenning: k.fledNot }
+- { id: tl.k.outlaw.false, asserts: { fact: outlaw, value: false }, msg: tl.k.outlaw.false, skald: true, kenning: k.wolf }

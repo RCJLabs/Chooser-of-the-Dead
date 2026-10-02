@@ -7,6 +7,7 @@ import {
   isPerceivable,
   judge,
   type ObsPattern,
+  showsForgery,
   type Truth,
   type Value,
 } from '@cots/engine';
@@ -41,7 +42,8 @@ export function oracleSolveReference(fields: readonly Field[], ctx: DayCtx): Ora
   const statements = perceived.filter(
     (f) => (f.item === 'huginn' || f.item === 'muninn') && f.says && f.says.value !== null,
   );
-  const forgerySeen = perceived.some((f) => f.tell !== undefined);
+  // A tell under the lens, or a botched kenning (docs/tech-spec.md §77).
+  const forgerySeen = perceived.some(showsForgery);
   // What the soul claims, aloud or on its tally: a liar (Day 16) is proven by these, below.
   const claims = perceived.filter(
     (f) => (f.item === 'testimony' || f.item === 'tally') && f.says && f.says.value !== null,

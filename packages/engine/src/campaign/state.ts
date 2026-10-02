@@ -52,6 +52,11 @@ export interface DayMistake {
   readonly paid?: number;
   /** The stamp a story soul pleaded for (docs/tech-spec.md §51): a plea granted, not a slip. */
   readonly pled?: true;
+  /**
+   * The soul's saga tally was a skald's (docs/tech-spec.md §77): in kennings, or with a kenning its forger botched. For
+   * a playtest's report: how often a kenning came before a mistake.
+   */
+  readonly skald?: 'kennings' | 'botched';
 }
 
 /**

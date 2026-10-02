@@ -1,4 +1,12 @@
-import { type DayCtx, questionCostMs, ruleText, type ShiftState, sunCosts, toolCost } from '@cots/engine';
+import {
+  type DayCtx,
+  kenningsToday,
+  questionCostMs,
+  ruleText,
+  type ShiftState,
+  sunCosts,
+  toolCost,
+} from '@cots/engine';
 import { t } from '../i18n';
 
 /** Decree, Freyja's whim and the rulebook in force: shown at the briefing and on the desk. */
@@ -77,6 +85,7 @@ export function RulesPanel({
           </ul>
         </>
       ) : null}
+      {kenningsToday(ctx) ? <Kennings ctx={ctx} /> : null}
       {ctx.procedures.length > 0 ? (
         <>
           <h3>{t('ui.rules.procedures')}</h3>
@@ -103,5 +112,23 @@ export function RulesPanel({
         </li>
       </ul>
     </div>
+  );
+}
+
+/** The page of kennings and sayings the skalds carve (docs/tech-spec.md §77), on days their tallies may be a skald's. */
+function Kennings({ ctx }: { ctx: DayCtx }) {
+  return (
+    <>
+      <h3>{t('ui.rules.kennings')}</h3>
+      <p class="muted">{t('ui.rules.kennings.intro')}</p>
+      <dl class="rules__kennings" data-testid="kennings">
+        {(ctx.content.kennings ?? []).map((k) => (
+          <div key={k.id} class="rules__kenning" data-kenning={k.id}>
+            <dt>{t(k.term)}</dt>
+            <dd>{t(k.means)}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
   );
 }

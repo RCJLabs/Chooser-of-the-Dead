@@ -25,6 +25,13 @@ export interface Field {
   /** A forgery sign on the soul's saga tally: seen, it makes the whole tally worthless. */
   readonly tell?: ForgeryTell;
   /**
+   * A tally line whose kenning the forger botched (docs/tech-spec.md §77): read, it's a forgery sign like a `tell`,
+   * no tool needed. Only ever on a forged tally.
+   */
+  readonly botched?: true;
+  /** The rulebook's kenning a skald's tally line carves (docs/tech-spec.md §77), or the one its forger botched. */
+  readonly kenning?: string;
+  /**
    * A habit of the knife that re-cut the soul's saga, as Muninn remembers it where he can't remember the soul
    * (docs/tech-spec.md §71): a mark on the forger's trail. It proves nothing about the soul.
    */
@@ -57,6 +64,9 @@ export interface Evidence {
 
 /** How a forged tally gives itself away (never spelling: Younger Futhark spelling varied too much). */
 export type ForgeryTell = 'elderRune' | 'mirroredRune' | 'brokenFormula';
+
+/** Whether a field, once seen, shows the soul's saga tally forged: a tell under the lens, or a botched kenning. */
+export const showsForgery = (f: Field): boolean => f.tell !== undefined || f.botched === true;
 
 export interface Lie {
   /** The testimony or tally field that tells it. */

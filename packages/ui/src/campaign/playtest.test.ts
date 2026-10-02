@@ -176,6 +176,23 @@ describe('the playtest report', () => {
     expect(lines.slice(1).filter((l) => l.includes('plea'))).toEqual([]);
   });
 
+  it('says when a soul sent wrong carried a skald’s tally, or a botched kenning (docs/tech-spec.md §77)', () => {
+    const save = played('playtest-wrong', 1, wrong);
+    const marked = (l: DayLedger): DayLedger => ({
+      ...l,
+      mistakes: (l.mistakes ?? []).map((x, i) =>
+        i === 0 ? { ...x, skald: 'kennings' as const } : i === 1 ? { ...x, skald: 'botched' as const } : x,
+      ),
+    });
+    const skald: RunSave = { ...save, mornings: save.mornings.map((m) => ({ ...m, ledger: m.ledger.map(marked) })) };
+    const lines = report(skald)
+      .split('\n')
+      .filter((l) => l.startsWith('- Day 1: stamped'));
+    expect(lines[0]).toMatch(/ Its tally was in kennings\.$/);
+    expect(lines[1]).toMatch(/ Its tally had a botched kenning\.$/);
+    expect(lines.slice(2).filter((l) => l.includes('kenning'))).toEqual([]);
+  });
+
   it('counts each day’s parties, and the lies about a companion caught (docs/tech-spec.md §69)', () => {
     const save = played('playtest-parties', 1, right);
     const day1 = (save.mornings.at(-1) as RunState).ledger[0];

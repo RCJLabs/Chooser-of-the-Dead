@@ -1,0 +1,10 @@
+# The rulebook's kennings and sayings (docs/tech-spec.md §77): what the skalds carve on the tallies they cut, from
+# Day 18, and what each means. Every skald's line carves one of them; a forger's botch is never one. DRAFT words.
+- { id: k.odinsStorm, term: kenning.odinsStorm, means: kenning.odinsStorm.means }
+- { id: k.hildsGame, term: kenning.hildsGame, means: kenning.hildsGame.means }
+- { id: k.ran, term: kenning.ran, means: kenning.ran.means }
+- { id: k.aegirsDaughters, term: kenning.aegirsDaughters, means: kenning.aegirsDaughters.means }
+- { id: k.lokisDaughter, term: kenning.lokisDaughter, means: kenning.lokisDaughter.means }
+- { id: k.elli, term: kenning.elli, means: kenning.elli.means }
+- { id: k.fledNot, term: kenning.fledNot, means: kenning.fledNot.means }
+- { id: k.wolf, term: kenning.wolf, means: kenning.wolf.means }
