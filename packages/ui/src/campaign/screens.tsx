@@ -17,6 +17,7 @@ import {
   debtLimit,
   defaultBills,
   deskVisit,
+  draftsTonight,
   type Effect,
   EPILOGUE_SECTIONS,
   economyFor,
@@ -53,6 +54,7 @@ import {
   replayableDays,
   ruleText,
   scenesFor,
+  sealedDraft,
   sellPrice,
   shiftMods,
   shiftScore,
@@ -109,6 +111,7 @@ import {
   replayFrom,
   SLOT_COUNT,
   type SlotRecord,
+  sealDecree,
   sleep,
   slots,
   stepDown,
@@ -1363,6 +1366,7 @@ function Morning() {
           <EventCard run={run} sunS={ctx.spec.sunS} sunPct={assists.sunPct} />
           <section class="card">
             <Decree ctx={ctx} />
+            <SealedToday run={run} />
             <WeaveNote run={run} />
             <RulebookChanges day={run.day} />
             <WaitingNote run={run} />
@@ -2205,6 +2209,70 @@ function VowCard({ run }: { run: RunState }) {
   );
 }
 
+/** "Freyja +1, Odin -1": the standing a list of effects moves, by the names the powers go by on `day`. */
+const standingText = (effects: readonly Effect[], day: number) =>
+  listText(effects.flatMap((e) => ('standing' in e ? [`${factionName(e.standing, day)} ${signed(e.by)}`] : [])));
+
+/**
+ * Tomorrow's decree (docs/tech-spec.md §79): on the run's few nights, the drafts Odin's clerks sent up, each as the
+ * morning would read it and with what sealing it does, and sending them back. The pick is the run's at once, so the
+ * save holds it; the night can change it until it ends, when it's sealed.
+ */
+function DecreeCard({ run }: { run: RunState }) {
+  const drafts = draftsTonight(run, gameContent);
+  if (drafts.length === 0) return null;
+  return (
+    <section class="card vows decrees" data-testid="decrees">
+      <h2>{t('ui.decree.title')}</h2>
+      <p class="muted">{t('ui.decree.intro')}</p>
+      <fieldset class="vows__list">
+        <legend class="sr-only">{t('ui.decree.legend')}</legend>
+        {drafts.map((d) => (
+          <label key={d.def.id} class="vow">
+            <input
+              type="radio"
+              name="decree"
+              checked={run.seal === d.def.id}
+              data-testid="draft"
+              data-draft={d.def.id}
+              onChange={() => sealDecree(d.def.id)}
+            />
+            <span class="vow__body">
+              <b>{t(d.def.text)}</b>
+              {d.texts.map((k) => (
+                <span key={k} data-testid="draft-line">
+                  {t(k)}
+                </span>
+              ))}
+              <span class="vow__rings">{t('ui.decree.seals', { effects: standingText(d.def.effects, run.day) })}</span>
+            </span>
+          </label>
+        ))}
+        <label class="vow">
+          <input
+            type="radio"
+            name="decree"
+            checked={run.seal === undefined}
+            data-testid="draft-none"
+            onChange={() => sealDecree(null)}
+          />
+          <span class="vow__body">{t('ui.decree.none')}</span>
+        </label>
+      </fieldset>
+    </section>
+  );
+}
+
+/** This morning's decree, if it was sealed last night (docs/tech-spec.md §79). */
+function SealedToday({ run }: { run: RunState }) {
+  const draft = sealedDraft(run, gameContent, run.day);
+  return draft ? (
+    <p class="muted" data-testid="sealed-morning">
+      {t('ui.decree.morning', { draft: t(draft.text) })}
+    </p>
+  ) : null;
+}
+
 /** This morning's vow, sworn last night (docs/tech-spec.md §75). */
 function VowToday({ run }: { run: RunState }) {
   const vow = vowOf(run, gameContent);
@@ -2722,6 +2790,7 @@ function Night() {
           </section>
           <TrailCard run={run} />
           <VowCard run={run} />
+          <DecreeCard run={run} />
           <BillsCard run={run} outlook={outlook} />
           <RankCard run={run} />
           <ShopCard run={run} />

@@ -913,6 +913,15 @@ export const CampaignPartSchema = z.strictObject({
         .min(1),
     })
     .optional(),
+  // Tomorrow's decree, sealed (docs/tech-spec.md §79): drafts of the next day's decree on a few nights a run.
+  decrees: z
+    .strictObject({
+      perRun: Int.min(1),
+      from: Day,
+      to: Day,
+      drafts: z.array(z.strictObject({ id: Id, text: Key, effects: z.array(EffectSchema).min(1) })).min(2),
+    })
+    .optional(),
   // The epilogue (docs/tech-spec.md §55): what became of everyone, told after the ending from the run.
   epilogue: z
     .strictObject({

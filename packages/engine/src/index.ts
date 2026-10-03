@@ -1,6 +1,7 @@
 export * from './achievements';
 export * from './calendar';
 export * from './campaign/battle';
+export * from './campaign/decrees';
 export * from './campaign/epilogue';
 export * from './campaign/events';
 export * from './campaign/grade';

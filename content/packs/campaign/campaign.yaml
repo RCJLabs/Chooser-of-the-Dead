@@ -444,6 +444,18 @@ vows:
     - { id: vow.silent, kind: silent, since: 4, rings: 3, text: vow.silent }
     - { id: vow.sun, kind: sun, since: 4, rings: 4, spare: 25, text: vow.sun }
     - { id: vow.alone, kind: alone, since: 4, rings: 2, text: vow.alone }
+# Tomorrow's decree, sealed (docs/tech-spec.md §79): on three nights a run, drawn from its seed, Odin's clerks send up
+# two drafts of the next day's decree, one at Freyja's asking and one to Odin's liking. Each is the day's own whim (and
+# from Day 15 Odin's claim) drawn from the pool the day draws from anyway, so every draft is a day the fairness checks
+# already prove. Sealed, a draft is the day's decree, and pleases one god and annoys the other; sent back, the day is
+# as its seed draws it. Days 5-17: after the whim's own day, and before the noon decrees.
+decrees:
+  perRun: 3
+  from: 5
+  to: 17
+  drafts:
+    - { id: draft.freyja, text: draft.freyja, effects: [{ standing: freyja, by: 1 }, { standing: odin, by: -1 }] }
+    - { id: draft.odin, text: draft.odin, effects: [{ standing: odin, by: 1 }, { standing: freyja, by: -1 }] }
 # The epilogue (docs/tech-spec.md §55): after the ending's own words, what became of everyone, read from how the run
 # left them. Each slot says the first of its lines whose `when` holds (the last, without one, whatever else); a slot
 # with none that holds says nothing. Not after a failure or the slice's end. Naglfar can sail on Day 18 or 19, before

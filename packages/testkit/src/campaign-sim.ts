@@ -16,6 +16,7 @@ import {
   type Destination,
   defaultBills,
   deskVisit,
+  draftsTonight,
   type Effect,
   earnedAt,
   economyOf,
@@ -562,6 +563,17 @@ function nightActions(
   const trail = trailOf(content);
   const left = trail && canAccuse(run, content) ? suspectsLeft(trail, run.trail?.marks ?? []) : [];
   if (left.length === 1 && left[0]) actions.push({ t: 'accuse', suspect: left[0].id });
+  // Tomorrow's decree (docs/tech-spec.md §79): the draft whose effects the policy likes best, the first on a tie, if it
+  // likes one at all; a bot with no god of its own sends them back. Bots judge as well under any whim, so they weigh
+  // only what sealing does to the gods.
+  const draft = draftsTonight(run, content)
+    .map((d) => ({ id: d.def.id, score: scorePath({ choices: [], effects: d.def.effects }, run, policy) }))
+    .filter((d) => d.score > 0)
+    .reduce<{ id: string; score: number } | undefined>(
+      (best, d) => (best && best.score >= d.score ? best : d),
+      undefined,
+    );
+  if (draft) actions.push({ t: 'seal', draft: draft.id });
   actions.push({ t: 'bills', bills }, { t: 'endNight' });
   return actions;
 }
@@ -604,6 +616,8 @@ export interface RunResult {
   /** Word among the dead at the end (docs/tech-spec.md §73), and the false asks granted over the run. */
   readonly word: number;
   readonly found: number;
+  /** The drafts of tomorrow's decree sealed over the run (docs/tech-spec.md §79), by id, in order. */
+  readonly sealed: readonly string[];
 }
 
 export interface SimOptions {
@@ -810,6 +824,7 @@ export function simulateRun(
     trail: { marks: run.trail?.marks.length ?? 0, right: run.trail?.accused?.right ?? null },
     word: run.word ?? 0,
     found: run.found?.length ?? 0,
+    sealed: (run.sealed ?? []).map((s) => s.draft),
   };
 }
 
@@ -862,6 +877,8 @@ export interface PolicyReport {
     readonly rings: number;
     readonly byKind: Readonly<Record<string, { readonly sworn: number; readonly kept: number }>>;
   };
+  /** Drafts of tomorrow's decree sealed (docs/tech-spec.md §79), over all the runs, by id. */
+  readonly sealed: Readonly<Record<string, number>>;
   readonly endings: Record<string, number>;
   readonly ledgerErrors: number;
 }
@@ -964,6 +981,11 @@ export function simulateCampaign(
               rings += v.rings;
             }
             return { sworn, kept, rings, byKind };
+          })(),
+          sealed: (() => {
+            const sealed: Record<string, number> = {};
+            for (const id of results.flatMap((r) => r.sealed)) sealed[id] = (sealed[id] ?? 0) + 1;
+            return sealed;
           })(),
           endings,
           ledgerErrors: results.filter((r) => !r.ledgerOk).length,

@@ -4,6 +4,8 @@ import {
   culpritOf,
   type DayLedger,
   type Destination,
+  decreeDaysFor,
+  draftsTonight,
   ENGINE_MAJOR,
   type Faction,
   type JournalEntry,
@@ -532,6 +534,41 @@ describe('the playtest report', () => {
       apply({ t: 'shift', action: { t: 'send', at: 1000 } });
     }
     expect(report(save)).toContain('### Day events\n\n- Day 5: event.storm.');
+  });
+
+  it('tells of tomorrow’s decree: each sealed and what it decreed, each sent back, and tonight’s pick (docs/tech-spec.md §79)', () => {
+    expect(report(played('playtest-decree-none', 1, right))).toContain("### Tomorrow's decree\n\nNone yet.");
+    const seed = 'playtest-decree';
+    const [first, second] = decreeDaysFor(content, seed);
+    if (first === undefined || second === undefined) throw new Error('no decree days');
+    /** The night before `day`, with `actions` taken in it. */
+    const eve = (day: number, actions: readonly RunAction[]) => {
+      let save = scenarioSave(content, seed, day - 1, ENGINE_MAJOR, 'night');
+      let run = resumeSave(save, content, ENGINE_MAJOR).run;
+      const drafts = draftsTonight(run, content);
+      for (const action of actions) {
+        const env = { content, ctx: runContext(content, run), ...(save.queue ? { queue: save.queue } : {}) };
+        const next = stepRun(run, action, env).state;
+        save = recordAction(save, run, action, next);
+        run = next;
+      }
+      const text = report(save);
+      return { drafts, section: text.slice(text.indexOf("### Tomorrow's decree"), text.indexOf('### Rank')) };
+    };
+    // Picked, and the night not yet over.
+    const picked = eve(first, [{ t: 'seal', draft: 'draft.freyja' }]);
+    expect(picked.section.split('\n').filter((l) => l !== '')).toEqual([
+      "### Tomorrow's decree",
+      `- Day ${first}: draft.freyja picked, not sealed until the night ends.`,
+    ]);
+    // The first day's drafts sent back, as the scenario's nights did; the second's sealed as the night ended.
+    const sealed = eve(second, [{ t: 'seal', draft: 'draft.odin' }, { t: 'endNight' }]);
+    const odin = sealed.drafts.find((d) => d.def.id === 'draft.odin');
+    expect(sealed.section.split('\n').filter((l) => l !== '')).toEqual([
+      "### Tomorrow's decree",
+      `- Day ${first}: sent back.`,
+      `- Day ${second}: draft.odin sealed. ${odin?.texts.join(' ')}`,
+    ]);
   });
 
   it('says a woven run is woven, and by which weave (docs/tech-spec.md §53)', () => {

@@ -467,6 +467,43 @@ describe('vows at the cup, as content', () => {
   }, 60_000);
 });
 
+type Decrees = NonNullable<CampaignPart['decrees']>;
+
+// docs/tech-spec.md §79.
+describe('tomorrow’s decree, sealed, as content', () => {
+  const withDecrees = (change: (d: Decrees) => Decrees) =>
+    compileWith((c) => {
+      if (!c.decrees) throw new Error('the campaign pack has no decrees');
+      return { ...c, decrees: change(c.decrees) };
+    });
+  it('compiles as shipped, and refuses missing words, a draft twice, or one that touches the family', () => {
+    expect(withDecrees((d) => d)).not.toThrow();
+    expect(withDecrees((d) => ({ ...d, drafts: d.drafts.map((x) => ({ ...x, text: 'draft.nothing' })) }))).toThrow(
+      /draft draft\.\w+ uses missing string "draft\.nothing"/,
+    );
+    expect(withDecrees((d) => ({ ...d, drafts: [...d.drafts, ...d.drafts.slice(0, 1)] }))).toThrow(
+      /Duplicate draft "draft\.\w+"/,
+    );
+    const sick = { family: 'mother', becomes: 'sick' as const };
+    expect(
+      withDecrees((d) => ({ ...d, drafts: d.drafts.map((x, i) => (i === 0 ? { ...x, effects: [sick] } : x)) })),
+    ).toThrow(/draft draft\.freyja changes someone at home/);
+  }, 60_000);
+
+  it('refuses drafts a day can’t tell apart, days outside the campaign, and too few days for the nights', () => {
+    const more = (d: Decrees) => [...d.drafts, ...['draft.x', 'draft.y'].map((id) => ({ ...d.drafts[0], id }))];
+    expect(withDecrees((d) => ({ ...d, drafts: more(d) as Decrees['drafts'] }))).toThrow(
+      /Day 5's params can't give 4 drafts each a choice of their own/,
+    );
+    expect(withDecrees((d) => ({ ...d, from: 1 }))).toThrow(/isn't a stretch of the campaign after its first night/);
+    // Five from Days 5-17 is as many as a shuffled draw is sure of with none running; six could leave it short.
+    expect(withDecrees((d) => ({ ...d, perRun: 5 }))).not.toThrow();
+    expect(withDecrees((d) => ({ ...d, perRun: 6 }))).toThrow(
+      /A run draws 6 decree nights from 13 days: too few to be sure none run/,
+    );
+  }, 60_000);
+});
+
 /** Compiles the full game from the real packs, with the campaign pack's gameplay content changed. */
 function compileWithPack(change: (content: PackContent) => void): () => void {
   const packs = loadPacks(packsDir);

@@ -911,6 +911,33 @@ export interface CampaignDef {
   readonly proven?: ProvenDef;
   /** Vows at the cup (docs/tech-spec.md §75): one sworn at night for the next day; none without it. */
   readonly vows?: VowsDef;
+  /** Tomorrow's decree, sealed (docs/tech-spec.md §79): drafts of the next day's decree on a few nights a run. */
+  readonly decrees?: DecreesDef;
+}
+
+/**
+ * Tomorrow's decree, sealed (campaign.yaml `decrees`, docs/tech-spec.md §79): on `perRun` nights of a run, drawn from
+ * its seed, Odin's clerks send up drafts of the next day's decree. Each draft is the day's own params (Freyja's whim,
+ * Odin's claim) drawn from their pools, so each is a day the fairness checks already prove; sealing one makes it the
+ * day's and does its `effects`.
+ */
+export interface DecreesDef {
+  /** How many nights a run brings drafts. */
+  readonly perRun: number;
+  /** The first and last day a sealed decree can rule (their nights are the one before). */
+  readonly from: number;
+  readonly to: number;
+  /** The drafts each such night, in order: each gets its own choice from every param's pool. */
+  readonly drafts: readonly DraftDef[];
+}
+
+/** One of the night's drafts (docs/tech-spec.md §79): whose it is, and what sealing it does. */
+export interface DraftDef {
+  readonly id: string;
+  /** String key: the draft's name ("Freyja's draft"). */
+  readonly text: string;
+  /** What sealing it does, as the night ends: the gods it pleases and annoys. */
+  readonly effects: readonly Effect[];
 }
 
 /** Proven, not lucky (campaign.yaml `proven`, docs/tech-spec.md §76). */
