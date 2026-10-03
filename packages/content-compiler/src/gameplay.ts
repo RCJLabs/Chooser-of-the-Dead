@@ -71,6 +71,7 @@ import {
   BOONS_OFFERED,
   COACH_FOCUS,
   createDayContext,
+  decreeDays,
   type Effect,
   endlessOffer,
   eventDays,
@@ -268,6 +269,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(all('letters').length > 0 ? { letters: all('letters') } : {}),
     ...(last('proven') ? { proven: last('proven') as NonNullable<CampaignDef['proven']> } : {}),
     ...(last('vows') ? { vows: last('vows') as NonNullable<CampaignDef['vows']> } : {}),
+    ...(last('decrees') ? { decrees: last('decrees') as NonNullable<CampaignDef['decrees']> } : {}),
   };
 }
 
@@ -1230,6 +1232,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintWord(content, key));
   problems.push(...lintLetters(content, walk));
   problems.push(...lintVows(content, key));
+  problems.push(...lintDecrees(content, key));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1329,6 +1332,48 @@ function lintVows(content: Content, key: (k: string, where: string) => void): st
   if (first < 2)
     problems.push(`Night ${v.from} offers ${first} vow${first === 1 ? '' : 's'}: there's nothing to choose.`);
   if (Object.keys(v.broken).length === 0) problems.push('A broken vow costs nothing.');
+  return problems;
+}
+
+/**
+ * Tomorrow's decree, sealed (docs/tech-spec.md §79): drafts with their words and effects, for days of the campaign
+ * after its first night, each of which leaves the drafts something to differ on (a param with a choice for every
+ * draft); and days enough for the run's nights, none of them running.
+ */
+function lintDecrees(content: Content, key: (k: string, where: string) => void): string[] {
+  const c = content.campaign;
+  const def = c?.decrees;
+  if (!c || !def) return [];
+  const problems: string[] = [];
+  const ids = new Set<string>();
+  for (const d of def.drafts) {
+    const where = `draft ${d.id}`;
+    if (ids.has(d.id)) problems.push(`Duplicate draft "${d.id}".`);
+    ids.add(d.id);
+    key(d.text, where);
+    for (const e of d.effects) {
+      if ('family' in e) problems.push(`${where} changes someone at home: a decree moves the gods, not the family.`);
+    }
+  }
+  if (def.from < 2 || def.to > c.lastDay || def.from > def.to) {
+    problems.push(
+      `Decrees are sealed for Days ${def.from}-${def.to}, which isn't a stretch of the campaign after its first night.`,
+    );
+  }
+  const days = decreeDays(content);
+  for (let d = def.from; d <= Math.min(def.to, c.lastDay); d++) {
+    const spec = content.days.find((s) => s.day === d);
+    if (!spec || spec.noon) continue;
+    const most = Math.max(0, ...Object.values(spec.params ?? {}).map((p) => p.pool.length));
+    if (most > 0 && most < def.drafts.length) {
+      problems.push(`Day ${d}'s params can't give ${def.drafts.length} drafts each a choice of their own.`);
+    }
+  }
+  // None running: each day drawn rules out at most itself and the days either side, so a draw from a shuffle is sure of
+  // perRun days only from 3 * perRun - 2 of them.
+  if (days.length < 3 * def.perRun - 2) {
+    problems.push(`A run draws ${def.perRun} decree nights from ${days.length} days: too few to be sure none run.`);
+  }
   return problems;
 }
 

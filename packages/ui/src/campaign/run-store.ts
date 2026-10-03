@@ -349,6 +349,11 @@ export function swearVow(id: string | null): void {
   dispatch({ t: 'vow', id });
 }
 
+/** One of tonight's drafts of tomorrow's decree to seal as the night ends (docs/tech-spec.md §79); null for neither. */
+export function sealDecree(draft: string | null): void {
+  dispatch({ t: 'seal', draft });
+}
+
 export function endAudit(): void {
   if (dispatch({ t: 'endAudit' })) screen.value = 'night';
 }

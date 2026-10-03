@@ -10,7 +10,9 @@ import { FULL } from './urls';
  * desk where Kari would have stood, and that night it's your mother who writes.
  */
 
-test.use({ baseURL: FULL });
+// Reduced motion: a save loaded in a fresh browser earns achievements, and an axe scan during the notice's fade-in
+// reads its half-faded words as low contrast.
+test.use({ baseURL: FULL, contextOptions: { reducedMotion: 'reduce' } });
 
 const content = loadContent('dev-full');
 

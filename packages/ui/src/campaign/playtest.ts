@@ -8,6 +8,9 @@ import {
   type DayLedger,
   type DayMistake,
   type Destination,
+  dayAfter,
+  decreeDaysFor,
+  draftsTonight,
   EPILOGUE_SECTIONS,
   epilogueFor,
   epilogueParams,
@@ -460,6 +463,40 @@ function home(p: PlaytestInput): string[] {
   return ['### Home at dawn', '', ...(lines.length > 0 ? lines : ['None.'])];
 }
 
+/**
+ * Tomorrow's decree (docs/tech-spec.md §79): each of the run's decree days whose drafts came up on a night it played,
+ * with the draft sealed for it and what that decreed, or that the drafts were sent back; and tonight's pick, if the
+ * drafts are up. Only in a build with decrees.
+ */
+function decrees(p: PlaytestInput): string[] {
+  const campaign = campaignOf(p.content);
+  const def = campaign.decrees;
+  if (!def) return [];
+  const name = (id: string) => {
+    const d = def.drafts.find((x) => x.id === id);
+    return d ? p.t(d.text) : id;
+  };
+  const offered = (day: number) => p.run.ledger.some((l) => l.night && dayAfter(p.run, campaign, l.day) === day);
+  const lines = decreeDaysFor(p.content, p.run.seed)
+    .filter(offered)
+    .map((day) => {
+      const sealed = p.run.sealed?.find((s) => s.day === day);
+      if (!sealed) return `- Day ${day}: sent back.`;
+      const spec = p.content.days.find((d) => d.day === day);
+      const said = Object.entries(sealed.choose).map(([param, id]) => {
+        const c = spec?.params?.[param]?.pool.find((x) => x.id === id);
+        return c ? p.t(c.text) : id;
+      });
+      return `- Day ${day}: ${name(sealed.draft)} sealed. ${said.join(' ')}`;
+    });
+  const tonight = draftsTonight(p.run, p.content)[0];
+  if (tonight) {
+    const pick = p.run.seal ? `${name(p.run.seal)} picked, not sealed until the night ends` : 'up tonight, none picked';
+    lines.push(`- Day ${tonight.day}: ${pick}.`);
+  }
+  return ["### Tomorrow's decree", '', ...(lines.length > 0 ? lines : ['None yet.'])];
+}
+
 /** The day events the days played brought (docs/tech-spec.md §52), as each audit filed them. */
 function dayEvents(p: PlaytestInput): string[] {
   const defs = new Map((p.content.campaign?.events?.pool ?? []).map((e) => [e.id, e]));
@@ -621,6 +658,7 @@ export function playtestReport(p: PlaytestInput): string {
     '',
     ...dayEvents(p),
     '',
+    ...(decrees(p).length > 0 ? [...decrees(p), ''] : []),
     ...ranks(p),
     '',
     ...choices(p),

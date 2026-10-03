@@ -425,6 +425,20 @@ export interface RunState {
    * day's, until its audit settles it. Absent when none.
    */
   readonly vow?: string;
+  /**
+   * Tonight's draft of tomorrow's decree, sealed (docs/tech-spec.md §79), by id: until the night ends, when it becomes
+   * the day's (`sealed`). Absent when none is.
+   */
+  readonly seal?: string;
+  /** The decrees sealed so far (docs/tech-spec.md §79), each with the day it rules. Absent when none. */
+  readonly sealed?: readonly SealedDecree[];
+}
+
+/** A decree sealed for a day (docs/tech-spec.md §79): the draft, and the choice it makes from each of the day's params. */
+export interface SealedDecree {
+  readonly day: number;
+  readonly draft: string;
+  readonly choose: Readonly<Record<string, string>>;
 }
 
 /** The day that follows `day` in this run (the slice jumps), or null after its last playable day. */

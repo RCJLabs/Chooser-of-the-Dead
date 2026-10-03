@@ -502,3 +502,21 @@ describe('choosing the slain at the pass (docs/tech-spec.md §78)', () => {
     for (const r of [plain, hel]) expect(r.familyLost).toBe(0);
   }, 240_000);
 });
+
+describe('tomorrow’s decree, sealed (docs/tech-spec.md §79)', () => {
+  const scenes = loadScenes('dev-full');
+
+  it('is sealed by a bot devoted to a god, its own god’s draft each time; the plain bot and Hel’s send them back', () => {
+    const content = loadContent('dev-full');
+    const run = (story: string) =>
+      simulateRun(content, 'decree-0', bot('expert'), 'payAll', { story: storyPolicy(story), scenes });
+    const odin = run('odin');
+    expect(odin.sealed).toEqual(['draft.odin', 'draft.odin', 'draft.odin']);
+    expect(run('freyja').sealed).toEqual(['draft.freyja', 'draft.freyja', 'draft.freyja']);
+    // Hel's bot is no gladder of either god's pleasure than of the other's annoyance.
+    expect(run('hel').sealed).toEqual([]);
+    const plain = run('plain');
+    expect(plain.sealed).toEqual([]);
+    expect(plain.ledgerOk && odin.ledgerOk).toBe(true);
+  }, 240_000);
+});

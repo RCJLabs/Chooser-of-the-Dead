@@ -4939,6 +4939,82 @@ The brainstorm's version, and what changed:
 - **A run that played Day 16's morning before this change** shows the new scene in its journal, with whichever option now stands where the old one did ("Kari." for the old first). The journal keeps choices by place, not by words; nothing else about such a run changes.
 - **The words are drafts.**
 
+## 79. Tomorrow's decree, sealed (game phase 13)
+
+**Why.** Game phase 13 in [`roadmap.md`](roadmap.md). Freyja's whims and Odin's claims are drawn from the run's seed, and the player has never had a say in them. Now, three nights a run, Odin's clerks send up two drafts of tomorrow's decree. Seal one and it's the law at the gate tomorrow, and it pleases one god and annoys the other; send both back and the clerks draw it as they always do. Often the draft with the whims you'd rather judge belongs to the god you'd rather not please.
+
+**Changed from the pitch**
+- **A draft decrees only what the day could draw anyway.** Each draft takes its whims (Freyja's, and from Day 15 Odin's claim too) from the pools the day already draws from. No draft writes a new rule, so every draft is a day the fairness checks already prove. That answers the pitch's risk; new rules in drafts would have to be proven draft by draft.
+- **Two gods, Freyja and Odin,** the two whose whims a decree carries. Hel, Loki and the clerk send no drafts.
+- **What's in a draft is drawn, not chosen to suit its god.** Each draft takes its own entry from each pool, so whether Freyja's draft carries the whim you judge best is the run's luck. That's the choice: the whim, or the god.
+
+**Established, and the game's own.** Nothing here is attested. Odin's clerks, their drafts and the seal belong to the gate's paperwork, like the rest of the game's bureaucracy (§1).
+
+**How it works** (`decrees` in the campaign pack's `campaign.yaml`; `campaign/decrees.ts`)
+- **The content:** `perRun: 3`, `from: 5`, `to: 17`, and two drafts: `draft.freyja` (Freyja +1, Odin −1) and `draft.odin` (Odin +1, Freyja −1).
+- **The draw.** A run's decree days come from its seed, on a stream of their own (`<seed>|decrees`), so nothing else in the run moves: three of the days from 5 to 17 with a whim to choose and no noon decree, no two in a row. In the full game that's every day from 5 to 17, each drawn in about 23% of runs (2,000 seeds), and two runs in three draw at least one from Day 15 on, when Odin's claim joins the decree.
+  - From Day 5 because Day 4 teaches Freyja's whim.
+  - To Day 17 because Days 18 and 19 have noon decrees, whose raven draws the whims again at noon (§45), and Day 20 is the last shift.
+- **The drafts** (`draftsTonight`) come on the night before a decree day, and only then. Each takes its own entry from each of the day's pools, shuffled for the run and the day (`<seed>|decree|<day>`): the two drafts differ in every whim, and the same night always sends the same two.
+- **The pick** is the run's at once (`{ t: 'seal', draft }`, `RunState.seal`), so the save keeps it and a reload finds it. It can change until the night ends; `draft: null` sends them back. It's refused by day, for a draft not sent tonight, and on a night with none.
+- **Sealed as the night ends,** after the reprieve (§56) and before the endings are checked: filed in `RunState.sealed` as the day, the draft and its choice from each pool, with event `sealed`. Its standing is filed as the story's (§20), so the decree day's audit adds it up with the rest. Sent back, nothing is filed and the day is as its seed draws it.
+- **The day** is made under the sealed choices: `dayContext` hands them to `createDayContext` as its choices, as the compiler's proofs do for each combination. The queue, the appeal the next morning, a day replayed from its morning and Look again all read the same context.
+- **The saves** gain two optional fields. A save from before has neither and plays as before, and `ENGINE_MAJOR` doesn't change.
+- **Never in the demo or the Daily.** The demo's content has no decrees, and the Daily plays no campaign day.
+
+**Fairness.** A draft is one choice from each of the day's pools, and those choices are what the fairness checks already cover:
+- The compiler proves each story soul can be made, and passes the checks, under every combination of its day's whims (§16).
+- The generator validates every soul it makes (F1–F8) under its day's choices, whatever they are, and the sweep's seeds draw from the same pools.
+- The lint refuses: a draft twice; a draft's words missing; a draft that changes someone at home; days outside the campaign or before its second; a day whose biggest pool can't give each draft a whim of its own; and fewer than `3 × perRun − 2` days to draw from. Each day drawn rules out at most itself and the days either side, so with fewer days a shuffled draw could come up short.
+
+**Where it shows**
+- **At night,** a card under the vows: "Tomorrow's decree", the clerks' note, each draft with the whims it decrees and what sealing it does ("Sealed: Freyja +1 and Odin -1."), and "Send them back. Let the clerks draw it.", picked until a draft is.
+- **In the morning,** under the decree and its whims: "You sealed today's decree last night: Freyja's draft."
+- **The playtest report** has a section, "Tomorrow's decree": each decree day the run has reached, with the draft sealed and what it decreed, or "sent back"; and tonight's pick, not yet sealed.
+- **`pnpm sim campaign`** says how many of each draft the bots sealed a run.
+
+**The bots** weigh a draft by its effects, as they weigh a scene's paths (§18), and seal the one they like best if they like one at all. Odin's and Freyja's bots seal their own god's draft every time, three a run. The plain bots, and every policy that doesn't weigh Odin and Freyja apart, send them back; Hel's bots see Odin's +1 and Freyja's −1 cancel. Bots judge every whim alike, so the sims can't measure the other half of the choice: picking the whims a person judges best.
+
+**Numbers** (`pnpm sim campaign --story plain,odin,freyja`, 100 seeds a policy, against main):
+- **The plain bots send every draft back and play exactly as before:** every row is the same.
+- **Bots devoted to a god seal its draft every time,** three a run. Novices seal 2.8–3.0 and careless bots 0.8–0.9, since some are demoted before their decree days.
+- **Freyja's ending moves the most, and this undoes part of §43.** It needs her standing at 8 and the lead, and 8 was chosen as the lowest mark that her story alone falls short of, so that her requests would be needed too. Three seals give her +3. Experts devoted to her end at about 9.5 instead of 6.5, and reach her ending in 94–98 runs of 100 instead of 12–15, without doing a request. Competent bots reach it in 57–60 instead of 9–14, and novices in 3–10 instead of 0–4.
+- **Odin's ending** needs only the lead. Competent bots devoted to him reach it in 77–85 runs instead of 62–71; experts already did in every run.
+- **Nothing else moves:** purses within a ring on average, the same demotions, the same arms and fronts.
+
+**How big a seal should be.** The same bots (payAll, 40 seeds), with the decrees changed:
+
+| Decrees | Expert for Freyja: her standing, her ending | Competent for Freyja: her ending | Competent for Odin: his ending |
+|---|---|---|---|
+| None (main) | 6.5, 3 of 40 | 5 | 27 |
+| ±1, one night a run | 7.5, 24 | 8 | 31 |
+| ±1, two nights | 8.5, 35 | 15 | 33 |
+| ±1, three nights (as built) | 9.5, 39 | 22 | 33 |
+| +1 to its god only, three nights | 9.5, 39 | 22 | 33 |
+
+Her standing mark is what binds, not the lead: dropping the −1 changes nothing for her. Standing moves in whole points, and her mark sits just above where her story leaves a devoted expert, so there's no small step. Keeping §43's rule would mean seals that move no standing at all and only choose the whims (a small change: the schema asks each draft for an effect, and the card shows it). As built, a run that seals her drafts can reach her ending without her requests; that's the pitch's "the ending you want", at the price of §43's rule.
+
+**Tests**
+- **Engine** (`decrees.test.ts`):
+  - the draw: three days a run within Days 5–17, none running and none with a noon decree; none in the demo;
+  - the drafts: only the night before a decree day, each with its own whim from every pool (and its own claim from Day 15), the same however often asked;
+  - sealed: the day's whims are the draft's, its god +1 and the other −1, filed as the story's, and the day's souls are made under it;
+  - sent back, or changed before the night ends: the last pick is the one sealed;
+  - refused by day, for a draft not sent tonight, and on a night with none;
+  - kept by the save, and by a resumed run;
+  - three drafts and a pool of two: the pool comes round again.
+- **Compiler** (`campaign-lint.test.ts`): the shipped decrees compile, and each refusal above.
+- **Bots** (`campaign-sim.test.ts`): Odin's and Freyja's bots seal their own god's draft three times a run; Hel's and the plain send them back; the accounts add up.
+- **Report** (`playtest.test.ts`): a draft sealed and what it decreed, a night's drafts sent back, and a pick not yet sealed.
+- **e2e** (`sealed.spec.ts`, phone and desktop): from a save on the night before a decree day, the card with both drafts, their whims and their standing, sending back picked; an accessibility scan; a draft picked and kept through a reload; the morning's line, and the morning's whims the draft's.
+
+**Known limits**
+- **Half the choice is untested.** Bots can't tell which whims are easier for a person to judge, so whether the drafts steer days "towards rules you judge well" waits on playtests.
+- **±1 a seal is a guess,** and it decides Freyja's ending for a player who seals for her (Numbers, above). Three seals move a god by up to 3, and the gap between Odin and Freyja by up to 6.
+- **A run that draws Day 15** reads Odin's claim in Night 14's drafts, a night before the morning teaches it. The draft's line says what the claim is.
+- **Only Freyja and Odin** send drafts.
+- **The words are drafts.**
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

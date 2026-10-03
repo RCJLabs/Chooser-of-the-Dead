@@ -1,10 +1,17 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–78.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–79.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 13 (below), in the full game only:
+
+- **13. Seal tomorrow's decree** ([`tech-spec.md`](tech-spec.md) §79). Three nights a run, drawn from the seed, Odin's clerks send up two drafts of tomorrow's decree, Freyja's and Odin's. Each is a different pick of the day's own whims, and from Day 15 of Odin's claims. Seal one and it's the law at the gate tomorrow: its god +1, the other −1. Send them back and the day is as its seed draws it. Decree days fall between 5 and 17, never two in a row and never on a day with a noon decree. The morning says which draft was sealed, and the playtest report lists them.
+  - **Changed from the pitch:** a draft only chooses among the whims and claims the day already draws from, so every draft is a day the fairness checks have already proven. That's how the pitch's risk is handled; the cost is that a draft never brings a new rule. Only Freyja and Odin send drafts.
+  - **Your call, and the one to read first: sealing undoes part of §43.** Freyja's ending needs her standing at 8, chosen as the lowest mark her story alone falls short of, so that her requests would be needed too. Three seals give her +3. Experts who play for her now reach her ending in 94–98 runs of 100 instead of 12–15, and competent players in 57–60 instead of 9–14, without doing a request. Even one seal a run takes the experts from 3 to 24 runs of 40: standing moves in whole points and her mark sits just above her story's reach, so there's no small step. If her requests should still be needed, seals must move no standing at all and only choose the whims: a small change, since today the schema asks every draft for an effect and the card shows it. As built, they count. Odin's ending moves less (competent players for him: 77–85 runs, from 62–71). The plain bots, who send every draft back, play exactly as before.
+  - **After playtests:** whether players pick drafts by whim at all. Bots judge every whim alike, so only playtests can show whether the drafts steer days "towards rules you judge well".
 
 Game phase 12 (below), in the full game only:
 
@@ -74,8 +81,8 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–12 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
-- **Next:** 13 from the second brainstorm (below).
+- **Done:** 1–13 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
+- **Next:** 14 from the second brainstorm (below).
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
@@ -94,7 +101,7 @@ From the second gameplay brainstorm, all in the full game only. 9 and 10 came fi
 10. **Proven, not lucky** (done, [`tech-spec.md`](tech-spec.md) §76). A right stamp counts as proven only if what you'd seen was enough to decide it. Flawless needs every stamp proven, and Endless scores only proven souls. Grades reward judging, not guessing that most souls go to Hel.
 11. **Kennings in the tallies** (done, [`tech-spec.md`](tech-spec.md) §77). From Day 18, skalds cut tallies in kennings and sayings ("Odin's storm", "went to Rán"), with a page of them in the rulebook, and forgers botch them. A reading puzzle with no new art. Risk: obscure kennings frustrate players; the playtest report counts the mistakes on skald's tallies.
 12. **Choose the slain** (done, [`tech-spec.md`](tech-spec.md) §78). At dawn on Day 16, Skögul takes you over the levy's fight at the pass to choose who falls, as she and Göndul chose King Hákon in *Hákonarmál*: Kari, Ulf if you let him go, or Aslak, Bera's husband; or no one, and she takes Kari. Whoever falls is in that day's line, judged like anyone else. Odin wants the bravest; the valley wants them home.
-13. **Seal tomorrow's decree** (medium). Three nights a run, Odin's clerks send two drafts of tomorrow's decree. Sealing one pleases one god and annoys another, and steers the days towards rules you judge well or the ending you want. Risk: every draft adds to what the fairness checks and sims must cover.
+13. **Seal tomorrow's decree** (done, [`tech-spec.md`](tech-spec.md) §79). Three nights a run, Odin's clerks send two drafts of tomorrow's decree, each a different pick of the day's own whims. Sealing one pleases one god and annoys another, and steers the days towards whims you judge well or the ending you want. A draft never brings a new rule, so the fairness checks already cover every one.
 14. **Loki learns** (medium, needs art). Each time you catch him, his next disguise hides that tell and shows another from his myths (salmon, mare, fly, seal, Þökk), each taught before it's used; missed, he keeps what worked. Risk: each tell needs new woodcut art and a fair visual hint.
 15. **The trainee** (medium to large). From the second rank, a trainee Valkyrie (Hrist, from *Grímnismál*) stamps some of your souls first. Countersign for less sun, or overturn by pointing at what she missed, and she stops making that mistake. Risk: another flow on the crowded phone layout.
 16. **Call a soul forward** (medium). See the next few souls in line, one sign each, and pay sun to call one forward, for example to save the living before dusk. [`tech-spec.md`](tech-spec.md) §41 names it as the follow-up if playtests want it, so it fits best after people have played. Risk: tangles with noon decrees and parties.

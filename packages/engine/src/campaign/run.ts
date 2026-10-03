@@ -34,6 +34,7 @@ import {
   type Verdict,
 } from '../shift/shift';
 import { type Battle, battleDue, fight } from './battle';
+import { draftsTonight } from './decrees';
 import {
   dayContext,
   daySpecFor,
@@ -66,6 +67,7 @@ import {
   type RunState,
   type RunTrail,
   readsBattle,
+  type SealedDecree,
   stateValue,
   type TrailMark,
 } from './state';
@@ -119,7 +121,12 @@ export type RunAction =
   /** On one of the forger's trail's nights, the carver named (docs/tech-spec.md §71), once a run. */
   | { readonly t: 'accuse'; readonly suspect: string }
   /** At night, a vow sworn at the cup for tomorrow (docs/tech-spec.md §75), from tonight's offer; null takes it back. */
-  | { readonly t: 'vow'; readonly id: string | null };
+  | { readonly t: 'vow'; readonly id: string | null }
+  /**
+   * At night, one of tonight's drafts of tomorrow's decree to seal as the night ends (docs/tech-spec.md §79), by id;
+   * null sends both back.
+   */
+  | { readonly t: 'seal'; readonly draft: string | null };
 
 export type RunEvent =
   | { readonly e: 'shift'; readonly event: ShiftEvent }
@@ -146,6 +153,8 @@ export type RunEvent =
   | { readonly e: 'found'; readonly name: string; readonly day: number; readonly hall: Destination }
   /** A vow sworn at the cup for tomorrow (docs/tech-spec.md §75), or taken back (null). */
   | { readonly e: 'sworn'; readonly vow: string | null }
+  /** A draft of tomorrow's decree sealed as the night ended (docs/tech-spec.md §79): the day it rules. */
+  | { readonly e: 'sealed'; readonly day: number; readonly draft: string }
   | { readonly e: 'rejected'; readonly reason: string };
 
 export interface RunEnv {
@@ -236,6 +245,21 @@ function nextMorning(run: RunState, campaign: CampaignDef): RunState {
   const slice = run.slice ? campaign.slice : undefined;
   if (!slice || run.day !== slice.after) return { ...run, day: run.day + 1 };
   return jump(run, slice);
+}
+
+/**
+ * Tonight's draft of tomorrow's decree, sealed as the night ends (docs/tech-spec.md §79): the day it rules takes its
+ * choices, and its effects (the god it pleases, the one it annoys) land with the story's standing, for that day's audit.
+ */
+function sealTonight(run: RunState, env: RunEnv, events: RunEvent[]): RunState {
+  const { seal, ...rest } = run;
+  if (seal === undefined) return run;
+  const draft = draftsTonight(run, env.content).find((d) => d.def.id === seal);
+  if (!draft) return rest;
+  const decree: SealedDecree = { day: draft.day, draft: draft.def.id, choose: draft.choose };
+  const sealed = [...(rest.sealed ?? []).filter((s) => s.day !== draft.day), decree];
+  events.push({ e: 'sealed', day: draft.day, draft: draft.def.id });
+  return applyEffects({ ...rest, sealed }, draft.def.effects, events, env.content);
 }
 
 /** The slice's late day, with what the skipped days would have brought (the run's own flags win). */
@@ -1606,6 +1630,21 @@ export function stepRun(run: RunState, action: RunAction, env: RunEnv): { state:
     return { state: { ...run, vow: action.id }, events: [{ e: 'sworn', vow: action.id }] };
   }
 
+  if (action.t === 'seal') {
+    // Tomorrow's decree (docs/tech-spec.md §79): the pick is the run's at once, so the save holds it; it's sealed, and
+    // does what sealing it does, only as the night ends.
+    if (run.phase !== 'night') return reject(run, 'decrees are sealed at night');
+    if (action.draft === null) {
+      if (run.seal === undefined) return { state: run, events: [] };
+      const { seal: _, ...rest } = run;
+      return { state: rest, events: [] };
+    }
+    if (!draftsTonight(run, env.content).some((d) => d.def.id === action.draft)) {
+      return reject(run, 'no such draft tonight');
+    }
+    return { state: { ...run, seal: action.draft }, events: [] };
+  }
+
   if (action.t === 'appeal') {
     if (run.phase !== 'morning' || !run.appeal) return reject(run, 'no appeal to hear');
     const heard = hearAppeal(run, run.appeal, action.stamped, campaignOf(env.content));
@@ -1724,7 +1763,7 @@ export function stepRun(run: RunState, action: RunAction, env: RunEnv): { state:
     case 'endNight': {
       if (run.phase !== 'night') return reject(run, 'the night has not come');
       const events: RunEvent[] = [];
-      const after = reprieved(night(run, env, events), run, env, events);
+      const after = sealTonight(reprieved(night(run, env, events), run, env, events), env, events);
       const ending = endingFor(after, env.content);
       if (ending) {
         events.push({ e: 'ended', ending });

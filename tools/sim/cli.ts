@@ -15,7 +15,8 @@
  *     asks granted (means). Where stamps are asked for proof (§76), it adds the souls judged rightly on a guess and the
  *     days graded Flawless (means); with --vows, bots swear the dearest vow on offer each night that they expect to keep
  *     (§75; --vows dearest: the dearest, whatever it is), and the report adds how many were kept, the rings they paid,
- *     Odin's standing, and each kind's keep rate.
+ *     Odin's standing, and each kind's keep rate. Bots seal the draft of tomorrow's decree their policy likes (§79),
+ *     and the report says how many of each they sealed a run.
  *   pnpm sim compare --set 'path=value' [--set …] [--seeds 30] [--target dev-full] [--judging expert,competent,novice]
  *       [--strategy payAll] [--story plain] [--pace 25] [--nights 3,9,15,19]
  *     The tuning workbench (§63): the same bots on the same seeds with the content as built and with the changes, and
@@ -159,6 +160,11 @@ if (cmd === 'campaign') {
         .map(([kind, v]) => `${kind} ${((v.kept * 100) / v.sworn).toFixed(0)}% of ${v.sworn}`)
         .join(', ');
       console.log(`  vows kept by kind: ${kinds}`);
+    }
+    // Tomorrow's decree (docs/tech-spec.md §79): the drafts the bots sealed, whenever they sealed any.
+    const sealed = Object.entries(r.sealed);
+    if (sealed.length > 0) {
+      console.log(`  decrees sealed: ${sealed.map(([id, n]) => `${id} ${(n / r.runs).toFixed(1)} a run`).join(', ')}`);
     }
     if (r.ledgerErrors > 0) console.log(`  !! ${r.ledgerErrors} runs whose accounts don't add up`);
   }
