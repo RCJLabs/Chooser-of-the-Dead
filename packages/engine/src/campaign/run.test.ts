@@ -2102,6 +2102,65 @@ describe('a plea at the desk (docs/tech-spec.md §51)', () => {
   });
 });
 
+describe('the slain chosen at dawn (docs/tech-spec.md §78)', () => {
+  const FELL = ['case.kari', 'case.ulf16', 'case.aslak'];
+  /** Day 16's morning once the pass is chosen: Ulf, chosen, has been gone from home since. */
+  const day16 = (flags: Record<string, number>): RunState => {
+    const r = newRun(full, 'slain');
+    const gone = (m: FamilyMember): FamilyMember =>
+      m.id === 'brother' && flags.chose_ulf ? { ...m, status: 'gone', gone: 'died' } : m;
+    return { ...r, day: 16, flags, family: r.family.map(gone) };
+  };
+  const line = (run: RunState) => campaignQueue(run, { content: full, ctx: runContext(full, run) });
+
+  it('puts the one who fell in Day 16’s line where Kari stood: Kari, unless another was chosen', () => {
+    const before = line(day16({}));
+    const at = before.findIndex((c) => c.script === 'case.kari');
+    expect(at).toBeGreaterThanOrEqual(0);
+    const cases: [Record<string, number>, string][] = [
+      [{ chose_kari: 1 }, 'case.kari'],
+      [{ chose_none: 1 }, 'case.kari'],
+      [{ chose_ulf: 1 }, 'case.ulf16'],
+      [{ chose_aslak: 1 }, 'case.aslak'],
+    ];
+    for (const [flags, who] of cases) {
+      const q = line(day16(flags));
+      expect(q.filter((c) => FELL.includes(c.script ?? '')).map((c) => c.script)).toEqual([who]);
+      expect(q.findIndex((c) => c.script === who)).toBe(at);
+      expect(q.length).toBe(before.length);
+    }
+  });
+
+  it('judges them like anyone else: Valhalla for each, a plea only from Kari, and the story keeps the stamp', () => {
+    const judged = (flags: Record<string, number>, id: string, stamped: Destination) => {
+      const run = day16(flags);
+      const soul = line(run).find((c) => c.script === id);
+      if (!soul) throw new Error(`no ${id} in Day 16's line`);
+      expect(soul.expect.dest).toBe('VALHALLA');
+      expect(pleaOf(full, soul)).toBeNull();
+      return judgedDay(run, soul, stamped);
+    };
+    const ulf = judged({ chose_ulf: 1 }, 'case.ulf16', 'VALHALLA');
+    expect(ulf.ledger.at(-1)?.wrong).toBe(0);
+    expect(ulf.flags.ulf_valhalla).toBe(1);
+    // Named among the einherjar, his for the last battle (docs/tech-spec.md §54).
+    expect(ulf.named).toContainEqual({ name: 'Ulf Rögnuson', day: 16, hall: 'VALHALLA', runs: false });
+    const ulfHel = judged({ chose_ulf: 1 }, 'case.ulf16', 'HEL');
+    expect(ulfHel.ledger.at(-1)?.wrong).toBe(1);
+    expect(ulfHel.flags.ulf_valhalla).toBeUndefined();
+    const aslak = judged({ chose_aslak: 1 }, 'case.aslak', 'VALHALLA');
+    expect(aslak.ledger.at(-1)?.wrong).toBe(0);
+    expect([aslak.flags.aslak_judged, aslak.flags.aslak_valhalla]).toEqual([1, 1]);
+    const aslakHel = judged({ chose_aslak: 1 }, 'case.aslak', 'HEL');
+    expect(aslakHel.ledger.at(-1)?.wrong).toBe(1);
+    expect([aslakHel.flags.aslak_judged, aslakHel.flags.aslak_valhalla]).toEqual([1, undefined]);
+    // Nobody else in the line asks for another hall in Kari's stead: the day's own pleas come as on any day.
+    for (const r of [ulf, aslak]) {
+      expect(r.ledger.at(-1)?.pleas?.some((p) => p.name === 'Kari Solveigarson') ?? false).toBe(false);
+    }
+  });
+});
+
 /** A day of `run`'s, every soul judged rightly but `soul`, stamped `stamped`, to its audit. */
 function judgedDay(run: RunState, soul: CaseSpec, stamped: Destination): RunState {
   const ctx = runContext(full, run);

@@ -3040,7 +3040,7 @@ The brainstorm's version, and what changed:
 
 **Known limits**
 - **Pleas are only a story soul's.** Generated souls don't ask.
-- **The levy is one fight.** Ulf comes home either way. Whether he could die there is yours to decide; it's written so he can't.
+- **The levy is one fight.** Ulf comes home either way. Whether he could die there is yours to decide; it's written so he can't. (Since game phase 12 he can, if you choose him at dawn: §78.)
 - **The words are drafts.**
 
 ## 52. After M7: variety from run to run, part 1: day events (gameplay brainstorm, item 9)
@@ -4881,6 +4881,63 @@ The brainstorm's version, and what changed:
 - **A botch can fall on a true line.** On the coward's tally the lie ("fled not") can't be botched, so the forger botches its true battle line instead. The whole tally counts for nothing either way.
 - **The bots don't read,** so the sims can't say whether the kennings are too obscure. The playtest report counts the mistakes made on skald's tallies for that.
 - **The words are drafts,** and the rates (60 and 50) are guesses.
+
+## 78. Choose the slain (game phase 12)
+
+**Why.** Game phase 12 in [`roadmap.md`](roadmap.md). The game is named for what a valkyrie does, but until now the player only judged the dead that someone else had chosen. Now, once, they choose: at dawn on Day 16 Skögul takes them over the levy's fight at the pass (§51) to choose who falls, and whoever they choose comes to the desk that day, judged like anyone else.
+
+**Changed from the pitch**
+- **One falls, not several.** Two from a roster of three would be no choice at all when Ulf isn't there (two from two). One from three or four makes every option cost someone, which is the pitch's "Odin wants the bravest; the valley wants them home".
+- **A third man: Aslak, Bera's husband (new).** Without Ulf, the pitch's roster is Kari alone. Bera has written the valley's news since Night 13, so her husband gives the valley's side a face, and choosing him sends Kari home.
+- **Choosing no one is an option.** Skögul takes the bravest, Kari, and Odin minds being refused. The drafts' fixed death is now what happens when you choose Kari, when you won't choose, and in a save from before this change.
+- **Ulf can die at the pass, but only if you choose him.** §51 left that to you and wrote it so he couldn't. The pitch put him on the roster, so he can.
+
+**Established, and the game's own**
+- **Attested:** in *Hákonarmál* (Eyvindr skáldaspillir, about 961) Odin sends Göndul and Skögul to choose which king of Yngvi's line should come to Valhalla. They find Hákon at his last battle, at Fitjar; he asks Skögul why she decided the battle so, and she answers that they brought it about that he held the field and his enemies fled. The valkyries ride. Odin takes kin given to him: in *Ynglinga saga* King Aun gives him his sons, one at a time, for long life.
+- **The game's own:** that the game's Skögul is the poem's ("I did this for a king once. Hákon, at Fitjar."); the line holding "because one of them goes"; the roster; Aslak; Odin's standing for each choice; Ulf's metronymic, Rögnuson (the household's father is never named, and Kari goes by his mother's name too).
+
+**How it works**
+- **Night 15** ends with Skögul at the door, whatever Ulf did: they ride before light, and Odin wants one of the levy.
+- **Day 16's morning** (`scene.d16.morning`): over the pass at first light, Skögul names the men, then one choice. Odin wants the best of them: giving him Kari is what he expects, your own brother is more than he asked, and anyone else is less. Its effects reach the run when the scene ends, before the gate opens and the line is made.
+
+  | Choice | Shown | Flag | Odin | Also |
+  |---|---|---|---|---|
+  | Kari, at the front | always | `chose_kari` | 0: the one he'd have taken | |
+  | Ulf, three shields down | if he went with the levy (`ulf_levy`) and is home | `chose_ulf` | +2 | `family brother gone`: he died |
+  | Aslak, at the back | always | `chose_aslak` | −1 | |
+  | I won't choose. | always | `chose_none` | −1 | Skögul takes Kari |
+
+  Then the decree, as before; its own choice is gone, so the morning has one.
+- **The line.** Day 16 places `case.kari`, `case.ulf16` and `case.aslak` all at Kari's place (third). Their `when`s let one in: Kari unless `chose_ulf` or `chose_aslak`, so a save from before the change has him as before. Each died at sunrise, weapon in hand, wound in front, and belongs in Valhalla under every whim of the day (the compiler proves it, as for any story soul). Only Kari pleads (Rán, §51). The stamp is remembered: `ulf_valhalla`; `aslak_judged`, `aslak_valhalla`. In Valhalla, either is named in its host at Ragnarök like any story soul (§54). With Kari gone from the line, the day can bring an ordinary plea or kin (§59, §60), as any day without a story soul who pleads can.
+- **Night 16** (`scene.d16.night`), by who fell:
+  - **Kari:** the letters as before (§51).
+  - **Ulf:** your mother writes, or your aunt if she's gone: Kari carried him as far as the cairn, and Asa has been told it was the snow.
+  - **Aslak:** Ulf's letter (his arm hurt if he went, `fx: family brother sick`, as before) or the house's says Kari came home. Bera writes of her man, on Odin's benches if you sent him there.
+  - **At supper Skögul says one thing of the morning:** Odin's horn of mead, for the boy (Kari); a second cup by your elbow, and nothing (Ulf); Odin asked after the old man (Aslak); "You'll have to point yourself one day" (no one). A save from before the change hears nothing.
+- **Night 17:** the day after Ulf, your mother's letter is about everything but him.
+- **The epilogue:** Ulf fell at the pass, because you pointed (rode with the einherjar, on the benches, or elsewhere); Kari came home (carrying Ulf, or Aslak, and what he did after); Aslak (rode, the benches, or where you sent him).
+- **The journal:** the thread that Ulf still owes his share of the smith's fine ends once he's gone, as it should have when a fever took him.
+- **Scene notes:** a line whose effects change someone at home says so under it, in the household list's words ("Ulf, your brother: died."), as Odin's "will remember that" does (§20). The morning has no household list, so without it Ulf's death would show only that night.
+
+**The bots** score a scene's paths by their effects (§18). The plain bots and every policy that doesn't weigh Odin choose Kari, the first option, on a tie; Odin's choose him because every other choice but Ulf costs Odin. Hel's and Freyja's choose Aslak: Odin's −1 counts for them, and Aslak comes before "I won't choose". None chooses Ulf, since losing someone at home costs every policy 200.
+
+**Kari earns Odin nothing.** A first version gave Odin +1 for him. Every plain bot chooses him, so that raised the experts' Odin ending from 63 to 76–79 runs of 100: a balance change for anyone who chose as the story had always gone. Now he's simply what Odin expected, and Aslak or no one costs Odin 1, which keeps the valley's choice one step dearer, not two.
+
+**Numbers** (`pnpm sim campaign --story plain,hel`, 100 seeds a policy, against main):
+- **The plain bots**, who choose Kari, play exactly as before: every row is the same, and the experts reach Odin's ending in 63–65 runs of 100.
+- **Hel's bots**, who choose Aslak, reach her ending as often as before (29, 23 and 28 runs of 100 for the experts). Without Kari's plea they're asked a little less over a run (9.2 souls, from 9.9). The rest moved within noise: novices paying every bill were demoted in 41 runs, from 39, and competent bots ended within a ring of where they did.
+
+**Tests**
+- **Engine** (`run.test.ts`): the one who fell stands where Kari stood, in a line of the same length, Kari unless another was chosen; Ulf and Aslak belong in Valhalla and ask for nothing, a wrong stamp is a mistake, and the story keeps where each went; Ulf in Valhalla is named in its host.
+- **Scenes and bots** (`campaign-sim.test.ts`): Night 15's warning in every branch; the roster with and without Ulf; each choice's effects; Night 16's news for each, with Skögul's line, and a save from before; Night 17; the plain bots choose Kari and Hel's choose Aslak, and nobody at home is lost.
+- **e2e** (`slain.spec.ts`, phone and desktop): from a Day 16 save whose Ulf went with the levy, the roster and an accessibility scan; Ulf chosen, with Odin's note and the household's; Ulf at the desk where Kari would stand, and no Kari; that night your mother's letter, and the household list says he died.
+
+**Known limits**
+- **All three belong in Valhalla.** The choice changes who you judge, not how hard the day is: it's a story choice with standing at stake.
+- **No bot ever chooses Ulf,** so the sims never play his branch. The tests and the e2e do.
+- **New to the story:** Aslak, Ulf's metronymic, and Skögul being the poem's Skögul.
+- **A run that played Day 16's morning before this change** shows the new scene in its journal, with whichever option now stands where the old one did ("Kari." for the old first). The journal keeps choices by place, not by words; nothing else about such a run changes.
+- **The words are drafts.**
 
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)

@@ -23,8 +23,11 @@ queue:
   count: [13, 15]
   teachFirst: arch.proud_liar
   scripted:
-    # Solveig's boy, from the levy at the pass (docs/tech-spec.md §51).
+    # The one who fell at the pass at dawn, chosen in the morning's scene (docs/tech-spec.md §51, §78): Solveig's boy,
+    # unless you chose your brother or Bera's man. Each one's `when` lets only one of them in.
     - { case: case.kari, at: 2 }
+    - { case: case.ulf16, at: 2 }
+    - { case: case.aslak, at: 2 }
     - { case: case.thorvald16, at: 6 }
   archetypes:
     - { id: arch.honest_warrior, w: 2 }
