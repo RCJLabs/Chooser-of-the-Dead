@@ -13,7 +13,9 @@ import { FULL } from './urls';
  * decree, and the morning says so.
  */
 
-test.use({ baseURL: FULL });
+// Reduced motion: a save loaded in a fresh browser earns achievements, and an axe scan during the notice's fade-in
+// reads its half-faded words as low contrast.
+test.use({ baseURL: FULL, contextOptions: { reducedMotion: 'reduce' } });
 
 const content = loadContent('dev-full');
 const strings: Record<string, string> = JSON.parse(
