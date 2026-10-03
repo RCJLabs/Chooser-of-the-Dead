@@ -160,6 +160,23 @@ function standingNotes(effects: readonly Effect[] | undefined, day: number): str
     .map(([f, n]) => t('ui.remember', { name: factionName(f, day), change: signed(n) }));
 }
 
+/**
+ * "Ulf, your brother: died." for each of the household a line's effects change, in the words the household list
+ * uses at night: a choice at dawn can take someone before the night's bills show it (docs/tech-spec.md §78).
+ */
+function familyNotes(effects: readonly Effect[] | undefined): string[] {
+  return (effects ?? []).flatMap((e) => {
+    if (!('family' in e)) return [];
+    const status =
+      e.becomes === 'gone'
+        ? memberDef(gameContent, e.family)?.adult === false
+          ? 'ui.family.left'
+          : 'ui.family.died'
+        : `ui.family.${e.becomes}`;
+    return [t('ui.scene.family', { name: familyName(gameContent, e.family), status: t(status) })];
+  });
+}
+
 /** Seconds of sun a trip home at dawn gives or takes on the next shift (docs/tech-spec.md §50), in `effects`. */
 const sunOf = (effects: readonly Effect[] | undefined) =>
   (effects ?? []).reduce((s, e) => s + ('sun' in e ? e.sun : 0), 0);
@@ -917,6 +934,11 @@ function SceneLines({
         </p>,
         ...standingNotes(line.effects, day).map((note) => (
           <p key={`${prefix}:${i}:${note}`} class="scene__note" data-testid="scene-note">
+            {note}
+          </p>
+        )),
+        ...familyNotes(line.effects).map((note) => (
+          <p key={`${prefix}:${i}:${note}`} class="scene__note" data-testid="scene-family-note">
             {note}
           </p>
         )),

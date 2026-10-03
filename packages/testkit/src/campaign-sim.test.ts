@@ -386,3 +386,119 @@ describe('the levy and Solveig’s boy (docs/tech-spec.md §51)', () => {
     ]);
   }, 120_000);
 });
+
+describe('choosing the slain at the pass (docs/tech-spec.md §78)', () => {
+  const scenes = loadScenes('dev-full');
+  const home: Record<string, string> = { mother: 'well', brother: 'well', sister: 'well' };
+  const gone = { ...home, brother: 'gone' };
+  const env = (day: number, flags: Record<string, number>, family: Record<string, string>) => ({
+    seed: 1,
+    day,
+    rings: 50,
+    flags,
+    standing: { odin: 0, freyja: 0, hel: 0, loki: 0, clerk: 0 },
+    family,
+    word: 0,
+    wrong: 0,
+  });
+  const play = (id: string, day: number, flags: Record<string, number>, choices: number[], family = home) => {
+    const json = scenes[id];
+    if (!json) throw new Error(`no ${id}`);
+    return playScene(json, env(day, flags, family), choices);
+  };
+  const text = (f: ReturnType<typeof play>) => f.lines.map((l) => l.text).join('\n');
+
+  it('is foretold on Night 15, whatever Ulf does', () => {
+    const nights: [Record<string, number>, number[]][] = [
+      [{ ulf_home: 1 }, [1, 0]],
+      [{ ulf_home: 1 }, [1, 2]],
+      [{ ulf_shipyard: 1 }, [1]],
+    ];
+    for (const [flags, choices] of nights) {
+      const night = play('scene.d15.night', 15, flags, choices);
+      expect(night.done).toBe(true);
+      expect(text(night)).toContain('We ride before light');
+    }
+  });
+
+  it('offers Kari, Ulf if he went with the levy and is home, and Aslak; or choosing no one', () => {
+    const roster = (flags: Record<string, number>, family = home) =>
+      play('scene.d16.morning', 16, flags, [], family).choices.map((c) => c.text);
+    expect(roster({ ulf_levy: 1 })).toEqual(['Kari.', 'Ulf.', 'Aslak.', "I won't choose."]);
+    expect(roster({ ulf_stayed: 1 })).toEqual(['Kari.', 'Aslak.', "I won't choose."]);
+    expect(roster({ ulf_levy: 1 }, gone)).toEqual(['Kari.', 'Aslak.', "I won't choose."]);
+    // Whoever is chosen falls, and Odin minds whom: the best is what he'd have taken anyway; your own blood is more,
+    // and the oldest less.
+    const pick = (i: number) => play('scene.d16.morning', 16, { ulf_levy: 1 }, [i]);
+    expect(pick(0).effects).toEqual([{ flag: 'chose_kari', set: 1 }]);
+    expect(pick(1).effects).toEqual([
+      { flag: 'chose_ulf', set: 1 },
+      { standing: 'odin', by: 2 },
+      { family: 'brother', becomes: 'gone' },
+    ]);
+    expect(pick(2).effects).toEqual([
+      { flag: 'chose_aslak', set: 1 },
+      { standing: 'odin', by: -1 },
+    ]);
+    // Not choosing is a choice too: Skögul takes the bravest, and Odin minds being refused.
+    const none = pick(3);
+    expect(none.effects).toEqual([
+      { flag: 'chose_none', set: 1 },
+      { standing: 'odin', by: -1 },
+    ]);
+    expect(text(none)).toContain("finds Solveig's boy");
+    // Then the decree, as on any morning.
+    for (const f of [pick(0), pick(1), pick(2), none]) {
+      expect(f.done).toBe(true);
+      expect(text(f)).toContain('"Liars," says Skögul');
+    }
+  });
+
+  it('sends the news of whoever fell home that night, and Skögul says one thing of it at supper', () => {
+    // Ulf, chosen: gone since the morning, so your mother writes, or your aunt; nobody else sickens.
+    const ulf = play('scene.d16.night', 16, { ulf_levy: 1, chose_ulf: 1 }, [], gone);
+    expect(text(ulf)).toContain("Ulf didn't come down from the pass");
+    expect(ulf.lines.some((l) => l.speaker === 'mother')).toBe(true);
+    expect(text(ulf)).toContain('second cup');
+    expect(ulf.effects).toEqual([]);
+    const aunt = play('scene.d16.night', 16, { ulf_levy: 1, chose_ulf: 1 }, [], { ...gone, mother: 'gone' });
+    expect(text(aunt)).toContain('Your aunt writes for Asa. Ulf didn');
+    // Aslak, chosen: Solveig's boy came home, Ulf is hurt all the same if he went, and Bera knows where her man is.
+    const aslak = play('scene.d16.night', 16, { ulf_levy: 1, chose_aslak: 1, aslak_judged: 1, aslak_valhalla: 1 }, []);
+    expect(aslak.effects).toEqual([{ family: 'brother', becomes: 'sick' }]);
+    expect(text(aslak)).toContain("Old Aslak didn't come down");
+    expect(text(aslak)).toContain("Aslak's on Odin's benches");
+    expect(text(aslak)).toContain('Odin asked after the old man');
+    const elsewhere = text(play('scene.d16.night', 16, { chose_aslak: 1, aslak_judged: 1 }, []));
+    expect(elsewhere).toContain("Solveig's boy did.");
+    expect(elsewhere).toContain("I don't know where he is tonight");
+    // Kari, chosen, or taken by Skögul: the letters as before; Odin's thanks, or her reproach.
+    expect(text(play('scene.d16.night', 16, { chose_kari: 1, kari_valhalla: 1 }, []))).toContain(
+      'From Odin, for the boy at the pass',
+    );
+    expect(text(play('scene.d16.night', 16, { chose_none: 1, kari_ran: 1 }, []))).toContain('point yourself one day');
+    // A run from before the choosing: Kari fell, and Skögul says nothing of it.
+    const before = text(play('scene.d16.night', 16, { kari_valhalla: 1 }, []));
+    expect(before).toContain("Solveig's boy didn't come down from the pass");
+    expect(before).not.toMatch(/From Odin|second cup|point yourself|asked after the old man/);
+    // The next night your mother writes about everything but Ulf.
+    expect(text(play('scene.d17.night', 17, { chose_ulf: 1 }, [], gone))).toContain('None of it is about Ulf.');
+    expect(text(play('scene.d17.night', 17, {}, []))).toContain("a neighbour's wedding");
+  });
+
+  it('is chosen by the bots as their gods would: Kari for Odin and the plain, Aslak against him, never Ulf', () => {
+    const content = loadContent('dev-full');
+    const run = (story: string) =>
+      simulateRun(content, 'slain-0', bot('expert'), 'payAll', { story: storyPolicy(story), scenes });
+    const kariAsked = (r: ReturnType<typeof run>) =>
+      (r.ledger.find((l) => l.day === 16)?.pleas ?? []).some((p) => p.name === 'Kari Solveigarson');
+    const plain = run('plain');
+    expect(kariAsked(plain)).toBe(true);
+    expect(plain.epilogue).not.toContain('epi.levy.aslak');
+    const hel = run('hel');
+    expect(kariAsked(hel)).toBe(false);
+    expect(hel.epilogue).toContain('epi.levy.aslak');
+    expect(hel.epilogue.some((k) => k.startsWith('epi.aslak.'))).toBe(true);
+    for (const r of [plain, hel]) expect(r.familyLost).toBe(0);
+  }, 240_000);
+});

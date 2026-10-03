@@ -40,7 +40,7 @@ You don't know. Nobody at the gate has ever mentioned a shore. But nobody at the
 === levy ===
 { flag("ulf_home") && home("brother"): -> levy_ulf }
 The raven has one more scrap of bark, squeezed in at the bottom: Solveig's boy, Kari, has gone up to the pass with the jarl's levy, with his father's spear. # beat
--> END
+-> ride
 
 === levy_ulf ===
 Folded into the bark is a second letter, in Ulf's square hand. # beat
@@ -57,4 +57,10 @@ Folded into the bark is a second letter, in Ulf's square hand. # beat
 * ["Stay. They need you at home."]
   # fx: flag ulf_stayed
   You write that the house needs a man who can mend a roof more than the pass needs one more spear. It's true. He won't thank you for it.
-- -> END
+- -> ride
+
+// The levy's fight is at sunrise, and Skögul will take you over it to choose who falls (docs/tech-spec.md §78).
+=== ride ===
+Late, Skögul puts her head round the door with her cloak already on.
+"Sleep in your boots," she says. "We ride before light. There's a fight at the pass at sunrise, and Odin wants one of them." # speaker: skogul
+-> END

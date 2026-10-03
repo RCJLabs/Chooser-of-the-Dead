@@ -1,0 +1,30 @@
+# DRAFT writing (game phase 12, docs/tech-spec.md §78). Day 16, if you chose him at the pass at dawn (`chose_ulf`): Ulf,
+# your brother, who went up with the levy (scene.d15.night, `ulf_levy`). He died at sunrise, axe in hand, wound in
+# front, and belongs in Valhalla. He asks for nothing. He saw you on the ridge. He's gone from home since the morning
+# (scene.d16.morning, `fx: family brother gone`).
+id: case.ulf16
+personas: [honest]
+truth:
+  alive: { is: false }
+  cause: { is: battle }
+  grip: { is: weapon }
+  weaponOwner: { is: self }
+  blade: { is: plain }
+  woundsFront: { is: 1 }
+  woundsBack: { is: 0 }
+  outlaw: { is: false }
+  faith: { is: heathen }
+  trickster: { is: false }
+  nailsGrown: { is: false }
+  gripHand: { is: right }
+  hair: { is: dark }
+  ornament: { is: none }
+lies: []
+# Ragna's son: the household's father is never named, so he goes by his mother's name, as Kari goes by Solveig's.
+look: { gender: m, name: Ulf, patronym: Rögnuson, age: 24, build: broad, beard: short }
+lines: [case.ulf16.ridge, case.ulf16.still, case.ulf16.asa]
+words: { pool.weapons: axe }
+expect: VALHALLA
+when: { state: flags.chose_ulf, gte: 1 }
+onStamp:
+  - { stamped: VALHALLA, effects: [{ flag: ulf_valhalla }] }

@@ -1,10 +1,16 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–77.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–78.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 12 (below), in the full game only:
+
+- **12. Choose the slain** ([`tech-spec.md`](tech-spec.md) §78). Night 15 ends with Skögul saying you ride before light. At dawn on Day 16 she takes you over the levy's fight at the pass and names the men: Kari at the front, Ulf three shields down if you let him go, and Aslak, Bera's husband, at the back. Choose one to fall, or choose no one and she takes Kari. Odin minds whom: Kari is the one he'd have taken, Ulf is +2, Aslak or no one −1. Whoever falls is in that day's line where Kari stood, judged like anyone else, and Night 16's letters, Skögul's word at supper, Night 17 and the epilogue follow from it. A scene line that changes someone at home now says so under it ("Ulf, your brother: died.").
+  - **Changed from the pitch:** one falls, from three or four, since two from three would leave no choice when Ulf stayed home. Aslak is new, to give the valley's side a face, and choosing no one is allowed.
+  - **Your call:** §51 left whether Ulf could die at the pass to you, and wrote it so he couldn't. The pitch put him on the roster, so now he can, but only if you choose him. No bot ever does, so his branch is covered by the tests and the e2e, not the sims.
 
 Game phase 11 (below), in the full game only:
 
@@ -68,8 +74,8 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–11 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
-- **Next:** 12 from the second brainstorm (below), the first big one.
+- **Done:** 1–12 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
+- **Next:** 13 from the second brainstorm (below).
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
@@ -87,7 +93,7 @@ From the second gameplay brainstorm, all in the full game only. 9 and 10 came fi
 9. **Vows at the cup** (done, [`tech-spec.md`](tech-spec.md) §75). Each night, swear one of three vows for tomorrow, as saga heroes did over the cup (heitstrenging): no questions, no citation, a quarter of the sun to spare, every liar caught before the stamp. Kept, it pays rings; broken, it costs standing. Its numbers are guesses until playtest reports count vows.
 10. **Proven, not lucky** (done, [`tech-spec.md`](tech-spec.md) §76). A right stamp counts as proven only if what you'd seen was enough to decide it. Flawless needs every stamp proven, and Endless scores only proven souls. Grades reward judging, not guessing that most souls go to Hel.
 11. **Kennings in the tallies** (done, [`tech-spec.md`](tech-spec.md) §77). From Day 18, skalds cut tallies in kennings and sayings ("Odin's storm", "went to Rán"), with a page of them in the rulebook, and forgers botch them. A reading puzzle with no new art. Risk: obscure kennings frustrate players; the playtest report counts the mistakes on skald's tallies.
-12. **Choose the slain** (medium to large, mostly writing). At dawn on Day 16, Skögul takes you over the levy's fight at the pass to choose who falls, as she and Göndul chose King Hákon in *Hákonarmál*. Kari is on the roster, and Ulf if you let him go; whoever you choose is in that day's line, judged like anyone else. Odin wants the bravest; the valley wants them home. Risk: it rewrites Kari's fixed death and Nights 15–16.
+12. **Choose the slain** (done, [`tech-spec.md`](tech-spec.md) §78). At dawn on Day 16, Skögul takes you over the levy's fight at the pass to choose who falls, as she and Göndul chose King Hákon in *Hákonarmál*: Kari, Ulf if you let him go, or Aslak, Bera's husband; or no one, and she takes Kari. Whoever falls is in that day's line, judged like anyone else. Odin wants the bravest; the valley wants them home.
 13. **Seal tomorrow's decree** (medium). Three nights a run, Odin's clerks send two drafts of tomorrow's decree. Sealing one pleases one god and annoys another, and steers the days towards rules you judge well or the ending you want. Risk: every draft adds to what the fairness checks and sims must cover.
 14. **Loki learns** (medium, needs art). Each time you catch him, his next disguise hides that tell and shows another from his myths (salmon, mare, fly, seal, Þökk), each taught before it's used; missed, he keeps what worked. Risk: each tell needs new woodcut art and a fair visual hint.
 15. **The trainee** (medium to large). From the second rank, a trainee Valkyrie (Hrist, from *Grímnismál*) stamps some of your souls first. Countersign for less sun, or overturn by pointing at what she missed, and she stops making that mistake. Risk: another flow on the crowded phone layout.

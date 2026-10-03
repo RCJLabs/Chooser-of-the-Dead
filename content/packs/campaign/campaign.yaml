@@ -302,7 +302,7 @@ endings:
 threads:
   - { id: thread.owesSkogul, when: { state: flags.owes_skogul, gte: 1 }, text: thread.owesSkogul }
   - id: thread.ulfDebt
-    when: { all: [{ state: flags.ulf_debt, gte: 1 }, { state: flags.ulf_shipyard, lte: 0 }] }
+    when: { all: [{ state: flags.ulf_debt, gte: 1 }, { state: flags.ulf_shipyard, lte: 0 }, { state: member.brother.gone, lte: 0 }] }
     text: thread.ulfDebt
   - { id: thread.ulfShipyard, when: { state: flags.ulf_shipyard, gte: 1 }, text: thread.ulfShipyard }
   - { id: thread.lokiDeal, when: { state: flags.loki_deal, gte: 1 }, text: thread.lokiDeal }
@@ -488,12 +488,24 @@ epilogue:
     - id: epi.ulf
       section: home
       lines:
+        # Chosen at the pass on Day 16 (docs/tech-spec.md §78), and where you sent him.
+        - when: { all: [{ state: flags.chose_ulf, gte: 1 }, { state: flags.ulf_valhalla, gte: 1 }, { state: day, gte: 20 }] }
+          text: epi.ulf.pass.rode
+        - when: { all: [{ state: flags.chose_ulf, gte: 1 }, { state: flags.ulf_valhalla, gte: 1 }] }
+          text: epi.ulf.pass.benches
+        - { when: { state: flags.chose_ulf, gte: 1 }, text: epi.ulf.pass }
         - { when: { state: member.brother.died, gte: 1 }, text: epi.ulf.died }
         - { when: { state: flags.ulf_levy, gte: 1 }, text: epi.ulf.levy }
         - { when: { state: flags.ulf_stayed, gte: 1 }, text: epi.ulf.stayed }
         - { when: { state: flags.ulf_shipyard, gte: 1 }, text: epi.ulf.shipyard }
         - { when: { state: flags.ulf_debt, gte: 1 }, text: epi.ulf.debt }
         - { text: epi.ulf.home }
+    # Solveig's boy, home from the pass because you chose another at dawn (docs/tech-spec.md §78).
+    - id: epi.levy
+      section: home
+      lines:
+        - { when: { state: flags.chose_ulf, gte: 1 }, text: epi.levy.ulf }
+        - { when: { state: flags.chose_aslak, gte: 1 }, text: epi.levy.aslak }
     # Asa is a child: she can fall ill or go to relatives, never die (docs/build-plan.md §1).
     - id: epi.asa
       section: home
@@ -693,6 +705,14 @@ epilogue:
           text: epi.kari.rode
         - { when: { state: flags.kari_valhalla, gte: 1 }, text: epi.kari.benches }
         - { when: { state: flags.kari_judged, gte: 1 }, text: epi.kari.judged }
+    # Bera's man, if you chose him at the pass instead (docs/tech-spec.md §78).
+    - id: epi.aslak
+      section: dead
+      lines:
+        - when: { all: [{ state: flags.aslak_valhalla, gte: 1 }, { state: day, gte: 20 }] }
+          text: epi.aslak.rode
+        - { when: { state: flags.aslak_valhalla, gte: 1 }, text: epi.aslak.benches }
+        - { when: { state: flags.aslak_judged, gte: 1 }, text: epi.aslak.judged }
     - id: epi.thrand
       section: dead
       lines:

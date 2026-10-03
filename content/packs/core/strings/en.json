@@ -640,6 +640,7 @@
   "ui.scene.needsRings": "{n} rings; you have {have}",
   "ui.scene.purse": "You have {rings, plural, one {# ring} other {# rings}}. {phase, select, morning {Tonight's bills will come to {bills} if you pay them all; today's pay comes first.} other {Tonight's bills come to {bills} if you pay them all{draupnir, plural, =0 {} other {, and Draupnir brings #}}.}}",
   "ui.scene.leaves": "leaves {n} after tonight's bills",
+  "ui.scene.family": "{name}: {status}.",
   "ui.scene.sunLess": "{time} less sun {when, select, today {today} other {tomorrow}}",
   "ui.scene.sunMore": "{time} more sun {when, select, today {today} other {tomorrow}}",
   "ui.campaign.branchGo": "Replay in a new slot",

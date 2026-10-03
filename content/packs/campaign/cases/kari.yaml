@@ -3,7 +3,9 @@
 # Valhalla. He asks, openly, to be sent to Rán, where the drowned go and he thinks his mother is: a plea the desk
 # shows while he's there. The stamp is the answer: RÁN grants it, a wrong stamp all the same, with its usual costs
 # (no wage, a citation, a fine past the day's warnings, Odin's standing, a warrior short at Ragnarök). Ulf may have
-# stood beside him (scene.d15.night, `ulf_levy`); the night after says so (scene.d16.night).
+# stood beside him (scene.d15.night, `ulf_levy`); the night after says so (scene.d16.night). Since game phase 12
+# (docs/tech-spec.md §78) he falls because he was chosen at dawn (scene.d16.morning): by you, or by Skögul if you
+# wouldn't. Choose Ulf or Aslak instead, and he comes home.
 id: case.kari
 personas: [honest]
 truth:
@@ -26,6 +28,7 @@ look: { gender: m, name: Kari, patronym: Solveigarson, age: 22, build: lean, bea
 lines: [case.kari.mother, case.kari.pass, case.kari.ask]
 words: { pool.weapons: spear }
 expect: VALHALLA
+when: { not: { any: [{ state: flags.chose_ulf, gte: 1 }, { state: flags.chose_aslak, gte: 1 }] } }
 plea: { stamp: RAN, text: case.kari.plea }
 onStamp:
   - { stamped: '*', effects: [{ flag: kari_judged }] }

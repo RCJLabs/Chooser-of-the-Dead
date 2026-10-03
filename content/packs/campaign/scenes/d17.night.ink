@@ -8,7 +8,12 @@ EXTERNAL rings()
 Three days to the horn. Everyone at the gate knows it, the way you know rain is coming.
 {
 - home("mother"):
-  Your mother's letter is the longest she has ever sent. Most of it is about the weather, the goats and a neighbour's wedding. Then, at the very end, where the bark curls:
+  // The day after you chose Ulf at the pass (docs/tech-spec.md §78), she writes about everything else.
+  { flag("chose_ulf"):
+    Your mother's letter is the longest she has ever sent. None of it is about Ulf. Most of it is about the weather and the goats. Then, at the very end, where the bark curls:
+  - else:
+    Your mother's letter is the longest she has ever sent. Most of it is about the weather, the goats and a neighbour's wedding. Then, at the very end, where the bark curls:
+  }
   "Everyone is deciding where to be when it comes. I want us together. But I want you to tell me where." # speaker: mother
 - home("brother"):
   Ulf's letter is short and very square.
