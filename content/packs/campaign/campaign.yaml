@@ -456,6 +456,20 @@ decrees:
   drafts:
     - { id: draft.freyja, text: draft.freyja, effects: [{ standing: freyja, by: 1 }, { standing: odin, by: -1 }] }
     - { id: draft.odin, text: draft.odin, effects: [{ standing: odin, by: 1 }, { standing: freyja, by: -1 }] }
+# Loki learns (docs/tech-spec.md §80): he comes to the gate first with Brokkr's stitches on his lips. Each day he is
+# held at least once, he hides the tell he was caught by and comes the next day in another shape from his myths, with
+# its tell; missed, he keeps the one that worked. After the lips, the shapes come in an order drawn for the run, and
+# the lips again after the last. Each guise's tell is the observation (observations.yaml) and the laws (laws.yaml)
+# tagged with it; the run flag holds the guise he wears, by its place here, for the scenes (Þökk on Day 15).
+loki:
+  fact: trickster
+  flag: loki_guise
+  guises:
+    - { id: guise.lips, text: guise.lips, news: guise.lips.news }
+    - { id: guise.salmon, text: guise.salmon, news: guise.salmon.news }
+    - { id: guise.mare, text: guise.mare, news: guise.mare.news }
+    - { id: guise.fly, text: guise.fly, news: guise.fly.news }
+    - { id: guise.seal, text: guise.seal, news: guise.seal.news }
 # The epilogue (docs/tech-spec.md §55): after the ending's own words, what became of everyone, read from how the run
 # left them. Each slot says the first of its lines whose `when` holds (the last, without one, whatever else); a slot
 # with none that holds says nothing. Not after a failure or the slice's end. Naglfar can sail on Day 18 or 19, before

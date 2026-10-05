@@ -30,6 +30,8 @@ export interface SweepOptions {
    * plan) are the souls as made.
    */
   readonly weave?: WeaveDef;
+  /** The guise Loki wears (docs/tech-spec.md §80), by id: each day made in it. The campaign's first when not given. */
+  readonly guise?: string;
 }
 
 export interface SweepReport {
@@ -92,8 +94,12 @@ export function sweep(opts: SweepOptions): SweepReport {
           label: String(day),
           make: (s) => {
             const seed = `${opts.seedPrefix ?? 'sweep'}-${s}`;
-            const ctx = createDayContext(opts.content, day, seed);
-            return { seed, ctx, ...(woven ? { seen: createDayContext(woven, day, seed) } : {}) };
+            const ctx = createDayContext(opts.content, day, seed, undefined, undefined, opts.guise);
+            return {
+              seed,
+              ctx,
+              ...(woven ? { seen: createDayContext(woven, day, seed, undefined, undefined, opts.guise) } : {}),
+            };
           },
         }));
 

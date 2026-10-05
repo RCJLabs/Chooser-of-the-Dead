@@ -553,7 +553,7 @@ describe('the playtest report', () => {
         run = next;
       }
       const text = report(save);
-      return { drafts, section: text.slice(text.indexOf("### Tomorrow's decree"), text.indexOf('### Rank')) };
+      return { drafts, section: text.slice(text.indexOf("### Tomorrow's decree"), text.indexOf("### Loki's guises")) };
     };
     // Picked, and the night not yet over.
     const picked = eve(first, [{ t: 'seal', draft: 'draft.freyja' }]);
@@ -569,6 +569,32 @@ describe('the playtest report', () => {
       `- Day ${first}: sent back.`,
       `- Day ${second}: draft.odin sealed. ${odin?.texts.join(' ')}`,
     ]);
+  });
+
+  it('tells of Loki’s guises: each day he came, held and let by, and each guise he took (docs/tech-spec.md §80)', () => {
+    const save = played('playtest-loki', 2, right);
+    const { run } = resumeSave(save, content, ENGINE_MAJOR);
+    expect(report(save)).toContain("### Loki's guises\n\nNot met yet.");
+    const [one, two] = run.ledger;
+    const [lips, salmon] = campaignOf(content).loki?.guises ?? [];
+    if (!one || !two || !lips || !salmon) throw new Error('two days played, and two guises');
+    // Held once on Day 12, so he came as the salmon on Day 13, and got past twice.
+    const ledger: DayLedger[] = [
+      { ...one, day: 12, loki: { guise: lips.id, caught: 1, missed: 0 } },
+      { ...two, day: 13, loki: { guise: salmon.id, caught: 0, missed: 2 } },
+    ];
+    const met = { ...run, ledger, guises: [{ day: 13, guise: salmon.id }] };
+    const text = playtestReport({ save, run: met, slot: 0, build: 'b', content, scenes, t });
+    const section = text.slice(text.indexOf("### Loki's guises"), text.indexOf('### Rank'));
+    expect(section.split('\n').filter((l) => l !== '')).toEqual([
+      "### Loki's guises",
+      `- Day 12: ${lips.text}; held 1, let by 0.`,
+      `- From Day 13: ${salmon.text}.`,
+      `- Day 13: ${salmon.text}; held 0, let by 2.`,
+    ]);
+    // A build where he doesn't learn has no such section.
+    const demo = loadContent('web-demo');
+    expect(playtestReport({ save, run, slot: 0, build: 'b', content: demo, scenes, t })).not.toContain('Loki');
   });
 
   it('says a woven run is woven, and by which weave (docs/tech-spec.md §53)', () => {

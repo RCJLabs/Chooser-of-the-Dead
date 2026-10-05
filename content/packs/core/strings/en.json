@@ -293,6 +293,8 @@
   "ui.decree.seals": "Sealed: {effects}.",
   "ui.decree.none": "Send them back. Let the clerks draw it.",
   "ui.decree.morning": "You sealed today's decree last night: {draft}.",
+  "ui.audit.lokiLearns": "You held Loki today, and he knows it. He won't come the same way twice: tomorrow he wears another shape, and Huginn will tell you which at dawn.",
+  "ui.audit.lokiKeeps": "Loki got past you today. He'll keep the shape that worked.",
   "ui.rank.stepDown": "Step down from your rank",
   "ui.rank.stepDownTo": "Step down to {rank}",
   "ui.rank.stepped": "You stepped down from {rank}, from tomorrow on. Tonight's tithe is still owed for the day worked at it.",

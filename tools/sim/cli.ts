@@ -1,6 +1,6 @@
 /**
  * Generator sweeps and campaign simulations (docs/tech-spec.md §9-10).
- *   pnpm sim sweep [--seeds 200] [--days 1-11] [--prefix sweep] [--no-timing] [--weave id]   (default: every day with a spec)
+ *   pnpm sim sweep [--seeds 200] [--days 1-11] [--prefix sweep] [--no-timing] [--weave id] [--guise id]   (default: every day with a spec)
  *   pnpm sim sweep --daily [--seeds 200]      Dailies #1..#seeds
  *   pnpm sim sweep --parties [--seeds 200] [--days 9-20] [--prefix parties] [--no-timing]
  *     Days with parties (docs/tech-spec.md §69): each member checked with its companions, and a careful bot at the desk.
@@ -16,7 +16,8 @@
  *     days graded Flawless (means); with --vows, bots swear the dearest vow on offer each night that they expect to keep
  *     (§75; --vows dearest: the dearest, whatever it is), and the report adds how many were kept, the rings they paid,
  *     Odin's standing, and each kind's keep rate. Bots seal the draft of tomorrow's decree their policy likes (§79),
- *     and the report says how many of each they sealed a run.
+ *     and the report says how many of each they sealed a run. Where Loki learns (§80), it adds his souls held and let
+ *     by, and the new guises he took (means a run).
  *   pnpm sim compare --set 'path=value' [--set …] [--seeds 30] [--target dev-full] [--judging expert,competent,novice]
  *       [--strategy payAll] [--story plain] [--pace 25] [--nights 3,9,15,19]
  *     The tuning workbench (§63): the same bots on the same seeds with the content as built and with the changes, and
@@ -166,6 +167,12 @@ if (cmd === 'campaign') {
     if (sealed.length > 0) {
       console.log(`  decrees sealed: ${sealed.map(([id, n]) => `${id} ${(n / r.runs).toFixed(1)} a run`).join(', ')}`);
     }
+    // Loki learns (docs/tech-spec.md §80): how often his souls were held and let by, and the guises he took.
+    if (r.loki.caught + r.loki.missed > 0) {
+      console.log(
+        `  Loki: held ${r.loki.caught.toFixed(1)}, let by ${r.loki.missed.toFixed(1)}, ${r.loki.guises.toFixed(1)} new guises a run`,
+      );
+    }
     if (r.ledgerErrors > 0) console.log(`  !! ${r.ledgerErrors} runs whose accounts don't add up`);
   }
   process.exit(reports.some((r) => r.ledgerErrors > 0) ? 1 : 0);
@@ -233,7 +240,7 @@ if (cmd === 'compare') {
 }
 if (cmd !== 'sweep') {
   console.error(
-    "Usage: pnpm sim sweep [--seeds N] [--days 1-11 | --daily | --parties] [--prefix P] [--no-timing] [--weave id] | pnpm sim campaign [--seeds N] [--story plain,…|all] [--weave id] | pnpm sim compare --set 'path=value' [--seeds N]",
+    "Usage: pnpm sim sweep [--seeds N] [--days 1-11 | --daily | --parties] [--prefix P] [--no-timing] [--weave id] [--guise id] | pnpm sim campaign [--seeds N] [--story plain,…|all] [--weave id] | pnpm sim compare --set 'path=value' [--seeds N]",
   );
   process.exit(2);
 }
@@ -253,6 +260,12 @@ const full = loadContent('dev-full');
 const weave = full.campaign?.weaving?.weaves.find((w) => w.id === weaveId);
 if (weaveId && !weave) {
   console.error(`sweep: no weave "${weaveId}"`);
+  process.exit(2);
+}
+// In one of Loki's guises (docs/tech-spec.md §80): each day made with its tell, and its laws in force.
+const guise = process.argv.includes('--guise') ? arg('guise', '') : undefined;
+if (guise !== undefined && !full.campaign?.loki?.guises.some((g) => g.id === guise)) {
+  console.error(`sweep: no guise "${guise}"`);
   process.exit(2);
 }
 const started = performance.now();
@@ -287,6 +300,7 @@ if (process.argv.includes('--parties')) {
 const r = sweep({
   content: daily ? loadDailyContent() : full,
   ...(weave ? { weave } : {}),
+  ...(guise ? { guise } : {}),
   days,
   daily,
   seeds,
@@ -296,7 +310,7 @@ const r = sweep({
 const pct = (a: number, b: number) => (b ? ((a * 100) / b).toFixed(1) : '0.0');
 
 console.log(
-  `sweep: ${daily ? `Dailies #1-#${seeds}` : `${seeds} seeds x days ${days.join(',')}`}${weave ? `, woven: ${weave.id}` : ''} = ${r.cases} souls in ${((performance.now() - started) / 1000).toFixed(1)}s`,
+  `sweep: ${daily ? `Dailies #1-#${seeds}` : `${seeds} seeds x days ${days.join(',')}`}${weave ? `, woven: ${weave.id}` : ''}${guise ? `, Loki as ${guise}` : ''} = ${r.cases} souls in ${((performance.now() - started) / 1000).toFixed(1)}s`,
 );
 console.log(
   `attempts: mean ${r.attemptsMean.toFixed(2)}, p99 ${r.attemptsP99}; fallbacks ${r.fallbacks} (${pct(r.fallbacks, r.cases)}%)`,

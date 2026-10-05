@@ -33,7 +33,7 @@ export const BACK_WOUNDS: readonly (readonly [number, number])[] = [
   [CX, 258],
 ];
 
-const HAND_KEYS = ['grip', 'gripHand', 'nails', 'wrongGrip', 'inscription', 'makersMark'];
+const HAND_KEYS = ['grip', 'gripHand', 'nails', 'wrongGrip', 'inscription', 'makersMark', 'webbing'];
 
 export type WeaponKind = 'axe' | 'sword' | 'spear' | 'seax';
 export const WEAPON_KINDS: readonly WeaponKind[] = ['axe', 'sword', 'spear', 'seax'];
@@ -49,8 +49,8 @@ export const BLADE_Y: Readonly<Record<WeaponKind, number>> = { axe: -62, sword: 
 
 /** Which signs each region shows. */
 export const REGION_KEYS: Readonly<Record<HotspotId, readonly string[]>> = {
-  hair: ['hair'],
-  face: ['skin', 'lips', 'lipScars', 'breath', 'breathFog'],
+  hair: ['hair', 'ears'],
+  face: ['skin', 'lips', 'lipScars', 'breath', 'breathFog', 'scales', 'fly'],
   neck: ['ornament', 'amulet', 'brokenRing'],
   chest: ['woundsFront', 'freshCarving', 'spearCut'],
   handR: HAND_KEYS,
@@ -79,6 +79,11 @@ export const SIGN_VIEWS: Readonly<Record<string, BodyView>> = {
   amulet: 'front',
   lipScars: 'front',
   spearCut: 'front',
+  // Loki's tells in his later guises (docs/tech-spec.md §80).
+  scales: 'front',
+  ears: 'front',
+  fly: 'front',
+  webbing: 'front',
 };
 
 /** The hotspot regions over the shared layout, in 300x420 frame units. */
@@ -95,7 +100,8 @@ export function standardHotspots(scene: BodyScene): Hotspot[] {
   });
   if (scene.view === 'back') return [region('back', CX - h, 158, 2 * h, 146)];
   return [
-    region('hair', 100, 46, 100, 38),
+    // From above the crown, so a mare's ears (docs/tech-spec.md §80) are under it too.
+    region('hair', 100, 18, 100, 66),
     region('face', 100, 84, 100, 56),
     region('neck', 110, 140, 80, 62),
     region('chest', CX - h, 202, 2 * h, 102),

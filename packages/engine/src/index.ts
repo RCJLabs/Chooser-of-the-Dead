@@ -5,6 +5,7 @@ export * from './campaign/decrees';
 export * from './campaign/epilogue';
 export * from './campaign/events';
 export * from './campaign/grade';
+export * from './campaign/loki';
 export * from './campaign/origin';
 export * from './campaign/pleas';
 export * from './campaign/run';

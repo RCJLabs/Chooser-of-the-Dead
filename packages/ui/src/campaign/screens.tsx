@@ -35,6 +35,8 @@ import {
   fedAtHome,
   fight,
   genderOfName,
+  guiseDef,
+  guiseOn,
   hostMarks,
   hostParts,
   hostsAt,
@@ -1324,6 +1326,33 @@ function RulebookChanges({ day }: { day: number }) {
   );
 }
 
+/**
+ * Loki's new guise, on the morning he first wears it (docs/tech-spec.md §80): Huginn's news, and the laws of his tell
+ * that come in with it and go out with the old one.
+ */
+function GuiseNews({ run }: { run: RunState }) {
+  const today = guiseOn(run, gameContent, run.day);
+  const before = guiseOn(run, gameContent, run.day - 1);
+  const def = guiseDef(gameContent, today);
+  if (!def || today === before) return null;
+  const laws = (g: string | undefined) => gameContent.signLaws.filter((l) => l.guise !== undefined && l.guise === g);
+  return (
+    <div class="changes" data-testid="guise-news">
+      <p>{t(def.news)}</p>
+      {laws(today).map((l) => (
+        <p key={l.id} data-testid="guise-law">
+          <span class="badge badge--new">{t('ui.campaign.new.badge')}</span> {t(l.text)}
+        </p>
+      ))}
+      {laws(before).map((l) => (
+        <p key={l.id} data-testid="guise-law-gone">
+          <span class="badge badge--old">{t('ui.campaign.repealed.badge')}</span> {t(l.text)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function Morning() {
   const a = active.value;
   if (!a) return null;
@@ -1369,6 +1398,7 @@ function Morning() {
             <SealedToday run={run} />
             <WeaveNote run={run} />
             <RulebookChanges day={run.day} />
+            <GuiseNews run={run} />
             <WaitingNote run={run} />
             <FavoursToday run={run} noFines={assists.noFines === true} />
             <WordLine run={run} />
@@ -1875,6 +1905,22 @@ function AppealResult({ heard, seed }: { heard: AppealHeard; seed: string }) {
 
 // ---------- audit ----------
 
+/**
+ * What Loki makes of the day (docs/tech-spec.md §80): held, he'll come tomorrow in another guise, told at dawn; let by
+ * and never held, he keeps the one that worked.
+ */
+function LokiNote({ run, ledger }: { run: RunState; ledger: DayLedger }) {
+  const loki = ledger.loki;
+  if (!loki) return null;
+  const learned = (run.guises ?? []).some((g) => g.day > ledger.day);
+  if (loki.caught > 0 && !learned) return null;
+  return (
+    <p class="muted" data-testid="loki-note">
+      {t(loki.caught > 0 ? 'ui.audit.lokiLearns' : 'ui.audit.lokiKeeps')}
+    </p>
+  );
+}
+
 function Audit() {
   const a = active.value;
   const s = session.value;
@@ -1967,6 +2013,7 @@ function Audit() {
       <RequestResults ledger={ledger} day={a.run.day} />
       <WordMoved ledger={ledger} />
       <TrailPinned run={a.run} />
+      <LokiNote run={a.run} ledger={ledger} />
       <ol class="verdicts">
         {shift.verdicts.map((v) => {
           const c = shift.cases[v.index];

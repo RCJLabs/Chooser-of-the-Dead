@@ -17,6 +17,7 @@ import {
   type Faction,
   factionKey,
   factionsMet,
+  guiseDef,
   huntOn,
   memberDef,
   type NamedSoul,
@@ -497,6 +498,32 @@ function decrees(p: PlaytestInput): string[] {
   return ["### Tomorrow's decree", '', ...(lines.length > 0 ? lines : ['None yet.'])];
 }
 
+/**
+ * Loki's guises (docs/tech-spec.md §80): each day he came to the gate, the guise he wore and how often he was held and
+ * let by; and each guise he took, from the day he took it, once held. Only in a build where he learns.
+ */
+function guises(p: PlaytestInput): string[] {
+  if (!campaignOf(p.content).loki) return [];
+  const name = (id: string) => {
+    const g = guiseDef(p.content, id);
+    return g ? p.t(g.text) : id;
+  };
+  const took = (p.run.guises ?? []).map((g) => ({ day: g.day, at: 0, text: `- From Day ${g.day}: ${name(g.guise)}.` }));
+  const met = p.run.ledger.flatMap((l) =>
+    l.loki
+      ? [
+          {
+            day: l.day,
+            at: 1,
+            text: `- Day ${l.day}: ${name(l.loki.guise)}; held ${l.loki.caught}, let by ${l.loki.missed}.`,
+          },
+        ]
+      : [],
+  );
+  const lines = [...took, ...met].sort((a, b) => a.day - b.day || a.at - b.at).map((x) => x.text);
+  return ["### Loki's guises", '', ...(lines.length > 0 ? lines : ['Not met yet.'])];
+}
+
 /** The day events the days played brought (docs/tech-spec.md §52), as each audit filed them. */
 function dayEvents(p: PlaytestInput): string[] {
   const defs = new Map((p.content.campaign?.events?.pool ?? []).map((e) => [e.id, e]));
@@ -659,6 +686,7 @@ export function playtestReport(p: PlaytestInput): string {
     ...dayEvents(p),
     '',
     ...(decrees(p).length > 0 ? [...decrees(p), ''] : []),
+    ...(guises(p).length > 0 ? [...guises(p), ''] : []),
     ...ranks(p),
     '',
     ...choices(p),

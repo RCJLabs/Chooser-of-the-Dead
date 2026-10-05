@@ -60,6 +60,8 @@ const LABEL = c('#4d3f30');
 const WALL = c('#b9aa8e');
 const WALL_DARK = c('#a39377');
 const FLOOR = c('#8b7a60');
+const WEB = c('#8fa6ab');
+const SCALE_RIM = c('#6f7a82');
 
 const TUNICS: readonly (readonly [number, number])[] = [
   [c('#9c4632'), c('#6e2e22')],
@@ -369,6 +371,41 @@ function face(cv: Canvas, scene: BodyScene): void {
   cv.line(47, 41, 53, 41, LIPS);
 }
 
+/**
+ * Loki's tell in his later guises (docs/tech-spec.md §80): silver scales on the cheek, above any beard; a mare's
+ * ears over the hair; a fly at the corner of the eye. (The seal's webbing is drawn with the hand.)
+ */
+function lokiTell(cv: Canvas, obs: BodyScene['obs']): void {
+  if (obs.scales === 'silver') {
+    // Rows of overlapping scales, each a silver crescent with a dark rim below.
+    part(cv, (l) =>
+      l.sprite(54, 32, ['.SSSSS.', 'SRSRSRS', 'SSSSSSS', '.RSRSR.', '..SSS..'], { S: SILVER, R: SCALE_RIM }),
+    );
+  }
+  if (obs.ears === 'horse') {
+    for (const m of [1, -1]) {
+      const x = (n: number) => CX + m * (n - CX);
+      part(cv, (l) => {
+        l.poly(
+          [
+            [x(36), 4],
+            [x(45), 18],
+            [x(38), 22],
+          ],
+          SKIN,
+        );
+        l.line(x(38), 9, x(40), 18, SKIN_DARK);
+      });
+    }
+  }
+  if (obs.fly === 'fly') {
+    // Glassy wings over a black body, at the outer corner of the eye.
+    part(cv, (l) => {
+      l.sprite(37, 29, ['WW.WW', '.WBW.', '..B..', '.B.B.'], { W: GLASS, B: OUTLINE });
+    });
+  }
+}
+
 /** Froth at the mouth: separate bubbles ringed in sea-blue, and a trickle of brine. */
 function seaFoam(cv: Canvas): void {
   part(
@@ -560,9 +597,30 @@ function runeReading(
   if (maker) staves(maker.slice(-6), cx - 6, cy + 1);
 }
 
-function hand(cv: Canvas, x: number, y: number, open: boolean): void {
+/** An open hand spreads its fingers; webbed (the seal's tell, docs/tech-spec.md §80), wider, over a grey membrane. */
+function hand(cv: Canvas, x: number, y: number, open: boolean, webbed = false): void {
   part(cv, (l) => {
-    if (open) for (const d of [-2, 0, 2]) l.line(x + d, y + 3, x + d * 1.4, y + 7, SKIN);
+    if (open && webbed) {
+      l.poly(
+        [
+          [x - 2, y + 3],
+          [x - 4.5, y + 7.5],
+          [x, y + 7.5],
+          [x, y + 3],
+        ],
+        WEB,
+      );
+      l.poly(
+        [
+          [x, y + 3],
+          [x, y + 7.5],
+          [x + 4.5, y + 7.5],
+          [x + 2, y + 3],
+        ],
+        WEB,
+      );
+      for (const d of [-2, 0, 2]) l.line(x + d, y + 3, x + d * 2.6, y + 9, SKIN);
+    } else if (open) for (const d of [-2, 0, 2]) l.line(x + d, y + 3, x + d * 1.4, y + 7, SKIN);
     l.ellipse(x, y, 4, 4, SKIN);
   });
 }
@@ -671,6 +729,7 @@ function paint(scene: BodyScene): Canvas {
       // Brokkr's stitches: small scars across the lips (the subtlest sign in the game).
       for (const x of [47, 49, 51, 53]) for (let y = 40; y <= 42; y++) cv.set(x, y, SKIN_DARK);
     }
+    lokiTell(cv, obs);
     if (obs.lips === 'seaFoam') seaFoam(cv);
     ornament(cv, obs.ornament);
     amulet(cv, obs.amulet);
@@ -694,9 +753,11 @@ function paint(scene: BodyScene): Canvas {
     if (scene.cues.includes('wrongGrip')) wrongGrip(cv, x, hp.y);
     if (scene.tools.includes('runeLens')) runeReading(cv, x, hp.y, obs.inscription, obs.makersMark, kind);
   }
+  // Webbed, the hand that holds no weapon opens to show it.
+  const webbed = front && obs.webbing === 'webbed';
   for (const side of ['R', 'L'] as const) {
     const x = side === 'L' ? hp.L : hp.R;
-    hand(cv, x, hp.y, front && obs.grip === 'none');
+    hand(cv, x, hp.y, front && (obs.grip === 'none' || (webbed && side !== weaponHand)), webbed);
     if (front && obs.nails === true && !scene.tools.includes('clippers')) claws(cv, x, hp.y);
     cv.sprite(x - 1, 113, GLYPHS[side] ?? [], { X: LABEL });
   }
@@ -788,6 +849,10 @@ export const pixelBody: BodyArtProvider = {
     amulet: 2,
     lipScars: 1,
     spearCut: 2,
+    scales: 1,
+    ears: 2,
+    fly: 1,
+    webbing: 2,
   },
   views: SIGN_VIEWS,
 };

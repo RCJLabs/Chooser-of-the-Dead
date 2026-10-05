@@ -271,6 +271,11 @@ export interface DayLedger {
   readonly steppedDown?: number;
   /** The day's vow, sworn the night before (docs/tech-spec.md §75), and how it went; absent on a day none was. */
   readonly vow?: VowSettled;
+  /**
+   * Loki at the gate (docs/tech-spec.md §80): the guise he wore today, how often he was held, and how often let by;
+   * absent on a day he didn't come, or before he could.
+   */
+  readonly loki?: { readonly guise: string; readonly caught: number; readonly missed: number };
   /** Filled in at the end of the night. */
   readonly night?: {
     readonly hearth: number;
@@ -432,6 +437,17 @@ export interface RunState {
   readonly seal?: string;
   /** The decrees sealed so far (docs/tech-spec.md §79), each with the day it rules. Absent when none. */
   readonly sealed?: readonly SealedDecree[];
+  /**
+   * Loki's guises as he took them (docs/tech-spec.md §80): from each `day` on, the `guise` he wears. Before the first,
+   * and in a run that never caught him, the campaign's first. Absent when he hasn't changed.
+   */
+  readonly guises?: readonly WornGuise[];
+}
+
+/** A guise Loki took (docs/tech-spec.md §80): from `day` on, he wears `guise`. */
+export interface WornGuise {
+  readonly day: number;
+  readonly guise: string;
 }
 
 /** A decree sealed for a day (docs/tech-spec.md §79): the draft, and the choice it makes from each of the day's params. */
