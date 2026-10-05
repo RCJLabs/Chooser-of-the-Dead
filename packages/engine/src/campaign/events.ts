@@ -4,6 +4,7 @@ import type { CaseSpec } from '../gen/types';
 import { createDayContext, type DayCtx } from '../logic/context';
 import { Rng } from '../rng/rng';
 import { sealedOn } from './decrees';
+import { guiseOn } from './loki';
 import type { DayEventAt, RunState } from './state';
 import { trailCtx, withTrail } from './trail';
 import { weaveOf, weaveSoulsOn, wovenContent } from './weave';
@@ -170,7 +171,7 @@ export function daySpecFor(content: Content, run: Pick<RunState, 'events'>, day:
  */
 export function unwovenContext(
   content: Content,
-  run: Pick<RunState, 'seed' | 'events' | 'weave' | 'trail' | 'word' | 'sealed'>,
+  run: Pick<RunState, 'seed' | 'events' | 'weave' | 'trail' | 'word' | 'sealed' | 'guises'>,
   day: number,
 ): DayCtx | undefined {
   if (!run.weave) return undefined;
@@ -181,11 +182,12 @@ export function unwovenContext(
 /**
  * The context the run plays `day` in, its event included, its rules in the order of its weave (docs/tech-spec.md §53)
  * if it was begun woven, on the forger's trail (§71) once that begins, its souls lying as often as the word among
- * the dead has them (§73), and its whims and claims as the decree sealed for it says (§79) (`runContext` is today's).
+ * the dead has them (§73), its whims and claims as the decree sealed for it says (§79), and Loki in the guise he
+ * wore that day (§80) (`runContext` is today's).
  */
 export function dayContext(
   content: Content,
-  run: Pick<RunState, 'seed' | 'events' | 'weave' | 'trail' | 'word' | 'sealed'>,
+  run: Pick<RunState, 'seed' | 'events' | 'weave' | 'trail' | 'word' | 'sealed' | 'guises'>,
   day: number,
 ): DayCtx {
   const ctx = createDayContext(
@@ -194,6 +196,7 @@ export function dayContext(
     run.seed,
     daySpecFor(content, run, day),
     sealedOn(run, day),
+    guiseOn(run, content, day),
   );
   return withWord(withTrail(ctx, trailCtx(content, run, day)), levelFor(content, run));
 }

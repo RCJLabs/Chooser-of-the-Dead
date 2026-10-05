@@ -1,10 +1,18 @@
 # Roadmap
 
-What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–79.
+What's queued, what's blocked, and what waits on whom. The original plan and its milestones are in [`build-plan.md`](build-plan.md) §12; what's been built is in [`tech-spec.md`](tech-spec.md) §13–80.
 
 From now on the work is on the full game. The demo keeps what it has, and new features go into the full builds.
 
 ## Done lately
+
+Game phase 14 (below), in the full game only:
+
+- **14. Loki learns** ([`tech-spec.md`](tech-spec.md) §80). Each day Loki is held at least once, he comes the next day in another shape from his myths: the salmon (silver scales on the cheek), the mare (a mare's ears), the fly (a fly at the corner of the eye) or the seal (webbing between the fingers). The old tell is hidden, and the rulebook trades its laws for the new one's. Let by, or not met, he keeps the shape that worked. The order is drawn for the run, lips first, and comes back to the lips after the last. Huginn tells you the new shape at dawn, before the first soul; the audit says when he's learned something; the playtest report lists his guises. All three art styles draw the new tells.
+  - **Changed from the pitch:** Þökk isn't a shape at the gate. She's already Loki at the desk on Day 15, so her scene now shows whichever tell he wears, and seeing through her means naming it. The mare's tell is her ears, not a mane: a sign seen only from behind failed the fairness check. The salmon's scales are on the cheek, since a long beard hides the throat.
+  - **Your call, after playtests: whether the tells are fair at a glance.** The scales and the fly are as small as the stitches by design, and the woodcut web reads mostly by the spread of the fingers. Bots judge every tell alike, so only playtests can say. The playtest report shows the guise on each day he got past.
+  - **How often he changes:** in the sims an expert holds him about 10 times a run, and he takes a new shape on 7.7 of the 8 mornings from Day 13, so each of the five comes round about one and a half times. Competent bots see 6.7–6.9 new shapes and novices 4.1–4.8. Everything else in the sims is the same as before.
+  - **Also:** the compiler now proves each story soul from Day 13 under all five guises, which makes a full compile about 13% slower. The compiler's lint tests, which compile up to seven times each, get 120 s instead of 60 s, since one ran at 44 s on CI before this phase.
 
 Game phase 13 (below), in the full game only:
 
@@ -81,8 +89,8 @@ From the foundation brainstorm (numbers are its items), in one pull request ([`t
 ## Game phases: gameplay and depth
 
 From the gameplay brainstorm, in the order agreed.
-- **Done:** 1–13 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
-- **Next:** 14 from the second brainstorm (below).
+- **Done:** 1–14 (above). 7 and 8 were held for your story sign-off, since they're heavy on writing; you said to treat the story as good and go on. Their scenes are still drafts, marked `# draft` like the rest.
+- **Next:** 15 from the second brainstorm (below).
 
 1. **Interrogation with teeth** (done, [`tech-spec.md`](tech-spec.md) §66). Its odds, cost and patience are guesses until playtest reports count presses.
 2. **Show the mistake** (done, [`tech-spec.md`](tech-spec.md) §67).
@@ -102,7 +110,7 @@ From the second gameplay brainstorm, all in the full game only. 9 and 10 came fi
 11. **Kennings in the tallies** (done, [`tech-spec.md`](tech-spec.md) §77). From Day 18, skalds cut tallies in kennings and sayings ("Odin's storm", "went to Rán"), with a page of them in the rulebook, and forgers botch them. A reading puzzle with no new art. Risk: obscure kennings frustrate players; the playtest report counts the mistakes on skald's tallies.
 12. **Choose the slain** (done, [`tech-spec.md`](tech-spec.md) §78). At dawn on Day 16, Skögul takes you over the levy's fight at the pass to choose who falls, as she and Göndul chose King Hákon in *Hákonarmál*: Kari, Ulf if you let him go, or Aslak, Bera's husband; or no one, and she takes Kari. Whoever falls is in that day's line, judged like anyone else. Odin wants the bravest; the valley wants them home.
 13. **Seal tomorrow's decree** (done, [`tech-spec.md`](tech-spec.md) §79). Three nights a run, Odin's clerks send two drafts of tomorrow's decree, each a different pick of the day's own whims. Sealing one pleases one god and annoys another, and steers the days towards whims you judge well or the ending you want. A draft never brings a new rule, so the fairness checks already cover every one.
-14. **Loki learns** (medium, needs art). Each time you catch him, his next disguise hides that tell and shows another from his myths (salmon, mare, fly, seal, Þökk), each taught before it's used; missed, he keeps what worked. Risk: each tell needs new woodcut art and a fair visual hint.
+14. **Loki learns** (done, [`tech-spec.md`](tech-spec.md) §80). Each day you catch him, his next disguise hides that tell and shows another from his myths (salmon, mare, fly, seal), each taught at dawn before it's used; missed, he keeps what worked. Þökk, on Day 15's desk, wears whichever tell he has. Whether the new tells are fair at a glance on a phone waits on playtests.
 15. **The trainee** (medium to large). From the second rank, a trainee Valkyrie (Hrist, from *Grímnismál*) stamps some of your souls first. Countersign for less sun, or overturn by pointing at what she missed, and she stops making that mistake. Risk: another flow on the crowded phone layout.
 16. **Call a soul forward** (medium). See the next few souls in line, one sign each, and pay sun to call one forward, for example to save the living before dusk. [`tech-spec.md`](tech-spec.md) §41 names it as the follow-up if playtests want it, so it fits best after people have played. Risk: tangles with noon decrees and parties.
 17. **The Thing** (medium). Every few nights, a lawspeaker reviews three past verdicts, and one may be wrong. Stand by each by pointing at the evidence that decided it, or concede; standing by a wrong one costs the most. Risk: overlaps appeals and "show the mistake".

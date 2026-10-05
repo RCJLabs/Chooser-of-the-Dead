@@ -7,7 +7,17 @@
 - { kind: sign, id: law.cross, since: 10, text: law.cross, if: { obs: amulet, is: cross }, then: { fact: faith, in: [baptized] } }
 - { kind: sign, id: law.primeSigned, since: 10, text: law.primeSigned, if: { obs: amulet, is: hammerAndCross }, then: { fact: faith, in: [primeSigned] } }
 - { kind: sign, id: law.hammer, since: 10, text: law.hammer, if: { obs: amulet, is: hammer }, then: { fact: faith, in: [heathen] } }
-- { kind: sign, id: law.stitchedLips, since: 12, text: law.stitchedLips, if: { obs: lipScars, is: stitched }, then: { fact: trickster, in: [true] } }
-- { kind: sign, id: law.plainLips, since: 12, text: law.plainLips, if: { obs: lipScars, is: none }, then: { fact: trickster, in: [false] } }
+# Loki's tell in each guise (docs/tech-spec.md §80): in force only while he wears it, when only it is shown. The
+# plain half of each pair goes with it, as it would be false of a Loki in another guise.
+- { kind: sign, id: law.stitchedLips, since: 12, text: law.stitchedLips, if: { obs: lipScars, is: stitched }, then: { fact: trickster, in: [true] }, guise: guise.lips }
+- { kind: sign, id: law.plainLips, since: 12, text: law.plainLips, if: { obs: lipScars, is: none }, then: { fact: trickster, in: [false] }, guise: guise.lips }
+- { kind: sign, id: law.scales, since: 12, text: law.scales, if: { obs: scales, is: silver }, then: { fact: trickster, in: [true] }, guise: guise.salmon }
+- { kind: sign, id: law.noScales, since: 12, text: law.noScales, if: { obs: scales, is: none }, then: { fact: trickster, in: [false] }, guise: guise.salmon }
+- { kind: sign, id: law.horseEars, since: 12, text: law.horseEars, if: { obs: ears, is: horse }, then: { fact: trickster, in: [true] }, guise: guise.mare }
+- { kind: sign, id: law.ownEars, since: 12, text: law.ownEars, if: { obs: ears, is: none }, then: { fact: trickster, in: [false] }, guise: guise.mare }
+- { kind: sign, id: law.fly, since: 12, text: law.fly, if: { obs: fly, is: fly }, then: { fact: trickster, in: [true] }, guise: guise.fly }
+- { kind: sign, id: law.noFly, since: 12, text: law.noFly, if: { obs: fly, is: none }, then: { fact: trickster, in: [false] }, guise: guise.fly }
+- { kind: sign, id: law.webbed, since: 12, text: law.webbed, if: { obs: webbing, is: webbed }, then: { fact: trickster, in: [true] }, guise: guise.seal }
+- { kind: sign, id: law.freeFingers, since: 12, text: law.freeFingers, if: { obs: webbing, is: none }, then: { fact: trickster, in: [false] }, guise: guise.seal }
 # Day 15: Odin may claim true Ulfberhts, so a blade with no maker's mark has to count as plain.
 - { kind: sign, id: law.noMark, since: 15, text: law.noMark, if: { obs: makersMark, is: none }, then: { fact: blade, in: [plain] } }

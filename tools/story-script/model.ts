@@ -401,6 +401,15 @@ export function buildModel(build: {
       detail: 'the first night a debt would have ended the run',
     });
   }
+  // Loki learns (docs/tech-spec.md §80): the game sets his flag, the guise he wears by its place, each day after he's held.
+  const loki = content.campaign?.loki;
+  if (loki) {
+    add(set, loki.flag, {
+      where: 'Loki learns',
+      anchor: 'endings',
+      detail: `the morning after he's held: ${loki.guises.map((g, i) => `${i} ${g.id.replace('guise.', '')}`).join(', ')}`,
+    });
+  }
   // The forger's trail (docs/tech-spec.md §71): the board opens while its `when` holds, and naming a carver sets flags.
   const trail = content.campaign?.trail;
   if (trail) {

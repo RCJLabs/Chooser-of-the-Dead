@@ -46,6 +46,7 @@ import {
   unwovenContext,
 } from './events';
 import { dayGrade } from './grade';
+import { guiseOn, lokiLearns, lokiToday } from './loki';
 import { familyDefs, fedAtHome, originOf } from './origin';
 import { pleaOf, withKin, withPlea } from './pleas';
 import {
@@ -1037,8 +1038,14 @@ function audit(
     naglfar += v.skipped?.length ?? 0;
     nails += nailRings * (v.skipped?.length ?? 0);
   });
+  // Loki (docs/tech-spec.md §80): held today, he wears his next guise from tomorrow, and whoever waits for tomorrow is
+  // seen in it, as are the souls tomorrow's requests are drawn from.
+  const loki = lokiToday(shift, env.content);
+  const learned = lokiLearns(run, env.content, loki.caught);
+  if (learned) flags[learned.flag] = learned.index;
+  const ahead: RunState = learned ? { ...run, guises: learned.guises } : run;
   // The souls still in line at dusk: tomorrow's first, or (the living) lost in the night.
-  const line = waitingLine(run, shift, env);
+  const line = waitingLine(ahead, shift, env);
   // Today's requests settled; tomorrow's come with the morning.
   const requests = settleRequests(run, shift);
   const favours = granted.map((f) => f.id);
@@ -1094,6 +1101,9 @@ function audit(
     ...(grade ? { grade } : {}),
     ...(run.answered ? { offer: run.answered } : {}),
     ...(vow ? { vow } : {}),
+    ...(loki.caught + loki.missed > 0
+      ? { loki: { guise: guiseOn(run, env.content, run.day) ?? '', caught: loki.caught, missed: loki.missed } }
+      : {}),
   };
   const nextStanding = { ...run.standing };
   for (const [f, n] of Object.entries(standing)) nextStanding[f as Faction] += n ?? 0;
@@ -1137,7 +1147,7 @@ function audit(
   const appeal = chooseAppeal(run, shift, campaign, costs, fined, given);
   // Marks on the forger's trail seen today (docs/tech-spec.md §71), pinned to the board.
   const trail = pinMarks(run, shift, env.content);
-  const asked = drawRequests(run, env, line?.carried ?? []);
+  const asked = drawRequests(ahead, env, line?.carried ?? []);
   const promotion = promote(run, env, wrong === 0 && unjudged === 0);
   // The day's trip home is filed with the day (a night scene's is for tomorrow, and comes after this).
   const {
@@ -1168,6 +1178,7 @@ function audit(
       ...(appeal ? { appeal } : {}),
       ...(line && line.carried.length > 0 ? { waiting: line.carried } : {}),
       ...(asked.length > 0 ? { requests: asked } : {}),
+      ...(learned ? { guises: learned.guises } : {}),
       ...promotion,
     },
     ledger,

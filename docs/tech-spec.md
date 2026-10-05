@@ -5015,6 +5015,87 @@ Her standing mark is what binds, not the lead: dropping the −1 changes nothing
 - **Only Freyja and Odin** send drafts.
 - **The words are drafts.**
 
+## 80. Loki learns (game phase 14)
+
+**Why.** Game phase 14 in [`roadmap.md`](roadmap.md). From Day 12 Loki came to the gate with one tell, Brokkr's stitches across his lips (§32), every day. Now he learns. Each day he's held at least once, he comes the next day in another shape from his myths, which hides the old tell and shows a new one: the salmon, the mare, the fly or the seal. Let by, or not met, he keeps the one that worked. Huginn brings word of each new shape at dawn, before the first soul of that day is judged.
+
+**Changed from the pitch**
+- **Þökk isn't a shape at the gate.** She is already Loki at the desk on Day 15 (§59), and her tell would have been "an old woman", which is a look, not a sign. Instead her scene shows whichever tell he wears that day, and seeing through her (Loki +1) means naming that one.
+- **The mare's tell is her ears, on the front.** A mane down the back was the first try, and it failed the fairness check (F6): a sign seen only from behind needs a cue on the front, and nothing natural cues a mane.
+- **The salmon's scales are on the cheek, above any beard,** not on the throat, which a long beard hides.
+- **The order is drawn for the run.** The lips come first; the other four are shuffled by the seed. After the last he comes back to the lips. So one run's next shape doesn't give away another's.
+- **He changes at most once a day,** overnight, however many times he's held that day.
+
+**Established, and the game's own**
+- **Established (Snorri's Edda):** Loki as a salmon in Franangr's falls, caught by Thor (*Gylfaginning* 50); as the mare who led the builder's stallion Svaðilfari away (*Gylfaginning* 42); as the fly that stung Brokkr at the forge, the last time on the eyelid (*Skáldskaparmál* 35, where Brokkr also sews his lips shut); as a seal fighting Heimdall for Brísingamen (*Skáldskaparmál* 8, after *Húsdrápa*); and the giantess Þökk, thought to be Loki (*Gylfaginning* 49).
+- **The game's own:** that each shape leaves one tell (silver scales on the cheek, a mare's ears, a fly at the eye that doesn't leave, webbing between the fingers), that he learns from being caught, the order, and Huginn as the bringer of news.
+
+**How it works** (`loki` in the campaign pack's `campaign.yaml`; `campaign/loki.ts`)
+- **The content:** `loki: { fact: trickster, flag: loki_guise, guises: [lips, salmon, mare, fly, seal] }`, each guise with its name and Huginn's news. Each guise's tell is one body observation tagged with it (`lipScars`, `scales`, `ears`, `fly`, `webbing`), marked on Loki and `none` on everyone else, and two sign laws tagged with it: the mark means Loki, and no mark means it isn't Loki.
+- **The day's context keeps only the guise he wears** (`createDayContext(…, guise)`, the first when none is given): its observation and its two laws, and no other guise's. So a soul shows one tell, and the rulebook lists only that tell's laws.
+- **Held:** at the audit, if any of his souls was stamped rightly that day (`lokiToday`), `lokiLearns` files the next guise in the run's order from the next day (`RunState.guises`, as `{ day, guise }`) and sets the run flag `loki_guise` to its place in the content's list, for the scenes. The ledger files the day's guise and how often he was held and let by (`DayLedger.loki`).
+- **The order** (`guiseOrder`): the first guise, then the rest shuffled on a stream of their own (`<seed>|loki`), so nothing else in the run moves. After the last, the first again.
+- **Each day keeps its own guise.** `guiseOn(run, content, day)` reads the run's guises for any day, so an appeal, a day replayed from its morning and Look again all see the guise that day had.
+- **Souls left in line at dusk** (§41) are dressed for the next day: the change is worked out before the line is, so a Loki carried over shows the new tell.
+- **The saves** gain one optional field. A save from before has none, and its Loki wears the lips until he's next held. `ENGINE_MAJOR` doesn't change.
+- **Never in the demo or the Daily.** The demo's content has no Loki, and the Daily plays no campaign day; the pinned Daily checksums are unchanged.
+
+**Fairness**
+- **The generator** makes every soul under the day's guise and validates it (F1–F8). With everything looked at and no presumptions (`certainOnly`), the solver holds a Loki and clears everyone else through the "no mark" law.
+- **The compiler** proves each story soul under every guise it could meet: the lips on Day 12, any of the five from Day 13.
+- **The sweep** makes Days 13–20 in each guise and holds them to the generator's thresholds (§3.8): acceptance per day and kind of soul, attempts, fallbacks, and the careful and trusting bots.
+- **The lint refuses:** guise tags without a Loki; a Loki fact that isn't true-or-false; a guise twice, or missing its name or news; a tag naming no guise; a guise with no sign or more than one; a sign that isn't a body sign marked only on Loki; a guise's law reading another sign; a guise without both its laws; and a law outside a guise that reads a guise's sign.
+
+**Where it shows**
+- **At the audit:** "You held Loki today, and he knows it. He won't come the same way twice: tomorrow he wears another shape, and Huginn will tell you which at dawn." Or, let by and never held: "Loki got past you today. He'll keep the shape that worked."
+- **At dawn,** the morning he first wears a guise: Huginn's news (the shape, its tell and what clears a soul), with the guise's two laws marked New and the old guise's marked Repealed.
+- **The rulebook** lists only the laws of the guise he wears.
+- **At the desk** the tell is drawn in every art style, with its chip.
+- **Day 15's desk:** Þökk shows the tell he wears, and the option that sees through her names it.
+- **The playtest report** has a section, "Loki's guises": each day he came, the guise, held and let by, and each guise he took, from its day.
+- **`pnpm sim campaign`** says how often his souls were held and let by, and how many new guises he took, means a run.
+
+**The art.** Woodcut, pixel and placeholder each draw the four new tells, at least as plainly as the content asks (the scales and the fly at salience 1, like the stitches; the ears and the webbing at 2), and the contract test holds them to it. Checked by eye at the size a 360 px phone shows the body, and through the Body Lab's loupe:
+- **The scales:** silver half-rounds on the cheek, overlapping like a fish's. In woodcut the cheek's hatching gives way to them.
+- **The ears:** tall and pointed above the hair. The hair's tap region now reaches above the crown so the ears are inside it.
+- **The fly:** glassy wings and a black body at the outer corner of the eye.
+- **The webbing:** the fingers spread wide over a grey-green web. A hand holding a weapon is a fist, so in pixel and placeholder the other hand now opens when it's webbed; in woodcut it always did.
+
+**Numbers** (`pnpm sim campaign`, 100 seeds a policy, against main):
+- **Every row is the same as main:** purses, demotions, arms, fronts and endings. The souls are the same, only the tell they show changes, and bots judge every tell alike.
+- **Loki at the gate**, means a run, over the three night strategies:
+
+| Bots | Held | Let by | New guises (of 8 mornings, Days 13–20) |
+|---|---|---|---|
+| Expert | 10.5–10.7 | 0.2–0.4 | 7.7 |
+| Competent | 9.1–9.4 | 1.5–1.8 | 6.7–6.9 |
+| Novice | 5.0–6.3 | 3.0–4.2 | 4.1–4.8 |
+| Careless | – | – | – (demoted before Day 12) |
+
+- **So a good player sees a new shape nearly every morning,** and each of the five comes round about one and a half times. Novices meet him less, as some are demoted on the way.
+- **The sweep in each guise** (`pnpm sim sweep --days 13-20 --guise <id>`, 200 seeds): the same figures in all five, 24,333 souls, 1.04 attempts on average (p99 2), no fallbacks, the careful bot right on every soul and the trusting bot on 55.8% (at most 65%). The souls are made the same in every guise; only the tell differs.
+
+**Tests**
+- **Engine** (`loki.test.ts`):
+  - the context: only the worn guise's sign and laws, the first when none is given, and the same at noon;
+  - souls made under each guise on Days 13, 16 and 20: Loki shows the tell, no one else does, no other guise's sign appears, and the solver holds him and clears the rest without presumptions;
+  - the order: the first guise first, the rest by the seed;
+  - held on Day 12: the next guise on Day 13, the flag set, Day 12 still the lips, and Day 13's line dressed for it;
+  - let by: he keeps it; the order comes round to the first; no day after the last;
+  - a Loki left in line, dressed for each guise; kept by the save.
+- **Compiler** (`campaign-lint.test.ts`): the shipped guises compile, and each refusal above.
+- **Sweep** (`sweep.test.ts`): in each later guise, Days 13–20 meet the generator's thresholds, 30 seeds a guise. `pnpm sim sweep --guise <id>` runs more.
+- **Art** (`contract.test.ts`): every provider draws each new sign's values apart, on its view, under a hotspot, at least as plainly as its salience.
+- **Report** (`playtest.test.ts`): days met, held and let by, and a guise taken.
+- **e2e** (`loki.spec.ts`, phone and desktop): from a save at Day 12's audit with Loki held, the audit's line; Night 12; Day 13's news, its laws in and the lips' out; an accessibility scan of each; and the first soul of Day 13 showing the new guise's sign.
+
+**Known limits**
+- **Whether the tells are fair at a glance is untested.** The scales and the fly are as small as the stitches by design, and the woodcut web is a thin grey that reads mostly by the spread of the fingers. Bots judge every tell alike, so the sims can't tell which is hard to see; the playtest report says which guise he wore on each day he got past.
+- **A good player sees all five.** Held most days, he changes most mornings from Day 13, and the guises come round again.
+- **Only a catch teaches him.** He doesn't learn from being let by (he keeps what worked), and he doesn't skip a guise you've already caught him in.
+- **Compiling is slower.** Proving every story soul from Day 13 under all five guises makes a full compile about 13% slower (9.1 s to 10.3 s here). The compiler's lint tests compile up to seven times each, so they now get 120 s instead of 60 s; the slowest took 44 s on CI before this phase.
+- **The words are drafts.**
+
 ## Sources
 - Play: [target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en) · [testing requirements for new personal accounts](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - Steam Next Fest: [June 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/june_2027) · [February 2027](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/feb_2027) · [overview](https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest)

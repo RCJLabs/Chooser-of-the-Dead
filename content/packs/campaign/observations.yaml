@@ -49,12 +49,47 @@
       - { when: { fact: faith, is: primeSigned }, value: hammerAndCross }
       - { when: { fact: thorsHammer, is: true }, value: hammer }
     otherwise: none
-# Day 12: small stitch scars across the lips. The subtlest sign in the game (salience 1).
+# Day 12: small stitch scars across the lips. The subtlest sign in the game (salience 1). Loki's tell in his first
+# guise; caught, he hides it and shows another (docs/tech-spec.md §80): only the guise he wears that day is shown.
 - key: lipScars
   view: front
   since: 12
   salience: 1
   cost: 1
   from: { map: [{ when: { fact: trickster, is: true }, value: stitched }], otherwise: none }
+  guise: guise.lips
+# The salmon he became in Franangr's falls (Gylfaginning): a few silver scales on the cheek, above any beard.
+- key: scales
+  view: front
+  since: 12
+  salience: 1
+  cost: 1
+  from: { map: [{ when: { fact: trickster, is: true }, value: silver }], otherwise: none }
+  guise: guise.salmon
+# The mare who led the builder's stallion away (Gylfaginning): a mare's ears, tall and pointed, where a man's should be.
+# On the front, as a tell seen only from behind would need a cue to send the player round (F6).
+- key: ears
+  view: front
+  since: 12
+  salience: 2
+  cost: 1
+  from: { map: [{ when: { fact: trickster, is: true }, value: horse }], otherwise: none }
+  guise: guise.mare
+# The fly that bit Brokkr's eyelid at the forge (Skáldskaparmál): a fly at the corner of the eye that never leaves.
+- key: fly
+  view: front
+  since: 12
+  salience: 1
+  cost: 1
+  from: { map: [{ when: { fact: trickster, is: true }, value: fly }], otherwise: none }
+  guise: guise.fly
+# The seal who fought Heimdall for Brísingamen (Húsdrápa): webbing between the fingers of the open hand.
+- key: webbing
+  view: front
+  since: 12
+  salience: 2
+  cost: 1
+  from: { map: [{ when: { fact: trickster, is: true }, value: webbed }], otherwise: none }
+  guise: guise.seal
 # Day 17: the spear mark, cut over the heart before death.
 - { key: spearCut, view: front, since: 17, salience: 2, cost: 1, from: { fact: spearMark } }

@@ -270,6 +270,7 @@ export function mergeCampaign(parts: readonly CampaignPart[]): CampaignDef | und
     ...(last('proven') ? { proven: last('proven') as NonNullable<CampaignDef['proven']> } : {}),
     ...(last('vows') ? { vows: last('vows') as NonNullable<CampaignDef['vows']> } : {}),
     ...(last('decrees') ? { decrees: last('decrees') as NonNullable<CampaignDef['decrees']> } : {}),
+    ...(last('loki') ? { loki: last('loki') as NonNullable<CampaignDef['loki']> } : {}),
   };
 }
 
@@ -1233,6 +1234,7 @@ function lintCampaign(content: Content, strings: Readonly<Record<string, string>
   problems.push(...lintLetters(content, walk));
   problems.push(...lintVows(content, key));
   problems.push(...lintDecrees(content, key));
+  problems.push(...lintLoki(content, key));
   if (!content.predicates.some((p) => p.id === c.worthy)) {
     problems.push(`The campaign's worthy predicate "${c.worthy}" doesn't exist.`);
   }
@@ -1373,6 +1375,66 @@ function lintDecrees(content: Content, key: (k: string, where: string) => void):
   // perRun days only from 3 * perRun - 2 of them.
   if (days.length < 3 * def.perRun - 2) {
     problems.push(`A run draws ${def.perRun} decree nights from ${days.length} days: too few to be sure none run.`);
+  }
+  return problems;
+}
+
+/**
+ * Loki learns (docs/tech-spec.md §80): his fact is a true-or-false one; each guise has its words, one body sign tagged
+ * with it, shown on Loki and on nobody else, and laws tagged with it that read only that sign, one naming him by it and
+ * one clearing a soul without it; and nothing reads a guise's sign but its own laws. The first guise is Day 12's.
+ */
+function lintLoki(content: Content, key: (k: string, where: string) => void): string[] {
+  const def = content.campaign?.loki;
+  const problems: string[] = [];
+  const tagged = [...content.observations, ...content.signLaws].filter((x) => x.guise !== undefined);
+  if (!def) {
+    for (const x of tagged)
+      problems.push(`${'key' in x ? `observation ${x.key}` : `law ${x.id}`} names a guise, with no Loki.`);
+    return problems;
+  }
+  const fact = content.facts.find((f) => f.id === def.fact);
+  if (fact?.domain.kind !== 'bool') problems.push(`Loki's fact "${def.fact}" isn't a true-or-false fact.`);
+  const ids = new Set<string>();
+  for (const g of def.guises) {
+    if (ids.has(g.id)) problems.push(`Duplicate guise "${g.id}".`);
+    ids.add(g.id);
+    key(g.text, `guise ${g.id}`);
+    key(g.news, `guise ${g.id}`);
+  }
+  for (const x of tagged) {
+    if (!ids.has(x.guise as string))
+      problems.push(`${'key' in x ? `observation ${x.key}` : `law ${x.id}`} names unknown guise "${x.guise}".`);
+  }
+  const reads = (p: SignLaw['if']): string[] => ('all' in p ? p.all.flatMap(reads) : [p.obs]);
+  for (const g of def.guises) {
+    const signs = content.observations.filter((o) => o.guise === g.id);
+    const sign = signs[0];
+    if (signs.length !== 1 || !sign) {
+      problems.push(`Guise ${g.id} has ${signs.length} signs; it needs one.`);
+      continue;
+    }
+    // Shown on Loki, and as its `otherwise` on everyone else.
+    const marks = 'map' in sign.from ? sign.from.map : [];
+    const shows = marks.length === 1 && marks[0]?.value !== (sign.from as { otherwise: Value }).otherwise;
+    const onLoki = marks.every(
+      (m) => 'fact' in m.when && m.when.fact === def.fact && 'is' in m.when && m.when.is === true,
+    );
+    if (sign.doc !== undefined || !shows || !onLoki)
+      problems.push(
+        `Guise ${g.id}'s sign ${sign.key} must be a body sign shown when ${def.fact} is true, and not otherwise.`,
+      );
+    const laws = content.signLaws.filter((l) => l.guise === g.id);
+    if (laws.some((l) => reads(l.if).some((k) => k !== sign.key)))
+      problems.push(`A law of guise ${g.id} reads a sign other than ${sign.key}.`);
+    const names = (v: boolean) =>
+      laws.some((l) => l.then.fact === def.fact && l.then.in.length === 1 && l.then.in[0] === v);
+    if (!names(true) || !names(false))
+      problems.push(`Guise ${g.id} needs a law that names Loki by ${sign.key}, and one that clears a soul without it.`);
+    for (const l of content.signLaws) {
+      if (l.guise !== g.id && reads(l.if).includes(sign.key))
+        problems.push(`Law ${l.id} reads ${sign.key}, guise ${g.id}'s sign, outside that guise.`);
+    }
   }
   return problems;
 }
@@ -1642,6 +1704,17 @@ function canBring(rules: Content, day: number, kind: string, to: readonly Destin
   });
 }
 
+/**
+ * The guises Loki can wear on `day` (docs/tech-spec.md §80): only the first until the day after he can first be held,
+ * then any of them; none in a build without them.
+ */
+function guisesOn(content: Content, day: number): (string | undefined)[] {
+  const def = content.campaign?.loki;
+  if (!def) return [undefined];
+  const met = content.facts.find((f) => f.id === def.fact)?.since ?? 1;
+  return day > met ? def.guises.map((g) => g.id) : [def.guises[0]?.id];
+}
+
 /** Every combination of a day's param choices (Freyja's whim and the like), by choice id. */
 function paramCombos(content: Content, day: number): Record<string, string>[] {
   const spec = content.days.find((d) => d.day === day);
@@ -1744,19 +1817,23 @@ function lintScripted(content: Content, strings: Readonly<Record<string, string>
       for (const { rules, under } of orders) {
         for (const face of faces) {
           let failed = false;
-          for (const choose of paramCombos(content, d.day)) {
-            const ctx = withTrail(createDayContext(rules, d.day, 'lint', undefined, choose), face);
-            const made = scriptedCase(def, ctx, 'lint', slot.at);
-            if (!made.ok) {
-              const params = [
-                ...Object.entries(choose).map(([k, v]) => `${k}=${v}`),
-                ...(under ? [under] : []),
-                ...(face ? [`the face of ${face.looks.culprit.name}`] : []),
-              ];
-              problems.push(`day ${d.day}: ${made.why}${params.length > 0 ? ` with ${params.join(', ')}` : ''}.`);
-              failed = true;
-              break;
+          for (const guise of guisesOn(content, d.day)) {
+            for (const choose of paramCombos(content, d.day)) {
+              const ctx = withTrail(createDayContext(rules, d.day, 'lint', undefined, choose, guise), face);
+              const made = scriptedCase(def, ctx, 'lint', slot.at);
+              if (!made.ok) {
+                const params = [
+                  ...Object.entries(choose).map(([k, v]) => `${k}=${v}`),
+                  ...(under ? [under] : []),
+                  ...(face ? [`the face of ${face.looks.culprit.name}`] : []),
+                  ...(guise ? [`Loki as ${guise}`] : []),
+                ];
+                problems.push(`day ${d.day}: ${made.why}${params.length > 0 ? ` with ${params.join(', ')}` : ''}.`);
+                failed = true;
+                break;
+              }
             }
+            if (failed) break;
           }
           if (failed) break;
         }

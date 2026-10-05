@@ -140,6 +140,8 @@ export const ObservationSchema: z.ZodType<ObservationDef> = z.strictObject({
   ]),
   when: PredSchema.optional(),
   doc: z.literal('registry').optional(),
+  // Loki's tell in one of his guises (docs/tech-spec.md §80): shown only on the days he wears it.
+  guise: Id.optional(),
 });
 
 const FactConstraintSchema = z.strictObject({ fact: z.string(), in: z.array(ValueSchema).min(1) });
@@ -152,6 +154,8 @@ export const LawSchema = z.discriminatedUnion('kind', [
     text: Key,
     if: ObsPatternSchema,
     then: FactConstraintSchema,
+    // In force only while Loki wears this guise (docs/tech-spec.md §80).
+    guise: Id.optional(),
   }),
   z.strictObject({
     kind: z.literal('fact'),
@@ -920,6 +924,14 @@ export const CampaignPartSchema = z.strictObject({
       from: Day,
       to: Day,
       drafts: z.array(z.strictObject({ id: Id, text: Key, effects: z.array(EffectSchema).min(1) })).min(2),
+    })
+    .optional(),
+  // Loki learns (docs/tech-spec.md §80): the guises he wears, each with its tell; caught, he takes the next.
+  loki: z
+    .strictObject({
+      fact: z.string(),
+      flag: Id,
+      guises: z.array(z.strictObject({ id: Id, text: Key, news: Key })).min(2),
     })
     .optional(),
   // The epilogue (docs/tech-spec.md §55): what became of everyone, told after the ending from the run.

@@ -86,12 +86,18 @@ export const WEAPON_SIGN: Sign = {
   salience: 3,
 };
 
+/**
+ * What else a body shows for a sign to be seen: a seal's webbing is drawn on an open hand, so its row's souls hold
+ * no weapon, and the loupe over the right hand finds it open.
+ */
+const SHOWN_WITH: Readonly<Record<string, Readonly<Record<string, Value>>>> = { webbing: { grip: 'none' } };
+
 export function signScene(sign: Sign, value: Value, look: Look = PLAIN_LOOK): BodyScene {
   const shown = sign.kind === 'cue' && value === true;
   return {
     view: sign.view,
     look,
-    obs: sign.kind === 'obs' ? { ...PLAIN_OBS, [sign.key]: value } : PLAIN_OBS,
+    obs: sign.kind === 'obs' ? { ...PLAIN_OBS, ...SHOWN_WITH[sign.key], [sign.key]: value } : PLAIN_OBS,
     cues: shown ? [sign.key] : [],
     tools: sign.tool ? [sign.tool] : [],
     ...(sign.kind === 'weapon' ? { weapon: String(value) } : {}),

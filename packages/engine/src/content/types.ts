@@ -94,6 +94,8 @@ export interface ObservationDef {
   readonly when?: Pred;
   /** Read from a document rather than the body: its own evidence item, shown off the body. */
   readonly doc?: 'registry';
+  /** Shown only while Loki wears this guise (docs/tech-spec.md §80): his tell then, and on no other day. */
+  readonly guise?: string;
 }
 
 export type ObsPattern =
@@ -113,6 +115,8 @@ export interface SignLaw {
   readonly text: string;
   readonly if: ObsPattern;
   readonly then: FactConstraint;
+  /** In force only while Loki wears this guise (docs/tech-spec.md §80), as the sign it reads is shown only then. */
+  readonly guise?: string;
 }
 
 /** A taught custom linking facts, e.g. "no wounds means no battle death". */
@@ -913,6 +917,30 @@ export interface CampaignDef {
   readonly vows?: VowsDef;
   /** Tomorrow's decree, sealed (docs/tech-spec.md §79): drafts of the next day's decree on a few nights a run. */
   readonly decrees?: DecreesDef;
+  /** Loki learns (docs/tech-spec.md §80): the guises he wears, each with its tell; caught, he takes the next. */
+  readonly loki?: LokiDef;
+}
+
+/**
+ * Loki learns (campaign.yaml `loki`, docs/tech-spec.md §80). He comes first in the first guise; the rest come in an
+ * order drawn for the run. Caught on a day, he wears the next the day after (the first again after the last); missed,
+ * or not met, he keeps the one that worked. Each guise's tell is the observation, and the laws, tagged with it.
+ */
+export interface LokiDef {
+  /** The fact that is true of Loki, whatever face he wears: a soul it holds for is him. */
+  readonly fact: string;
+  /** The run flag that holds the guise he wears, by its place in `guises`, for scenes to read. */
+  readonly flag: string;
+  readonly guises: readonly GuiseDef[];
+}
+
+/** One of Loki's guises (docs/tech-spec.md §80). */
+export interface GuiseDef {
+  readonly id: string;
+  /** String key: what he comes as ("a salmon"). */
+  readonly text: string;
+  /** String key: the morning's word of it, the first day he wears it. */
+  readonly news: string;
 }
 
 /**

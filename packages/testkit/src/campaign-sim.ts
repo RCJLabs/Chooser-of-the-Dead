@@ -618,6 +618,8 @@ export interface RunResult {
   readonly found: number;
   /** The drafts of tomorrow's decree sealed over the run (docs/tech-spec.md §79), by id, in order. */
   readonly sealed: readonly string[];
+  /** Loki at the gate (docs/tech-spec.md §80): his souls held and let by, and the guises he took, over the run. */
+  readonly loki: { readonly caught: number; readonly missed: number; readonly guises: number };
 }
 
 export interface SimOptions {
@@ -825,6 +827,11 @@ export function simulateRun(
     word: run.word ?? 0,
     found: run.found?.length ?? 0,
     sealed: (run.sealed ?? []).map((s) => s.draft),
+    loki: {
+      caught: run.ledger.reduce((n, l) => n + (l.loki?.caught ?? 0), 0),
+      missed: run.ledger.reduce((n, l) => n + (l.loki?.missed ?? 0), 0),
+      guises: run.guises?.length ?? 0,
+    },
   };
 }
 
@@ -879,6 +886,8 @@ export interface PolicyReport {
   };
   /** Drafts of tomorrow's decree sealed (docs/tech-spec.md §79), over all the runs, by id. */
   readonly sealed: Readonly<Record<string, number>>;
+  /** Loki at the gate (docs/tech-spec.md §80), means a run: his souls held and let by, and the guises he took. */
+  readonly loki: { readonly caught: number; readonly missed: number; readonly guises: number };
   readonly endings: Record<string, number>;
   readonly ledgerErrors: number;
 }
@@ -987,6 +996,11 @@ export function simulateCampaign(
             for (const id of results.flatMap((r) => r.sealed)) sealed[id] = (sealed[id] ?? 0) + 1;
             return sealed;
           })(),
+          loki: {
+            caught: mean(results.map((r) => r.loki.caught)),
+            missed: mean(results.map((r) => r.loki.missed)),
+            guises: mean(results.map((r) => r.loki.guises)),
+          },
           endings,
           ledgerErrors: results.filter((r) => !r.ledgerOk).length,
         });

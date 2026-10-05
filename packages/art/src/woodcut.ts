@@ -248,7 +248,7 @@ function armOf(sx: number, x: number, y: number) {
 }
 
 /** Skin shapes merged under one contour: every part inked wider first, then every part filled. */
-function flesh(fill: string[], strokes: [string, number][], contour: number): string {
+function flesh(fill: string[], strokes: [string, number][], contour: number, between = ''): string {
   return [
     ...fill.map(
       (d) => `<path d="${d}" fill="${INK}" stroke="${INK}" stroke-width="${contour * 2}" stroke-linejoin="round"/>`,
@@ -257,6 +257,8 @@ function flesh(fill: string[], strokes: [string, number][], contour: number): st
       ([d, w]) =>
         `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${w + contour * 2}" stroke-linecap="round"/>`,
     ),
+    // Anything that lies over the contour but under the skin (a seal's webbing).
+    between,
     ...fill.map((d) => `<path d="${d}" fill="${SKIN}"/>`),
     ...strokes.map(
       ([d, w]) => `<path d="${d}" fill="none" stroke="${SKIN}" stroke-width="${w}" stroke-linecap="round"/>`,
@@ -288,21 +290,64 @@ const FINGERS: [number, number, number, number, number][] = [
 ];
 const THUMB: [number, number, number, number, number] = [8.2, 3, 13.4, 18, 5.6];
 
+/** A seal's hand (docs/tech-spec.md §80): the fingers spread wide, little finger first, with webbing between. */
+const SPREAD: [number, number, number, number, number][] = [
+  [-7.2, 16.5, -21, 21, 4],
+  [-2.5, 17.5, -10, 31, 4.4],
+  [2.2, 17.5, 3, 35, 4.6],
+  [6.8, 16.5, 15, 28, 4.4],
+];
+const WEB = '#6f8f96';
+const WEB_RIB = '#3f5a60';
+
 /**
  * A relaxed hand hanging from the cuff: palm, four fingers a little apart,
  * the thumb on the side toward the body. Drawn in the hand's own frame (u
- * across toward the body, v down the hand).
+ * across toward the body, v down the hand). Webbed, Loki's in the seal's guise, the fingers spread over a sea-grey
+ * membrane that reaches past their middle joints.
  */
-function openHand(t: string, long: boolean): string {
+function openHand(t: string, long: boolean, webbed = false): string {
   const palm = 'M-7.5 -8L-8 2Q-11 8 -10.5 14L-9 17.5H9L10 9Q9.5 3 7.5 -8Z';
-  const parts = [flesh([palm], [...FINGERS, THUMB].map(seg), 2.8)];
+  const fingers = webbed ? SPREAD : FINGERS;
+  const parts: string[] = [];
+  let web = '';
+  if (webbed) {
+    // Between each two fingers, out past the middle joint, its free edge scalloped toward the palm; a rib down each.
+    // It lies over the fingers' contour, so the gaps between them read as membrane, not outline.
+    const at = ([u, v, tu, tv]: [number, number, number, number, number], k: number): [number, number] => [
+      u + (tu - u) * k,
+      v + (tv - v) * k,
+    ];
+    const toward = (a: [number, number], b: [number, number], k: number): [number, number] => [
+      a[0] + (b[0] - a[0]) * k,
+      a[1] + (b[1] - a[1]) * k,
+    ];
+    const pt = ([u, v]: [number, number]) => `${r2(u)} ${r2(v)}`;
+    const webs: string[] = [];
+    const ribs: string[] = [];
+    for (const [i, f] of fingers.slice(1).entries()) {
+      const g = fingers[i] ?? f;
+      const [a0, a1, b1, b0] = [at(g, 0), at(g, 0.88), at(f, 0.88), at(f, 0)];
+      const base = toward(a0, b0, 0.5);
+      const dip = toward(toward(a1, b1, 0.5), base, 0.25);
+      webs.push(`M${pt(a0)}L${pt(a1)}Q${pt(dip)} ${pt(b1)}L${pt(b0)}Z`);
+      ribs.push(`M${pt(base)}L${pt(toward(base, toward(toward(a1, b1, 0.5), dip, 0.5), 0.75))}`);
+    }
+    web = [
+      `<path d="${webs.join('')}" fill="${WEB}" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>`,
+      `<path d="${ribs.join('')}" fill="none" stroke="${WEB_RIB}" stroke-width="1.1" stroke-linecap="round"/>`,
+    ].join('');
+  }
+  parts.push(flesh([palm], [...fingers, THUMB].map(seg), 2.8, web));
   // Where the fingers meet, and the thumb's crease.
-  const seams = FINGERS.slice(1).map(([u, v, tu, tv], i) => {
-    const [pu, pv, ptu, ptv] = FINGERS.at(i) ?? [u, v, tu, tv];
-    return `M${r2((u + pu) / 2)} ${Math.max(v, pv) + 0.5}L${r2((tu + ptu) / 2)} ${r2(Math.min(tv, ptv) - 6)}`;
-  });
+  const seams = webbed
+    ? []
+    : fingers.slice(1).map(([u, v, tu, tv], i) => {
+        const [pu, pv, ptu, ptv] = fingers.at(i) ?? [u, v, tu, tv];
+        return `M${r2((u + pu) / 2)} ${Math.max(v, pv) + 0.5}L${r2((tu + ptu) / 2)} ${r2(Math.min(tv, ptv) - 6)}`;
+      });
   parts.push(`<path d="${seams.join('')}M8.3 6Q6.8 11 8.8 15.5" fill="none" ${FINE}/>`);
-  if (long) parts.push(...[...FINGERS, THUMB].map(([u, v, tu, tv, w], i) => nail(u, v, tu, tv, w, i < 4 ? 9 : 7)));
+  if (long) parts.push(...[...fingers, THUMB].map(([u, v, tu, tv, w], i) => nail(u, v, tu, tv, w, i < 4 ? 9 : 7)));
   return `<g ${t}>${parts.join('')}</g>`;
 }
 
@@ -432,9 +477,10 @@ function figure(scene: BodyScene, uid: string): string {
     const sx = x < CX ? CX - h + 4 : CX + h - 4;
     return { side, x, sx, fist: weaponHand === side, ...armOf(sx, x, hp.y) };
   });
+  const webbed = front && scene.obs.webbing === 'webbed';
   for (const a of arms) {
     if (!a.fist) {
-      parts.push(openHand(a.hand, long));
+      parts.push(openHand(a.hand, long, webbed));
       continue;
     }
     const from = `M${r2(a.cuff.x - 6 * a.d.x)} ${r2(a.cuff.y - 6 * a.d.y)}L${a.x} ${hp.y}`;
@@ -483,7 +529,10 @@ function figure(scene: BodyScene, uid: string): string {
     `<path d="M150 132H164V160H150Z" fill="url(#wc-hatch-fine)"/>`,
     `<ellipse cx="${CX}" cy="96" rx="43" ry="46" fill="${SKIN}" ${OUTLINE}/>`,
   );
-  if (front) parts.push(`<path d="M172 118Q178 108 180 96" fill="none" stroke="url(#wc-hatch)" stroke-width="10"/>`);
+  // The cheek's shade, unless the salmon's scales are cut there instead.
+  if (front && scene.obs.scales !== 'silver') {
+    parts.push(`<path d="M172 118Q178 108 180 96" fill="none" stroke="url(#wc-hatch)" stroke-width="10"/>`);
+  }
 
   // The weapon under the fist, from the front, with any wrap on its grip; the wrap and the rune readings
   // are front-view signs.
@@ -548,6 +597,7 @@ function face(scene: BodyScene): string {
       `<path d="M141 119V131M145.5 120V132M150 120V132M154.5 120V132M159 119V131" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
     );
   }
+  parts.push(lokiTell(obs));
   if (obs.lips === 'seaFoam') {
     parts.push(
       `<path d="M162 127Q165 136 162 146" fill="none" stroke="${FOAM_EDGE}" stroke-width="3" stroke-linecap="round"/>`,
@@ -584,6 +634,50 @@ function face(scene: BodyScene): string {
         `<path d="M100 102Q92 112 100 122M88 96Q76 112 88 128" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
       );
     }
+  }
+  return parts.join('');
+}
+
+/**
+ * Loki's tell in his later guises (docs/tech-spec.md §80), whichever the soul shows: a salmon's silver scales on the
+ * cheek, above any beard; a mare's ears, tall and pointed, over the hair; a fly at the corner of the eye. (The seal's
+ * webbing is drawn with the open hand.)
+ */
+function lokiTell(obs: BodyScene['obs']): string {
+  const parts: string[] = [];
+  if (obs.scales === 'silver') {
+    // Overlapping scales, the lower row over the upper, like a fish's.
+    for (const [x, y] of [
+      [166, 107],
+      [173, 106],
+      [180, 107],
+      [169.5, 112],
+      [176.5, 112],
+      [173, 117],
+    ] as const) {
+      parts.push(
+        `<path d="M${x - 3.6} ${y}A3.6 3.6 0 0 0 ${x + 3.6} ${y}Z" fill="${SILVER}" stroke="${INK}" stroke-width="1.3"/>`,
+      );
+    }
+  }
+  if (obs.ears === 'horse') {
+    for (const m of [1, -1]) {
+      const x = (n: number) => r2(CX + m * (n - CX));
+      parts.push(
+        `<path d="M${x(112)} 72Q${x(92)} 52 ${x(97)} 28Q${x(113)} 40 ${x(126)} 60Z" fill="${SKIN}" ${OUTLINE}/>`,
+        `<path d="M${x(110)} 62Q${x(101)} 48 ${x(101)} 37" fill="none" stroke="#b07a62" stroke-width="3" stroke-linecap="round"/>`,
+      );
+    }
+  }
+  if (obs.fly === 'fly') {
+    // At the outer corner of the eye: two glassy wings, a black body, its legs.
+    parts.push(
+      `<ellipse cx="113.5" cy="95.5" rx="3.6" ry="2.1" transform="rotate(-35 113.5 95.5)" fill="#eef2f3" stroke="${INK}" stroke-width="1"/>`,
+      `<ellipse cx="121.5" cy="95.5" rx="3.6" ry="2.1" transform="rotate(35 121.5 95.5)" fill="#eef2f3" stroke="${INK}" stroke-width="1"/>`,
+      `<path d="M115.5 101l-3 2.2M119.5 101l3 2.2M115.8 103l-2.4 3M119.2 103l2.4 3" stroke="${INK}" stroke-width="0.9" stroke-linecap="round"/>`,
+      `<ellipse cx="117.5" cy="100.5" rx="2.4" ry="3.7" fill="${INK}"/>`,
+      `<circle cx="117.5" cy="96.3" r="1.9" fill="${INK}"/>`,
+    );
   }
   return parts.join('');
 }
@@ -721,6 +815,10 @@ export const woodcutBody: BodyArtProvider = {
     amulet: 2,
     lipScars: 1,
     spearCut: 2,
+    scales: 1,
+    ears: 2,
+    fly: 1,
+    webbing: 2,
   },
   views: SIGN_VIEWS,
 };

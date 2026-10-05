@@ -14,7 +14,9 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Runners differ about twofold in speed: in October 2026 the unit tests alone took from 7 to 13 minutes, and on
+    # the slow runners the job ran past 20 before its end-to-end tests were done. The limit is only for a hang.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

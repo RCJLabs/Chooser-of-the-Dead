@@ -51,6 +51,27 @@ it('every soul made on a woven day can be dressed for the weave, and the careful
   }
 }, 120_000);
 
+// Loki's later guises (docs/tech-spec.md §80): the days he can wear one, made in each, meet the same thresholds, so a
+// tell that's harder to generate around shows here. `pnpm sim sweep --guise <id> --days 13-20` runs the nightly size.
+it('in each of Loki’s later guises, the days he can wear it meet the generator’s thresholds', () => {
+  const content = loadContent('dev-full');
+  const loki = content.campaign?.loki;
+  const met = content.facts.find((f) => f.id === loki?.fact)?.since ?? 1;
+  const [, ...later] = loki?.guises ?? [];
+  expect(later.length).toBeGreaterThan(0);
+  for (const guise of later) {
+    const report = sweep({
+      content,
+      days: content.days.map((d) => d.day).filter((d) => d > met),
+      seeds: Number(process.env.SWEEP_GUISE_SEEDS ?? 30),
+      seedPrefix: 'ci-guise',
+      guise: guise.id,
+      now: () => performance.now(),
+    });
+    expect(checkThresholds(report), guise.id).toEqual([]);
+  }
+}, 120_000);
+
 // Linked souls (docs/tech-spec.md §69): every day with parties, formed from its line, each member fair and valid with
 // its companions, and a careful bot at the desk judging every soul rightly and catching every lie about a companion.
 // `pnpm sim sweep --parties` runs the nightly size.

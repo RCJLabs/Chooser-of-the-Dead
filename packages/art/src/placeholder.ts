@@ -157,16 +157,21 @@ function runeReading(
   ].join('');
 }
 
-function hand(x: number, y: number, open: boolean): string {
+/** An open hand spreads its fingers; webbed (the seal's tell, docs/tech-spec.md §80), wider, over a grey membrane. */
+function hand(x: number, y: number, open: boolean, webbed = false): string {
+  const spread = webbed ? 1.9 : 1.4;
+  const web = webbed
+    ? `<path d="M${x - 8} ${y + 8}L${x - 15.2} ${y + 20}Q${x - 7.6} ${y + 15} ${x} ${y + 21}Q${x + 7.6} ${y + 15} ${x + 15.2} ${y + 20}L${x + 8} ${y + 8}Z" fill="#8fa6ab" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>`
+    : '';
   const fingers = open
     ? [-8, 0, 8]
         .map(
           (d) =>
-            `<path d="M${x + d} ${y + 8}L${x + d * 1.4} ${y + 20}" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`,
+            `<path d="M${x + d} ${y + 8}L${x + d * spread} ${y + (d === 0 ? 24 : 22)}" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`,
         )
         .join('')
     : '';
-  return `<circle cx="${x}" cy="${y}" r="13" fill="${SKIN}" stroke="${INK}" stroke-width="2"/>${fingers}`;
+  return `${open ? web : ''}<circle cx="${x}" cy="${y}" r="13" fill="${SKIN}" stroke="${INK}" stroke-width="2"/>${fingers}`;
 }
 
 function figure(scene: BodyScene): string {
@@ -207,10 +212,12 @@ function figure(scene: BodyScene): string {
       parts.push(runeReading(x, hp.y, scene.obs.inscription, scene.obs.makersMark, kind));
     }
   }
+  // Webbed, the hand that holds no weapon opens to show it.
+  const webbed = view === 'front' && scene.obs.webbing === 'webbed';
   for (const side of ['R', 'L'] as const) {
     const x = side === 'L' ? hp.L : hp.R;
-    const open = view === 'front' && grip === 'none';
-    parts.push(hand(x, hp.y, open));
+    const open = view === 'front' && (grip === 'none' || (webbed && side !== weaponHand));
+    parts.push(hand(x, hp.y, open, webbed));
     if (view === 'front' && scene.obs.nails === true && !scene.tools.includes('clippers')) parts.push(claws(x, hp.y));
     parts.push(
       `<text x="${x}" y="${hp.y + 42}" font-size="13" font-family="sans-serif" text-anchor="middle" fill="#8f7e63">${side}</text>`,
@@ -281,6 +288,7 @@ function face(scene: BodyScene): string {
       `<path d="M142 120V130M146 121V131M150 121V131M154 121V131M158 120V130" stroke="#6b3a2e" stroke-width="1.6" stroke-linecap="round"/>`,
     );
   }
+  parts.push(lokiTell(obs));
   if (obs.lips === 'seaFoam') {
     for (const [x, y, r] of [
       [140, 126, 3.5],
@@ -314,6 +322,44 @@ function face(scene: BodyScene): string {
         `<path d="M100 102Q92 112 100 122M88 96Q76 112 88 128" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>`,
       );
     }
+  }
+  return parts.join('');
+}
+
+/**
+ * Loki's tell in his later guises (docs/tech-spec.md §80): silver scales on the cheek, above any beard; a mare's
+ * ears over the hair; a fly at the corner of the eye. (The seal's webbing is drawn with the hand.)
+ */
+function lokiTell(obs: BodyScene['obs']): string {
+  const parts: string[] = [];
+  if (obs.scales === 'silver') {
+    for (const [x, y] of [
+      [168, 104],
+      [176, 104],
+      [184, 104],
+      [172, 110],
+      [180, 110],
+      [176, 116],
+    ] as const) {
+      parts.push(
+        `<path d="M${x - 4} ${y}A4 4 0 0 0 ${x + 4} ${y}Z" fill="#cfd6db" stroke="${INK}" stroke-width="1.4"/>`,
+      );
+    }
+  }
+  if (obs.ears === 'horse') {
+    parts.push(
+      `<path d="M114 68Q96 46 102 20Q118 34 130 58ZM186 68Q204 46 198 20Q182 34 170 58Z" fill="${SKIN}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
+      `<path d="M114 60Q105 46 106 32M186 60Q195 46 194 32" fill="none" stroke="#a87f6e" stroke-width="3" stroke-linecap="round"/>`,
+    );
+  }
+  if (obs.fly === 'fly') {
+    parts.push(
+      `<ellipse cx="114" cy="96" rx="4" ry="2.3" transform="rotate(-35 114 96)" fill="#eef2f3" stroke="${INK}" stroke-width="1"/>`,
+      `<ellipse cx="122" cy="96" rx="4" ry="2.3" transform="rotate(35 122 96)" fill="#eef2f3" stroke="${INK}" stroke-width="1"/>`,
+      `<path d="M116 101l-3 2.2M120 101l3 2.2M116.3 103.4l-2.4 3M119.7 103.4l2.4 3" stroke="${INK}" stroke-width="1" stroke-linecap="round"/>`,
+      `<ellipse cx="118" cy="101" rx="2.6" ry="4" fill="${INK}"/>`,
+      `<circle cx="118" cy="96.5" r="2" fill="${INK}"/>`,
+    );
   }
   return parts.join('');
 }
@@ -438,6 +484,10 @@ export const placeholderBody: BodyArtProvider = {
     amulet: 2,
     lipScars: 1,
     spearCut: 2,
+    scales: 1,
+    ears: 2,
+    fly: 1,
+    webbing: 2,
   },
   views: SIGN_VIEWS,
 };

@@ -2259,7 +2259,7 @@ describe('pleas from ordinary souls (docs/tech-spec.md §59)', () => {
       expect(refused.ledger.at(-1)?.pleas).toEqual([{ ...filed, granted: false }]);
       expect(granted.ledger.at(-1)?.pleas).toEqual([{ ...filed, granted: true }]);
     }
-  });
+  }, 60_000);
 
   it('leave the day’s list empty when nobody asked, and a build without them keeps none', () => {
     const quiet = Array.from({ length: 12 }, (_, i) => lineOn(`quiet${i}`, def.from)).find(
@@ -2322,7 +2322,7 @@ describe('kin of the misjudged (docs/tech-spec.md §60)', () => {
       return campaignQueue(run, { content: noKari, ctx: runContext(noKari, run) });
     };
     expect(Array.from({ length: 16 }, (_, i) => kinIn(noKariLine(`kin${i}`)).length).some((n) => n > 0)).toBe(true);
-  });
+  }, 60_000);
 
   it('never come to the soul that teaches the day’s rule, nor does a plea, wherever story souls stand before it', () => {
     const run: RunState = { ...newRun(full, 'kin-teach'), day: def.from, named: [wronged] };
